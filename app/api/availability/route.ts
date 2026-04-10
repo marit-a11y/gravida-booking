@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       const result = await sql`
         SELECT id, date::text, region, slots, max_per_slot, notes
         FROM availability
-        WHERE is_active = true AND date >= ${today} AND region = ${region}
+        WHERE is_active = true AND is_closed = false AND date >= ${today} AND region = ${region}
         ORDER BY date ASC
       `
       rows = result.rows
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       const result = await sql`
         SELECT id, date::text, region, slots, max_per_slot, notes
         FROM availability
-        WHERE is_active = true AND date >= ${today}
+        WHERE is_active = true AND is_closed = false AND date >= ${today}
         ORDER BY date ASC
       `
       rows = result.rows

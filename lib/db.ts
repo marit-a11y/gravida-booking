@@ -10,6 +10,8 @@ export interface Availability {
   max_per_slot: number
   notes: string | null
   is_active: boolean
+  group_id: string | null
+  is_closed: boolean
   created_at: string
 }
 
@@ -40,6 +42,8 @@ export interface CreateAvailabilityInput {
   slots: string[]
   max_per_slot: number
   notes?: string
+  group_id?: string | null
+  is_closed?: boolean
 }
 
 export interface CreateBookingInput {
@@ -61,7 +65,7 @@ export interface CreateBookingInput {
 export async function getAvailability(date?: string): Promise<Availability[]> {
   if (date) {
     const result = await sql<Availability>`
-      SELECT id, date::text, region, slots, max_per_slot, notes, is_active, created_at::text
+      SELECT id, date::text, region, slots, max_per_slot, notes, is_active, group_id::text, is_closed, created_at::text
       FROM availability
       WHERE date = ${date}::date AND is_active = true
       ORDER BY date ASC
@@ -69,7 +73,7 @@ export async function getAvailability(date?: string): Promise<Availability[]> {
     return result.rows
   }
   const result = await sql<Availability>`
-    SELECT id, date::text, region, slots, max_per_slot, notes, is_active, created_at::text
+    SELECT id, date::text, region, slots, max_per_slot, notes, is_active, group_id::text, is_closed, created_at::text
     FROM availability
     WHERE is_active = true AND date >= CURRENT_DATE
     ORDER BY date ASC
@@ -79,7 +83,7 @@ export async function getAvailability(date?: string): Promise<Availability[]> {
 
 export async function getAllAvailability(): Promise<Availability[]> {
   const result = await sql<Availability>`
-    SELECT id, date::text, region, slots, max_per_slot, notes, is_active, created_at::text
+    SELECT id, date::text, region, slots, max_per_slot, notes, is_active, group_id::text, is_closed, created_at::text
     FROM availability
     ORDER BY date DESC
   `
@@ -88,7 +92,7 @@ export async function getAllAvailability(): Promise<Availability[]> {
 
 export async function getAvailabilityById(id: number): Promise<Availability | null> {
   const result = await sql<Availability>`
-    SELECT id, date::text, region, slots, max_per_slot, notes, is_active, created_at::text
+    SELECT id, date::text, region, slots, max_per_slot, notes, is_active, group_id::text, is_closed, created_at::text
     FROM availability
     WHERE id = ${id}
   `
@@ -105,24 +109,25 @@ export async function createAvailability(input: CreateAvailabilityInput): Promis
       ${input.max_per_slot},
       ${input.notes ?? null}
     )
-    RETURNING id, date::text, region, slots, max_per_slot, notes, is_active, created_at::text
+    RETURNING id, date::text, region, slots, max_per_slot, notes, is_active, group_id::text, is_closed, created_at::text
   `
   return result.rows[0]
 }
 
 export async function updateAvailability(
   id: number,
-  input: Partial<CreateAvailabilityInput> & { is_active?: boolean }
+  input: Partial<CreateAvailabilityInput> & { is_active?: boolean; is_closed?: boolean }
 ): Promise<Availability | null> {
   const existing = await getAvailabilityById(id)
   if (!existing) return null
 
-  const date = input.date ?? existing.date
-  const region = input.region ?? existing.region
-  const slots = input.slots ?? existing.slots
+  const date       = input.date       ?? existing.date
+  const region     = input.region     ?? existing.region
+  const slots      = input.slots      ?? existing.slots
   const max_per_slot = input.max_per_slot ?? existing.max_per_slot
-  const notes = input.notes !== undefined ? input.notes : existing.notes
-  const is_active = input.is_active !== undefined ? input.is_active : existing.is_active
+  const notes      = input.notes !== undefined      ? input.notes      : existing.notes
+  const is_active  = input.is_active  !== undefined ? input.is_active  : existing.is_active
+  const is_closed  = input.is_closed  !== undefined ? input.is_closed  : existing.is_closed
 
   const result = await sql<Availability>`
     UPDATE availability
@@ -132,11 +137,48 @@ export async function updateAvailability(
       slots = ${JSON.stringify(slots)}::jsonb,
       max_per_slot = ${max_per_slot},
       notes = ${notes},
-      is_active = ${is_active}
+      is_active = ${is_active},
+      is_closed = ${is_closed}
     WHERE id = ${id}
-    RETURNING id, date::text, region, slots, max_per_slot, notes, is_active, created_at::text
+    RETURNING id, date::text, region, slots, max_per_slot, notes, is_active, group_id::text, is_closed, created_at::text
   `
   return result.rows[0] ?? null
+}
+
+// ─── Group helpers ────────────────────────────────────────────────────────────
+
+/** Close all entries in a group except the one that was just booked. */
+export async function closeSiblingsByGroupId(groupId: string, exceptId: number): Promise<number> {
+  const result = await sql`
+    UPDATE availability
+    SET is_closed = true
+    WHERE group_id = ${groupId}
+      AND id != ${exceptId}
+      AND is_closed = false
+  `
+  return result.rowCount ?? 0
+}
+
+/** Get all availability IDs that share a group_id. */
+export async function getGroupMemberIds(groupId: string): Promise<number[]> {
+  const result = await sql<{ id: number }>`
+    SELECT id FROM availability WHERE group_id = ${groupId}
+  `
+  return result.rows.map(r => r.id)
+}
+
+/** Assign a group_id to all given IDs. */
+export async function setGroupForIds(ids: number[], groupId: string): Promise<void> {
+  for (const id of ids) {
+    await sql`UPDATE availability SET group_id = ${groupId} WHERE id = ${id}`
+  }
+}
+
+/** Clear group_id from all given IDs. */
+export async function clearGroupForIds(ids: number[]): Promise<void> {
+  for (const id of ids) {
+    await sql`UPDATE availability SET group_id = NULL WHERE id = ${id}`
+  }
 }
 
 export async function deleteAvailability(id: number): Promise<boolean> {

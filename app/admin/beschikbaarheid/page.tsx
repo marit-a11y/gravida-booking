@@ -11,6 +11,8 @@ interface Availability {
   max_per_slot: number
   notes: string | null
   is_active: boolean
+  group_id: string | null
+  is_closed: boolean
   booked_slots: string[]
 }
 
@@ -46,7 +48,7 @@ const SLOT_SPACING = 90
 type RecurrenceType = 'none' | 'weekly' | 'biweekly' | 'monthly'
 
 interface ConflictItem { date: string; region: string; overlapping: string[] }
-interface PendingSave { dates: string[]; slots: string[]; region: string; notes: string; editingId: number | null; selectedDate: string | null }
+interface PendingSave { dates: string[]; slots: string[]; region: string; notes: string; editingId: number | null; selectedDate: string | null; linkWithIds: number[] }
 
 interface FormState {
   region: string
@@ -163,6 +165,7 @@ export default function BeschikbaarheidPage() {
   const [error, setError]               = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
   const [selectedWeekdays, setSelectedWeekdays] = useState<Set<number>>(new Set())
+  const [linkWith, setLinkWith]         = useState<Set<number>>(new Set())
 
   // Bulk modal
   const [bulkOpen, setBulkOpen]           = useState(false)
@@ -312,6 +315,13 @@ export default function BeschikbaarheidPage() {
       recurrence: 'none', until_date: defaultUntil(avail.date, 'none'),
     })
     setSelectedWeekdays(new Set([getDowMon(avail.date)]))
+    // Pre-populate linkWith from the entry's current group
+    if (avail.group_id) {
+      const siblings = availability.filter(a => a.group_id === avail.group_id && a.id !== avail.id)
+      setLinkWith(new Set(siblings.map(a => a.id)))
+    } else {
+      setLinkWith(new Set())
+    }
     setError(''); setModalOpen(true)
   }
 
@@ -328,7 +338,14 @@ export default function BeschikbaarheidPage() {
     setSaving(true)
     try {
       if (save.editingId && save.dates.length === 1) {
-        const body = { date: save.selectedDate, region: save.region, slots: save.slots, max_per_slot: 1, notes: save.notes || undefined }
+        const body = {
+          date: save.selectedDate,
+          region: save.region,
+          slots: save.slots,
+          max_per_slot: 1,
+          notes: save.notes || undefined,
+          link_with_ids: save.linkWithIds,
+        }
         const res = await fetch(`/api/admin/availability/${save.editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Opslaan mislukt'); return }
       } else {
@@ -359,17 +376,30 @@ export default function BeschikbaarheidPage() {
     const conflicts = checkConflicts(allModalDates, previewSlots, form.region, editingId)
     if (conflicts.length > 0) {
       setConflictInfo(conflicts)
-      setPendingSave({ dates: allModalDates, slots: previewSlots, region: form.region, notes: form.notes.trim(), editingId, selectedDate })
+      setPendingSave({ dates: allModalDates, slots: previewSlots, region: form.region, notes: form.notes.trim(), editingId, selectedDate, linkWithIds: Array.from(linkWith) })
       setConflictIsBulk(false)
       return
     }
 
-    await doActualSave({ dates: allModalDates, slots: previewSlots, region: form.region, notes: form.notes.trim(), editingId, selectedDate })
+    await doActualSave({ dates: allModalDates, slots: previewSlots, region: form.region, notes: form.notes.trim(), editingId, selectedDate, linkWithIds: Array.from(linkWith) })
   }
 
   const handleDelete = async (id: number) => {
     const res = await fetch(`/api/admin/availability/${id}`, { method: 'DELETE' })
     if (res.ok) { setDeleteConfirm(null); await loadAvailability() }
+  }
+
+  const handleReopen = async (id: number) => {
+    setSaving(true)
+    try {
+      await fetch(`/api/admin/availability/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_closed: false }),
+      })
+      setModalOpen(false)
+      await loadAvailability()
+    } finally { setSaving(false) }
   }
 
   const toggleModalWeekday = (dow: number) => {
@@ -425,12 +455,12 @@ export default function BeschikbaarheidPage() {
     const conflicts = checkConflicts(bulkDates, bulkPreviewSlots, bulkForm.region)
     if (conflicts.length > 0) {
       setConflictInfo(conflicts)
-      setPendingSave({ dates: bulkDates, slots: bulkPreviewSlots, region: bulkForm.region, notes: bulkForm.notes.trim(), editingId: null, selectedDate: null })
+      setPendingSave({ dates: bulkDates, slots: bulkPreviewSlots, region: bulkForm.region, notes: bulkForm.notes.trim(), editingId: null, selectedDate: null, linkWithIds: [] })
       setConflictIsBulk(true)
       return
     }
 
-    await doBulkActualSave({ dates: bulkDates, slots: bulkPreviewSlots, region: bulkForm.region, notes: bulkForm.notes.trim(), editingId: null, selectedDate: null })
+    await doBulkActualSave({ dates: bulkDates, slots: bulkPreviewSlots, region: bulkForm.region, notes: bulkForm.notes.trim(), editingId: null, selectedDate: null, linkWithIds: [] })
   }
 
   // Compute all dates for the single-day modal (accounts for multi-weekday selection)
@@ -482,6 +512,7 @@ export default function BeschikbaarheidPage() {
               const dayEntries = (availByDate.get(dateStr) ?? []).filter(a => a.is_active)
               const isToday   = dateStr === todayStr
               const isPast    = dateStr < todayStr
+              const hasClosedEntry = dayEntries.some(a => a.is_closed)
               return (
                 <div key={dateStr}
                   className={`relative min-h-[72px] rounded-xl p-2 text-left transition-all duration-150 border-2
@@ -500,8 +531,9 @@ export default function BeschikbaarheidPage() {
                   {/* One clickable block per availability entry */}
                   {dayEntries.map(a => (
                     <div key={a.id}
-                      draggable={true}
+                      draggable={!a.is_closed}
                       onDragStart={e => {
+                        if (a.is_closed) { e.preventDefault(); return }
                         e.dataTransfer.effectAllowed = 'copy'
                         e.dataTransfer.setData('text/plain', String(a.id))
                         draggedAvailRef.current = a
@@ -516,24 +548,33 @@ export default function BeschikbaarheidPage() {
                       role="button"
                       tabIndex={0}
                       onKeyDown={e => e.key === 'Enter' && openEditModal(a)}
-                      className={`w-full text-left mt-1 rounded-lg hover:bg-white/50 transition-all -mx-0.5 px-0.5 py-0.5 cursor-grab active:cursor-grabbing select-none
+                      className={`w-full text-left mt-1 rounded-lg hover:bg-white/50 transition-all -mx-0.5 px-0.5 py-0.5 select-none
+                        ${a.is_closed ? 'opacity-50 cursor-pointer' : 'cursor-grab active:cursor-grabbing'}
                         ${draggedAvail?.id===a.id?'opacity-40 scale-95':''}`}>
-                      <p className="text-xs text-gravida-sage leading-tight truncate font-medium">{a.region}</p>
-                      <div className="flex gap-0.5 mt-0.5 flex-wrap">
-                        {a.slots.map(slot => (
-                          <span key={slot} title={slot + (a.booked_slots?.includes(slot) ? ' (geboekt)' : ' (vrij)')}
-                            className={`w-2 h-2 rounded-full shrink-0 ${a.booked_slots?.includes(slot) ? 'bg-red-400' : 'bg-gravida-sage/50'}`}/>
-                        ))}
+                      <div className="flex items-center gap-1">
+                        <p className={`text-xs leading-tight truncate font-medium flex-1 ${a.is_closed ? 'text-gravida-light-sage line-through' : 'text-gravida-sage'}`}>{a.region}</p>
+                        {a.is_closed && <span title="Gesloten door koppeling" className="text-[10px]">🔒</span>}
+                        {!a.is_closed && a.group_id && <span title="Gekoppeld — sluit bij boeking" className="text-[10px]">🔗</span>}
                       </div>
-                      {(a.booked_slots?.length ?? 0) > 0 ? (
-                        <div className="leading-tight">
-                          <p className="text-xs text-red-400">{a.booked_slots.join(' · ')} vol</p>
-                          {a.slots.length - a.booked_slots.length > 0 &&
-                            <p className="text-xs text-gravida-light-sage">{a.slots.length - a.booked_slots.length} vrij</p>
-                          }
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gravida-light-sage">{a.slots.length} vrij</p>
+                      {!a.is_closed && (
+                        <>
+                          <div className="flex gap-0.5 mt-0.5 flex-wrap">
+                            {a.slots.map(slot => (
+                              <span key={slot} title={slot + (a.booked_slots?.includes(slot) ? ' (geboekt)' : ' (vrij)')}
+                                className={`w-2 h-2 rounded-full shrink-0 ${a.booked_slots?.includes(slot) ? 'bg-red-400' : 'bg-gravida-sage/50'}`}/>
+                            ))}
+                          </div>
+                          {(a.booked_slots?.length ?? 0) > 0 ? (
+                            <div className="leading-tight">
+                              <p className="text-xs text-red-400">{a.booked_slots.join(' · ')} vol</p>
+                              {a.slots.length - a.booked_slots.length > 0 &&
+                                <p className="text-xs text-gravida-light-sage">{a.slots.length - a.booked_slots.length} vrij</p>
+                              }
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gravida-light-sage">{a.slots.length} vrij</p>
+                          )}
+                        </>
                       )}
                     </div>
                   ))}
@@ -566,16 +607,20 @@ export default function BeschikbaarheidPage() {
           <p className="text-gravida-light-sage text-sm">Geen beschikbaarheid ingesteld.</p>
         ) : (
           <div className="space-y-2">
-            {availability.filter(a=>a.date>=todayStr&&a.is_active).slice(0,10).map((avail)=>(
-              <div key={avail.id} className="flex items-center justify-between py-3 border-b border-gravida-cream last:border-0">
+            {availability.filter(a=>a.date>=todayStr&&a.is_active).slice(0,15).map((avail)=>(
+              <div key={avail.id} className={`flex items-center justify-between py-3 border-b border-gravida-cream last:border-0 ${avail.is_closed ? 'opacity-60' : ''}`}>
                 <div>
-                  <p className="font-medium text-sm">{formatDutchDate(avail.date)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className={`font-medium text-sm ${avail.is_closed ? 'line-through text-gravida-light-sage' : ''}`}>{formatDutchDate(avail.date)}</p>
+                    {avail.is_closed && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">🔒 Gesloten</span>}
+                    {!avail.is_closed && avail.group_id && <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium">🔗 Gekoppeld</span>}
+                  </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm text-gravida-sage">{avail.region}</p>
-                    {(avail.booked_slots?.length ?? 0) > 0
+                    {!avail.is_closed && ((avail.booked_slots?.length ?? 0) > 0
                       ? <span className="text-xs text-red-500 font-medium">{avail.booked_slots.join(' · ')} vol{avail.slots.length - avail.booked_slots.length > 0 ? ` · ${avail.slots.length - avail.booked_slots.length} vrij` : ''}</span>
                       : <span className="text-xs text-gravida-light-sage">{avail.slots.length} vrij</span>
-                    }
+                    )}
                   </div>
                   {avail.notes&&<p className="text-xs text-gravida-light-sage italic">{avail.notes}</p>}
                 </div>
@@ -600,6 +645,25 @@ export default function BeschikbaarheidPage() {
 
             <div className="p-6 space-y-5">
               {error&&<div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
+
+              {/* Gesloten banner — only when editing a closed entry */}
+              {editingId && editingAvail?.is_closed && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl leading-none">🔒</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-amber-800">Gesloten door koppeling</p>
+                      <p className="text-xs text-amber-700 mt-0.5">Er is een boeking binnengekomen voor een gekoppelde regio. Klanten kunnen hier niet meer boeken.</p>
+                    </div>
+                    <button
+                      onClick={() => handleReopen(editingId)}
+                      disabled={saving}
+                      className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-100 border border-amber-300 text-amber-800 hover:bg-amber-200 transition-colors font-medium">
+                      Heropenen
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Slot-status overview — only when editing */}
               {editingId && editingAvail && editingAvail.slots.length > 0 && (
@@ -715,6 +779,46 @@ export default function BeschikbaarheidPage() {
                   )}
                 </div>
               )}
+
+              {/* Koppelen — only when editing */}
+              {editingId && (() => {
+                const linkOptions = availability.filter(a =>
+                  a.id !== editingId && a.is_active && a.date >= todayStr
+                ).sort((a, b) => a.date.localeCompare(b.date) || a.region.localeCompare(b.region))
+                if (linkOptions.length === 0) return null
+                return (
+                  <div>
+                    <label className="label">Koppelen aan andere regio's</label>
+                    <p className="text-xs text-gravida-light-sage mb-2">
+                      Zodra er een boeking binnenkomt, worden alle gekoppelde regio's automatisch gesloten.
+                    </p>
+                    <div className="space-y-1 max-h-44 overflow-y-auto border border-gravida-cream rounded-xl p-2">
+                      {linkOptions.map(a => (
+                        <label key={a.id}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors
+                            ${linkWith.has(a.id) ? 'bg-gravida-sage/10 border border-gravida-sage/30' : 'hover:bg-gravida-cream border border-transparent'}`}>
+                          <input type="checkbox" checked={linkWith.has(a.id)}
+                            onChange={() => setLinkWith(prev => {
+                              const n = new Set(prev); n.has(a.id) ? n.delete(a.id) : n.add(a.id); return n
+                            })}
+                            className="accent-gravida-sage w-4 h-4 shrink-0"/>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-gravida-green font-medium">{a.region}</span>
+                            <span className="text-xs text-gravida-light-sage ml-2">{formatDutchDate(a.date)}</span>
+                          </div>
+                          {a.is_closed && <span className="text-[10px]">🔒</span>}
+                          {!a.is_closed && a.group_id && <span className="text-[10px]">🔗</span>}
+                        </label>
+                      ))}
+                    </div>
+                    {linkWith.size > 0 && (
+                      <p className="text-xs text-gravida-sage mt-1.5">
+                        🔗 Gekoppeld aan {linkWith.size} andere regio{linkWith.size !== 1 ? "'s" : ''} — sluit automatisch bij eerste boeking
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Notes */}
               <div>

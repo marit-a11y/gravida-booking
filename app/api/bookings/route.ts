@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
-import { createBooking, getAvailabilityById, getBookingCountForSlot } from '@/lib/db'
+import { createBooking, getAvailabilityById, getBookingCountForSlot, closeSiblingsByGroupId } from '@/lib/db'
 import { sendBookingEmails } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ongeldig e-mailadres' }, { status: 400 })
     }
 
-    // Check availability still exists and is active
+    // Check availability still exists and is active and not closed
     const availability = await getAvailabilityById(availability_id)
-    if (!availability || !availability.is_active) {
+    if (!availability || !availability.is_active || availability.is_closed) {
       return NextResponse.json(
         { error: 'Deze beschikbaarheid bestaat niet meer. Kies een andere datum.' },
         { status: 400 }
@@ -70,6 +70,12 @@ export async function POST(request: NextRequest) {
       pregnancy_weeks: pregnancy_weeks ? parseInt(pregnancy_weeks) : undefined,
       notes: notes?.trim() || undefined,
     })
+
+    // Close sibling availability entries in the same group (non-blocking)
+    if (availability.group_id) {
+      closeSiblingsByGroupId(availability.group_id, availability_id)
+        .catch(err => console.error('closeSiblingsByGroupId error:', err))
+    }
 
     // Find staff email addresses for this region (non-blocking)
     const staffEmailsPromise = sql`

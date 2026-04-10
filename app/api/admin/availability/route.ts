@@ -15,13 +15,15 @@ export async function GET() {
         a.max_per_slot,
         a.notes,
         a.is_active,
+        a.group_id::text,
+        a.is_closed,
         a.created_at::text,
         COALESCE(
-          jsonb_agg(b.time_slot ORDER BY b.time_slot) FILTER (WHERE b.time_slot IS NOT NULL AND b.status != 'cancelled'),
+          jsonb_agg(b.time_slot ORDER BY b.time_slot) FILTER (WHERE b.time_slot IS NOT NULL AND b.status != 'geannuleerd'),
           '[]'::jsonb
         ) AS booked_slots
       FROM availability a
-      LEFT JOIN bookings b ON b.availability_id = a.id AND b.status != 'cancelled'
+      LEFT JOIN bookings b ON b.availability_id = a.id AND b.status != 'geannuleerd'
       GROUP BY a.id
       ORDER BY a.date ASC, a.id ASC
     `

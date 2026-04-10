@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAvailabilityById, updateAvailability, deleteAvailability } from '@/lib/db'
+import { getAvailabilityById, updateAvailability, deleteAvailability, getGroupMemberIds, setGroupForIds, clearGroupForIds } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,15 +30,36 @@ export async function PUT(
     if (isNaN(id)) return NextResponse.json({ error: 'Ongeldig ID' }, { status: 400 })
 
     const body = await request.json()
-    const { date, region, slots, max_per_slot, notes, is_active } = body
+    const { date, region, slots, max_per_slot, notes, is_active, is_closed, link_with_ids } = body
+
+    // ── Handle group linking ───────────────────────────────────────────────────
+    // link_with_ids is an array of other availability IDs to group with this one.
+    // undefined = don't touch groups; [] = remove from group; [1,2] = create/update group
+    if (link_with_ids !== undefined) {
+      // Find current group and clear all its members
+      const existing = await getAvailabilityById(id)
+      if (existing?.group_id) {
+        const currentMembers = await getGroupMemberIds(existing.group_id)
+        await clearGroupForIds(currentMembers)
+      } else {
+        await clearGroupForIds([id])
+      }
+
+      // If new links are provided, assign a fresh shared group_id
+      if (Array.isArray(link_with_ids) && link_with_ids.length > 0) {
+        const newGroupId = crypto.randomUUID()
+        await setGroupForIds([id, ...link_with_ids], newGroupId)
+      }
+    }
 
     const availability = await updateAvailability(id, {
       date,
       region: region?.trim(),
       slots,
       max_per_slot,
-      notes: notes?.trim() || null,
+      notes: notes?.trim() ?? null,
       is_active,
+      is_closed,
     })
 
     if (!availability) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 })
