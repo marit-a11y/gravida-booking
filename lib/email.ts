@@ -50,8 +50,7 @@ function layout(content: string): string {
         <tr>
           <td style="background:${BRAND_LIGHT};padding:20px 40px;border-top:1px solid #e8e6e0;">
             <p style="margin:0;font-size:12px;color:#8a9e8c;line-height:1.6;">
-              Gravida · <a href="https://www.gravida.nl" style="color:#8a9e8c;">www.gravida.nl</a><br/>
-              Dit is een automatisch bericht. Heb je vragen? Neem contact op via de website.
+              Gravida · <a href="https://www.gravida.nl" style="color:#8a9e8c;">www.gravida.nl</a>
             </p>
           </td>
         </tr>
