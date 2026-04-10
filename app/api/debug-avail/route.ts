@@ -1,23 +1,45 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const region = searchParams.get('region') ?? null
     const today = new Date().toISOString().split('T')[0]
+
     const total = await sql`SELECT COUNT(*) as n FROM availability`
-    const active = await sql`SELECT COUNT(*) as n FROM availability WHERE is_active = true`
-    const future = await sql`SELECT COUNT(*) as n FROM availability WHERE is_active = true AND date >= ${today}`
     const regions = await sql`SELECT DISTINCT region FROM availability ORDER BY region`
-    const sample = await sql`SELECT id, date::text, region, is_active FROM availability ORDER BY date DESC LIMIT 5`
+
+    // Test the exact same query as the public API
+    let filtered: { rows: unknown[] } = { rows: [] }
+    if (region) {
+      filtered = await sql`
+        SELECT id, date::text, region, slots, max_per_slot, notes
+        FROM availability
+        WHERE is_active = true AND date >= ${today} AND region = ${region}
+        ORDER BY date ASC
+      `
+    } else {
+      filtered = await sql`
+        SELECT id, date::text, region, slots, max_per_slot, notes
+        FROM availability
+        WHERE is_active = true AND date >= ${today}
+        ORDER BY date ASC
+        LIMIT 5
+      `
+    }
+
     return NextResponse.json({
       today,
-      total: total.rows[0].n,
-      active: active.rows[0].n,
-      future: future.rows[0].n,
-      regions: regions.rows.map(r => r.region),
-      sample: sample.rows,
+      region_param: region,
+      region_length: region ? region.length : null,
+      region_chars: region ? Array.from(region).map(c => c.charCodeAt(0)) : null,
+      total: total.rows[0],
+      all_regions: regions.rows.map(r => r.region),
+      filtered_count: filtered.rows.length,
+      filtered_rows: filtered.rows,
     })
   } catch (err: unknown) {
     return NextResponse.json({ error: String(err) })
