@@ -78,55 +78,20 @@ function customerEmailHtml(params: {
   notes: string | null
 }): string {
   const dateFormatted = formatDutchDate(params.date)
-  const weeksTxt = params.pregnancy_weeks ? `${params.pregnancy_weeks} weken` : ''
+
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
 
   return layout(`
-    <h1 style="margin:0 0 6px;font-size:24px;font-weight:600;color:#1e2d1f;letter-spacing:-0.5px;">
-      Jouw scan is bevestigd! 🎉
-    </h1>
-    <p style="margin:0 0 28px;font-size:15px;color:#5a6e5c;">
-      Beste ${params.first_name}, fijn dat je een 3D zwangerschapsscan hebt geboekt bij Gravida.
-    </p>
-
-    <!-- Appointment box -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin-bottom:28px;">
-      <tr><td style="padding:24px 28px;">
-        <p style="margin:0 0 16px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Jouw afspraak</p>
-
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td style="padding:6px 0;font-size:13px;color:#8a9e8c;width:130px;">📅 Datum</td>
-            <td style="padding:6px 0;font-size:14px;font-weight:600;color:#1e2d1f;">${dateFormatted}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;font-size:13px;color:#8a9e8c;">⏰ Tijdslot</td>
-            <td style="padding:6px 0;font-size:14px;font-weight:600;color:#1e2d1f;">${params.time_slot}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;font-size:13px;color:#8a9e8c;">📍 Regio</td>
-            <td style="padding:6px 0;font-size:14px;color:#1e2d1f;">${params.region}</td>
-          </tr>
-          ${weeksTxt ? `<tr>
-            <td style="padding:6px 0;font-size:13px;color:#8a9e8c;">🤱 Zwanger</td>
-            <td style="padding:6px 0;font-size:14px;color:#1e2d1f;">${weeksTxt}</td>
-          </tr>` : ''}
-          <tr>
-            <td style="padding:6px 0;font-size:13px;color:#8a9e8c;">🔑 Klantnr.</td>
-            <td style="padding:6px 0;font-size:14px;font-weight:600;color:${BRAND_GREEN};">${params.customer_number}</td>
-          </tr>
-        </table>
-      </td></tr>
-    </table>
-
-    <p style="margin:0 0 12px;font-size:14px;color:#3d4d3e;line-height:1.7;">
-      Wij plannen de scans per regio op efficiënte routes. <strong>Wij nemen vooraf contact met je op</strong> om het exacte tijdstip en eventuele aanpassingen door te geven.
-    </p>
-
-    ${params.notes ? `<p style="margin:0 0 12px;font-size:14px;color:#3d4d3e;line-height:1.7;"><strong>Jouw opmerking:</strong> ${params.notes}</p>` : ''}
-
-    <p style="margin:24px 0 0;font-size:14px;color:#8a9e8c;line-height:1.7;">
-      Met vriendelijke groet,<br/>
-      <strong style="color:#1e2d1f;">Team Gravida</strong>
+    ${p(`Hi ${params.first_name},`)}
+    ${p('Wat leuk dat je een scan aan huis hebt geboekt. Ik kijk ernaar uit om bij je langs te komen.')}
+    ${p(`Hierbij bevestig ik je afspraak op <strong>${dateFormatted}</strong> om <strong>${params.time_slot}</strong>.`)}
+    ${p('Omdat ik bij jou thuis scan, is het fijn als je alvast een plekje in huis uitkiest waar we rustig kunnen werken. Ik moet tijdens het scannen goed om je heen kunnen lopen, dus een beetje ruimte is belangrijk. Qua licht werkt een plek met gelijkmatig daglicht het mooist. Liefst niet recht voor een raam, omdat dat vaak te veel tegenlicht geeft.')}
+    ${p('Mocht het voor de planning in de regio handiger zijn om iets met de tijd te schuiven, dan neem ik vooraf nog even contact met je op. Uiteraard altijd in overleg.')}
+    ${p('Twijfel je nog over kleding of heb je ergens vragen over, stuur me gerust even een berichtje. Ik denk graag met je mee.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Tot snel bij jou thuis,<br/>
+      <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
 }
