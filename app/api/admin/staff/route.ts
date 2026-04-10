@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     const result = await sql`
-      SELECT id, name, email, regions, notes, is_active, created_at::text
+      SELECT id, name, email, regions, notes, is_active, working_hours, created_at::text
       FROM staff
       ORDER BY id ASC
     `
@@ -19,19 +19,20 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, regions, notes } = await request.json()
+    const { name, email, regions, notes, working_hours } = await request.json()
     if (!name?.trim()) {
       return NextResponse.json({ error: 'Naam is verplicht' }, { status: 400 })
     }
     const result = await sql`
-      INSERT INTO staff (name, email, regions, notes)
+      INSERT INTO staff (name, email, regions, notes, working_hours)
       VALUES (
         ${name.trim()},
         ${email?.trim() || null},
         ${JSON.stringify(regions ?? [])}::jsonb,
-        ${notes?.trim() || null}
+        ${notes?.trim() || null},
+        ${JSON.stringify(working_hours ?? [])}::jsonb
       )
-      RETURNING id, name, email, regions, notes, is_active, created_at::text
+      RETURNING id, name, email, regions, notes, is_active, working_hours, created_at::text
     `
     return NextResponse.json(result.rows[0], { status: 201 })
   } catch (err) {
