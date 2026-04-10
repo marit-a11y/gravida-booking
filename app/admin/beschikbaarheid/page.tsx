@@ -512,7 +512,6 @@ export default function BeschikbaarheidPage() {
               const dayEntries = (availByDate.get(dateStr) ?? []).filter(a => a.is_active)
               const isToday   = dateStr === todayStr
               const isPast    = dateStr < todayStr
-              const hasClosedEntry = dayEntries.some(a => a.is_closed)
               return (
                 <div key={dateStr}
                   className={`relative min-h-[72px] rounded-xl p-2 text-left transition-all duration-150 border-2
