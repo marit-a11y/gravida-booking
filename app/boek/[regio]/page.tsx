@@ -104,14 +104,18 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
   }, [step])
 
-  // Also track any size changes via ResizeObserver
+  // Also track any size changes via ResizeObserver (debounced to prevent resize loop on mobile)
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined') return
     const el = containerRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => notifyHeight(el))
+    let timer: ReturnType<typeof setTimeout>
+    const ro = new ResizeObserver(() => {
+      clearTimeout(timer)
+      timer = setTimeout(() => notifyHeight(el), 120)
+    })
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => { ro.disconnect(); clearTimeout(timer) }
   }, [])
 
   const loadDates = useCallback(async () => {
@@ -432,7 +436,7 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
               ))}
             </div>
           </div>
-          <p style={{ fontSize: 13, color: '#9aad9a' }}>Vragen? Mail naar <a href="mailto:info@gravida.nl" style={{ color: '#5e7763' }}>info@gravida.nl</a></p>
+          <p style={{ fontSize: 13, color: '#9aad9a' }}>Vragen? Mail naar <a href="mailto:hi@gravida.nl" style={{ color: '#5e7763' }}>hi@gravida.nl</a></p>
         </div>
       )}
 

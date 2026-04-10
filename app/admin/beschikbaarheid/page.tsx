@@ -192,7 +192,6 @@ export default function BeschikbaarheidPage() {
     setDragOverDate(null)
     const src = draggedAvailRef.current
     if (!src || targetDate === src.date || targetDate < todayStr) return
-    if (availByDate.get(targetDate)?.some(e => e.region === src.region)) return
     setDragCopying(true)
     try {
       await fetch('/api/admin/availability', {
@@ -260,7 +259,8 @@ export default function BeschikbaarheidPage() {
     availByDate.set(a.date, arr)
   }
 
-  // Check if new slots (for a given region) overlap with existing entries of a different region
+  // Conflict check kept for reference but no longer used (overlapping regions are allowed)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const checkConflicts = (dates: string[], newSlots: string[], newRegion: string, excludeId: number | null = null): ConflictItem[] => {
     const conflicts: ConflictItem[] = []
     for (const date of dates) {
@@ -350,8 +350,6 @@ export default function BeschikbaarheidPage() {
         if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Opslaan mislukt'); return }
       } else {
         for (const date of save.dates) {
-          // Skip only if same region already exists for this date
-          if (availByDate.get(date)?.some(e => e.region === save.region)) continue
           await fetch('/api/admin/availability', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -371,15 +369,6 @@ export default function BeschikbaarheidPage() {
     if (!form.region) { setError('Regio is verplicht'); return }
     if (previewSlots.length === 0) { setError('Geen tijdslots — controleer begin- en eindtijd'); return }
     if (allModalDates.length === 0) { setError('Geen datums geselecteerd'); return }
-
-    // Check for conflicting slots on same day, different region
-    const conflicts = checkConflicts(allModalDates, previewSlots, form.region, editingId)
-    if (conflicts.length > 0) {
-      setConflictInfo(conflicts)
-      setPendingSave({ dates: allModalDates, slots: previewSlots, region: form.region, notes: form.notes.trim(), editingId, selectedDate, linkWithIds: Array.from(linkWith) })
-      setConflictIsBulk(false)
-      return
-    }
 
     await doActualSave({ dates: allModalDates, slots: previewSlots, region: form.region, notes: form.notes.trim(), editingId, selectedDate, linkWithIds: Array.from(linkWith) })
   }
@@ -433,13 +422,11 @@ export default function BeschikbaarheidPage() {
     let created = 0; let skipped = 0
     try {
       for (const date of save.dates) {
-        // Skip only if same region already exists for this date
-        if (availByDate.get(date)?.some(e => e.region === save.region)) { skipped++; continue }
         const res = await fetch('/api/admin/availability', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date, region: save.region, slots: save.slots, max_per_slot: 1, notes: save.notes || undefined }) })
         if (res.ok) created++; else skipped++
       }
       await loadAvailability()
-      setBulkResult(`${created} dag${created!==1?'en':''} toegevoegd${skipped>0?`, ${skipped} overgeslagen (al ingepland)`:''}.`)
+      setBulkResult(`${created} dag${created!==1?'en':''} toegevoegd${skipped>0?`, ${skipped} mislukt`:''}.`)
       setConflictInfo(null)
       setPendingSave(null)
     } finally { setBulkSaving(false) }
@@ -450,15 +437,6 @@ export default function BeschikbaarheidPage() {
     if (!bulkForm.region) { setBulkError('Regio is verplicht'); return }
     if (bulkPreviewSlots.length === 0) { setBulkError('Geen tijdslots — controleer begin- en eindtijd'); return }
     if (bulkDates.length === 0) { setBulkError('Geen dagen in dit bereik'); return }
-
-    // Check for conflicting slots on same day, different region
-    const conflicts = checkConflicts(bulkDates, bulkPreviewSlots, bulkForm.region)
-    if (conflicts.length > 0) {
-      setConflictInfo(conflicts)
-      setPendingSave({ dates: bulkDates, slots: bulkPreviewSlots, region: bulkForm.region, notes: bulkForm.notes.trim(), editingId: null, selectedDate: null, linkWithIds: [] })
-      setConflictIsBulk(true)
-      return
-    }
 
     await doBulkActualSave({ dates: bulkDates, slots: bulkPreviewSlots, region: bulkForm.region, notes: bulkForm.notes.trim(), editingId: null, selectedDate: null, linkWithIds: [] })
   }
@@ -949,69 +927,6 @@ export default function BeschikbaarheidPage() {
               <button onClick={()=>setBulkOpen(false)} className="btn-secondary" disabled={bulkSaving}>Sluiten</button>
               <button onClick={handleBulkSave} className="btn-primary" disabled={bulkSaving||bulkDates.length===0}>
                 {bulkSaving?<span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Bezig...</span>:`${bulkDates.length} dag${bulkDates.length!==1?'en':''} toevoegen`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Conflict warning modal ── */}
-      {conflictInfo !== null && pendingSave !== null && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-amber-100 bg-amber-50 rounded-t-2xl">
-              <div className="flex items-center gap-3 mb-1">
-                <span className="text-2xl">⚠️</span>
-                <h3 className="font-semibold text-amber-800 text-lg">Overlappende tijdslots</h3>
-              </div>
-              <p className="text-amber-700 text-sm">
-                {conflictInfo.length === 1
-                  ? 'Op één dag overlappen de nieuwe tijdslots met beschikbaarheid voor een andere regio.'
-                  : `Op ${conflictInfo.length} dagen overlappen de nieuwe tijdslots met beschikbaarheid voor een andere regio.`}
-              </p>
-            </div>
-
-            <div className="p-6 space-y-3">
-              {conflictInfo.slice(0, 5).map((c, i) => (
-                <div key={i} className="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
-                  <p className="text-sm font-semibold text-amber-900">{formatDutchDate(c.date)}</p>
-                  <p className="text-xs text-amber-700 mt-1">
-                    Al ingepland voor: <span className="font-medium">{c.region}</span>
-                  </p>
-                  <p className="text-xs text-amber-600 mt-0.5">
-                    Overlappende slots: <span className="font-medium">{c.overlapping.join(', ')}</span>
-                  </p>
-                </div>
-              ))}
-              {conflictInfo.length > 5 && (
-                <p className="text-xs text-gravida-light-sage pl-1">…en nog {conflictInfo.length - 5} meer conflicten.</p>
-              )}
-
-              <p className="text-sm text-gravida-sage pt-1">
-                Wil je toch doorgaan met opslaan, of annuleren om de tijden aan te passen?
-              </p>
-            </div>
-
-            <div className="p-6 border-t border-gravida-cream flex gap-3 justify-end">
-              <button
-                onClick={() => { setConflictInfo(null); setPendingSave(null) }}
-                className="btn-secondary"
-                disabled={saving || bulkSaving}
-              >
-                Annuleren
-              </button>
-              <button
-                onClick={async () => {
-                  if (!pendingSave) return
-                  if (conflictIsBulk) await doBulkActualSave(pendingSave)
-                  else await doActualSave(pendingSave)
-                }}
-                className="px-5 py-2.5 rounded-xl font-medium text-sm bg-amber-600 hover:bg-amber-700 text-white transition-colors disabled:opacity-50"
-                disabled={saving || bulkSaving}
-              >
-                {(saving || bulkSaving)
-                  ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Opslaan...</span>
-                  : 'Toch opslaan'}
               </button>
             </div>
           </div>
