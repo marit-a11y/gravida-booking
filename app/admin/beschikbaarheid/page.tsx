@@ -676,11 +676,24 @@ export default function BeschikbaarheidPage() {
               </div>
             </div>
 
-            <div className="p-6 border-t border-gravida-cream flex gap-3 justify-end">
-              <button onClick={()=>setModalOpen(false)} className="btn-secondary" disabled={saving}>Annuleren</button>
-              <button onClick={handleSave} className="btn-primary" disabled={saving}>
-                {saving?<span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Opslaan...</span>:saveLabel}
-              </button>
+            <div className="p-6 border-t border-gravida-cream flex gap-3 justify-between">
+              <div>
+                {editingId && (
+                  <button
+                    onClick={() => { setModalOpen(false); setDeleteConfirm(editingId) }}
+                    className="btn-danger"
+                    disabled={saving}
+                  >
+                    Verwijderen
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button onClick={()=>setModalOpen(false)} className="btn-secondary" disabled={saving}>Annuleren</button>
+                <button onClick={handleSave} className="btn-primary" disabled={saving}>
+                  {saving?<span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Opslaan...</span>:saveLabel}
+                </button>
+              </div>
             </div>
           </div>
         </div>
