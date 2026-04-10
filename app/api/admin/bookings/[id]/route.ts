@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { updateBookingStatus, getBookingById } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 const VALID_STATUSES = ['bevestigd', 'afgerond', 'geannuleerd']
 
 export async function PUT(
