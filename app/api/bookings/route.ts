@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { sql } from '@vercel/postgres'
 import { createBooking, getAvailabilityById, getBookingCountForSlot } from '@/lib/db'
+import { sendBookingEmails } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,10 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!availability_id || !time_slot || !first_name || !last_name || !email || !phone || !address || !city || !zip_code) {
-      return NextResponse.json(
-        { error: 'Verplichte velden ontbreken' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Verplichte velden ontbreken' }, { status: 400 })
     }
 
     // Validate email
@@ -45,10 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Check the requested slot is in the availability
     if (!availability.slots.includes(time_slot)) {
-      return NextResponse.json(
-        { error: 'Dit tijdslot is niet beschikbaar.' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Dit tijdslot is niet beschikbaar.' }, { status: 400 })
     }
 
     // Check slot capacity
@@ -73,6 +69,34 @@ export async function POST(request: NextRequest) {
       zip_code: zip_code.trim(),
       pregnancy_weeks: pregnancy_weeks ? parseInt(pregnancy_weeks) : undefined,
       notes: notes?.trim() || undefined,
+    })
+
+    // Find staff email addresses for this region (non-blocking)
+    const staffEmailsPromise = sql`
+      SELECT email FROM staff
+      WHERE is_active = true
+        AND email IS NOT NULL
+        AND regions @> ${JSON.stringify([availability.region])}::jsonb
+    `.then(r => r.rows.map(row => row.email as string)).catch(() => [] as string[])
+
+    // Send confirmation emails in background (don't block the response)
+    staffEmailsPromise.then(staffEmails => {
+      sendBookingEmails({
+        customer_number: booking.customer_number,
+        first_name: booking.first_name,
+        last_name: booking.last_name,
+        email: booking.email,
+        phone: booking.phone,
+        address: booking.address,
+        zip_code: booking.zip_code,
+        city: booking.city,
+        date: availability.date,
+        time_slot: booking.time_slot,
+        region: availability.region,
+        pregnancy_weeks: booking.pregnancy_weeks,
+        notes: booking.notes,
+        staff_emails: staffEmails,
+      }).catch(err => console.error('sendBookingEmails error:', err))
     })
 
     return NextResponse.json(booking, { status: 201 })
