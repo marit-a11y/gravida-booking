@@ -179,6 +179,36 @@ export default function BeschikbaarheidPage() {
   const [bulkError, setBulkError]         = useState('')
   const [bulkResult, setBulkResult]       = useState<string | null>(null)
 
+  // Drag-to-copy
+  const [draggedAvail, setDraggedAvail]   = useState<Availability | null>(null)
+  const [dragOverDate, setDragOverDate]   = useState<string | null>(null)
+  const [dragCopying, setDragCopying]     = useState(false)
+
+  const handleDrop = async (targetDate: string) => {
+    setDragOverDate(null)
+    if (!draggedAvail || targetDate === draggedAvail.date || targetDate < todayStr) return
+    // Skip if same region already exists on target date
+    if (availByDate.get(targetDate)?.some(e => e.region === draggedAvail.region)) return
+    setDragCopying(true)
+    try {
+      await fetch('/api/admin/availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: targetDate,
+          region: draggedAvail.region,
+          slots: draggedAvail.slots,
+          max_per_slot: draggedAvail.max_per_slot,
+          notes: draggedAvail.notes ?? undefined,
+        }),
+      })
+      await loadAvailability()
+    } finally {
+      setDragCopying(false)
+      setDraggedAvail(null)
+    }
+  }
+
   // Conflict warning
   const [conflictInfo, setConflictInfo]   = useState<ConflictItem[] | null>(null)
   const [pendingSave, setPendingSave]     = useState<PendingSave | null>(null)
@@ -453,15 +483,27 @@ export default function BeschikbaarheidPage() {
               return (
                 <div key={dateStr}
                   className={`relative min-h-[72px] rounded-xl p-2 text-left transition-all duration-150 border-2
-                    ${isToday?'border-gravida-sage':'border-transparent'}
-                    ${dayEntries.length>0?'bg-gravida-sage/10':isPast?'opacity-40':''}
-                    ${isPast?'cursor-default':''}`}>
+                    ${dragOverDate===dateStr&&!isPast ? 'border-gravida-sage bg-gravida-sage/20 scale-[1.02]' : isToday ? 'border-gravida-sage' : 'border-transparent'}
+                    ${dayEntries.length>0&&dragOverDate!==dateStr?'bg-gravida-sage/10':isPast?'opacity-40':''}
+                    ${isPast?'cursor-default':''}`}
+                  onDragOver={e => { if (!isPast && draggedAvail) { e.preventDefault(); setDragOverDate(dateStr) }}}
+                  onDragLeave={e => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setDragOverDate(null) }}
+                  onDrop={() => handleDrop(dateStr)}
+                >
                   <span className={`text-sm font-semibold ${isToday?'text-gravida-sage':'text-gravida-green'}`}>{dayNum}</span>
+                  {dragOverDate===dateStr&&draggedAvail&&!isPast&&(
+                    <p className="text-[10px] text-gravida-sage font-medium mt-0.5 leading-tight">+ Kopiëren</p>
+                  )}
 
                   {/* One clickable block per availability entry */}
                   {dayEntries.map(a => (
-                    <button key={a.id} onClick={() => openEditModal(a)}
-                      className="w-full text-left mt-1 rounded-lg hover:bg-white/50 transition-colors -mx-0.5 px-0.5 py-0.5">
+                    <button key={a.id}
+                      draggable
+                      onDragStart={e => { e.dataTransfer.effectAllowed='copy'; setDraggedAvail(a) }}
+                      onDragEnd={() => { setDraggedAvail(null); setDragOverDate(null) }}
+                      onClick={() => openEditModal(a)}
+                      className={`w-full text-left mt-1 rounded-lg hover:bg-white/50 transition-all -mx-0.5 px-0.5 py-0.5 cursor-grab active:cursor-grabbing
+                        ${draggedAvail?.id===a.id?'opacity-40 scale-95':''}`}>
                       <p className="text-xs text-gravida-sage leading-tight truncate font-medium">{a.region}</p>
                       <div className="flex gap-0.5 mt-0.5 flex-wrap">
                         {a.slots.map(slot => (
@@ -498,6 +540,12 @@ export default function BeschikbaarheidPage() {
       </div>
 
       {/* Upcoming list */}
+      {(draggedAvail || dragCopying) && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gravida-green text-white text-sm px-5 py-2.5 rounded-full shadow-lg z-50 pointer-events-none">
+          {dragCopying ? '⏳ Kopiëren...' : `Sleep "${draggedAvail!.region}" naar een andere dag om te kopiëren`}
+        </div>
+      )}
+
       <div className="card mt-6">
         <h2 className="section-title mb-4">Komende beschikbaarheid</h2>
         {availability.filter(a=>a.date>=todayStr&&a.is_active).length===0 ? (
