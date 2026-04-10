@@ -163,6 +163,46 @@ function staffEmailHtml(params: {
   `)
 }
 
+// ─── Reminder email ───────────────────────────────────────────────────────────
+
+function reminderEmailHtml(params: {
+  first_name: string
+  date: string
+  time_slot: string
+}): string {
+  const dateFormatted = formatDutchDate(params.date)
+
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  return layout(`
+    ${p(`Hi ${params.first_name},`)}
+    ${p(`Fijn dat je volgende week een scan aan huis hebt geboekt! Ik wil je er graag alvast aan herinneren dat onze afspraak is op <strong>${dateFormatted}</strong> om <strong>${params.time_slot}</strong>.`)}
+    ${p('Heb je in de tussentijd iets veranderd of wil je de afspraak annuleren? Stuur me dan even een berichtje, dan zoeken we samen naar een oplossing.')}
+    ${p('Tot volgende week!')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Tot snel bij jou thuis,<br/>
+      <strong style="color:#1e2d1f;">Laila</strong>
+    </p>
+  `)
+}
+
+export async function sendReminderEmail(params: {
+  first_name: string
+  email: string
+  date: string
+  time_slot: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const dateFormatted = formatDutchDate(params.date)
+  await resend.emails.send({
+    from: FROM,
+    to: params.email,
+    subject: `Herinnering: jouw scan op ${dateFormatted} om ${params.time_slot}`,
+    html: reminderEmailHtml(params),
+  })
+}
+
 // ─── Main send function ───────────────────────────────────────────────────────
 
 export interface BookingEmailParams {
