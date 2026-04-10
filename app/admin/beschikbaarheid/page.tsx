@@ -14,6 +14,15 @@ interface Availability {
   booked_slots: string[]
 }
 
+interface StaffMember {
+  id: number
+  name: string
+  regions: string[]
+  working_hours: Record<string, { active: boolean; start: string; end: string }>
+}
+
+const DAY_KEYS = ['ma','di','wo','do','vr','za','zo']
+
 const DUTCH_MONTHS    = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December']
 const DUTCH_DAYS_SHORT = ['Ma','Di','Wo','Do','Vr','Za','Zo']
 const DUTCH_DAYS_FULL  = ['maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag','zondag']
@@ -143,6 +152,7 @@ export default function BeschikbaarheidPage() {
   const [calMonth, setCalMonth] = useState(today.getMonth())
   const [availability, setAvailability] = useState<Availability[]>([])
   const [loading, setLoading]   = useState(true)
+  const [staff, setStaff]       = useState<StaffMember[]>([])
 
   // Single-day modal
   const [modalOpen, setModalOpen]       = useState(false)
@@ -183,6 +193,26 @@ export default function BeschikbaarheidPage() {
   }, [])
 
   useEffect(() => { loadAvailability() }, [loadAvailability])
+
+  // Load staff once for working-hours lookup
+  useEffect(() => {
+    fetch('/api/admin/staff')
+      .then(r => r.ok ? r.json() : { staff: [] })
+      .then(d => setStaff(d.staff ?? []))
+      .catch(() => {})
+  }, [])
+
+  // Return the working hours {start, end} for a given region + weekday (0=Mon…6=Sun)
+  // Finds the first active staff member covering the region with that day enabled
+  const getStaffTimes = (region: string, dow: number): { start: string; end: string } | null => {
+    const key = DAY_KEYS[dow]
+    for (const s of staff) {
+      if (!s.regions?.includes(region)) continue
+      const h = s.working_hours?.[key]
+      if (h?.active) return { start: h.start, end: h.end }
+    }
+    return null
+  }
 
   // availMap: first entry per date (for calendar display)
   const availMap = new Map(availability.map((a) => [a.date, a]))
@@ -234,8 +264,11 @@ export default function BeschikbaarheidPage() {
 
   const openAddModal = (dateStr: string) => {
     setSelectedDate(dateStr); setEditingId(null)
-    setForm({ ...emptyForm(dateStr), until_date: defaultUntil(dateStr, 'none') })
-    setSelectedWeekdays(new Set([getDowMon(dateStr)]))
+    const dow = getDowMon(dateStr)
+    const base = { ...emptyForm(dateStr), until_date: defaultUntil(dateStr, 'none') }
+    const staffTimes = getStaffTimes(base.region, dow)
+    setForm(staffTimes ? { ...base, start_time: staffTimes.start, end_time: staffTimes.end } : base)
+    setSelectedWeekdays(new Set([dow]))
     setError(''); setModalOpen(true)
   }
   const openEditModal = (avail: Availability) => {
@@ -308,7 +341,17 @@ export default function BeschikbaarheidPage() {
   }
 
   const toggleModalWeekday = (dow: number) => {
-    setSelectedWeekdays(prev => { const n = new Set(prev); n.has(dow) ? n.delete(dow) : n.add(dow); return n })
+    setSelectedWeekdays(prev => {
+      const n = new Set(prev)
+      n.has(dow) ? n.delete(dow) : n.add(dow)
+      // If exactly one day is now selected, update times from staff working hours
+      if (n.size === 1) {
+        const activeDow = Array.from(n)[0]
+        const staffTimes = getStaffTimes(form.region, activeDow)
+        if (staffTimes) setForm(f => ({ ...f, start_time: staffTimes.start, end_time: staffTimes.end }))
+      }
+      return n
+    })
   }
 
   // Bulk
@@ -525,7 +568,19 @@ export default function BeschikbaarheidPage() {
               {/* Region */}
               <div>
                 <label className="label">Regio *</label>
-                <select className="input-field" value={form.region} onChange={(e)=>setForm({...form,region:e.target.value})}>
+                <select className="input-field" value={form.region} onChange={(e) => {
+                    const newRegion = e.target.value
+                    // If a single weekday is selected, update times from the new region's staff hours
+                    if (selectedWeekdays.size === 1) {
+                      const dow = Array.from(selectedWeekdays)[0]
+                      const staffTimes = getStaffTimes(newRegion, dow)
+                      if (staffTimes) {
+                        setForm(f => ({ ...f, region: newRegion, start_time: staffTimes.start, end_time: staffTimes.end }))
+                        return
+                      }
+                    }
+                    setForm(f => ({ ...f, region: newRegion }))
+                  }}>
                   {REGIONS.map((r)=><option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
