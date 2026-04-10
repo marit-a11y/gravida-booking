@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBookings, getStats } from '@/lib/db'
+import { sql } from '@vercel/postgres'
 import { bookingsToCsv } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -7,17 +7,100 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const date = searchParams.get('date') ?? undefined
-    const region = searchParams.get('region') ?? undefined
-    const status = searchParams.get('status') ?? undefined
-    const exportCsv = searchParams.get('export') === 'csv'
+    const date     = searchParams.get('date')   || null
+    const region   = searchParams.get('region') || null
+    const status   = searchParams.get('status') || null
+    const exportCsv    = searchParams.get('export') === 'csv'
     const includeStats = searchParams.get('stats') === '1'
 
-    const bookings = await getBookings({ date, region, status })
+    // Build bookings query with optional filters
+    let bookings: Record<string, unknown>[] = []
+
+    if (date && region && status) {
+      const r = await sql`
+        SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
+               b.first_name, b.last_name, b.email, b.phone, b.address,
+               b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+               b.created_at::text, a.date::text as date, a.region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        WHERE a.date = ${date}::date AND a.region ILIKE ${'%' + region + '%'} AND b.status = ${status}
+        ORDER BY a.date ASC, b.time_slot ASC`
+      bookings = r.rows
+    } else if (date && region) {
+      const r = await sql`
+        SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
+               b.first_name, b.last_name, b.email, b.phone, b.address,
+               b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+               b.created_at::text, a.date::text as date, a.region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        WHERE a.date = ${date}::date AND a.region ILIKE ${'%' + region + '%'}
+        ORDER BY a.date ASC, b.time_slot ASC`
+      bookings = r.rows
+    } else if (date && status) {
+      const r = await sql`
+        SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
+               b.first_name, b.last_name, b.email, b.phone, b.address,
+               b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+               b.created_at::text, a.date::text as date, a.region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        WHERE a.date = ${date}::date AND b.status = ${status}
+        ORDER BY a.date ASC, b.time_slot ASC`
+      bookings = r.rows
+    } else if (region && status) {
+      const r = await sql`
+        SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
+               b.first_name, b.last_name, b.email, b.phone, b.address,
+               b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+               b.created_at::text, a.date::text as date, a.region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        WHERE a.region ILIKE ${'%' + region + '%'} AND b.status = ${status}
+        ORDER BY a.date ASC, b.time_slot ASC`
+      bookings = r.rows
+    } else if (date) {
+      const r = await sql`
+        SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
+               b.first_name, b.last_name, b.email, b.phone, b.address,
+               b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+               b.created_at::text, a.date::text as date, a.region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        WHERE a.date = ${date}::date
+        ORDER BY b.time_slot ASC`
+      bookings = r.rows
+    } else if (region) {
+      const r = await sql`
+        SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
+               b.first_name, b.last_name, b.email, b.phone, b.address,
+               b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+               b.created_at::text, a.date::text as date, a.region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        WHERE a.region ILIKE ${'%' + region + '%'}
+        ORDER BY a.date ASC, b.time_slot ASC`
+      bookings = r.rows
+    } else if (status) {
+      const r = await sql`
+        SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
+               b.first_name, b.last_name, b.email, b.phone, b.address,
+               b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+               b.created_at::text, a.date::text as date, a.region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        WHERE b.status = ${status}
+        ORDER BY a.date ASC, b.time_slot ASC`
+      bookings = r.rows
+    } else {
+      // No filters — return all, ordered by appointment date
+      const r = await sql`
+        SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
+               b.first_name, b.last_name, b.email, b.phone, b.address,
+               b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+               b.created_at::text, a.date::text as date, a.region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        ORDER BY a.date ASC, b.time_slot ASC`
+      bookings = r.rows
+    }
 
     // CSV export
     if (exportCsv) {
-      const csv = bookingsToCsv(bookings as unknown as Record<string, unknown>[])
+      const csv = bookingsToCsv(bookings)
       return new NextResponse(csv, {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
@@ -28,13 +111,28 @@ export async function GET(request: NextRequest) {
 
     // Include stats if requested
     if (includeStats) {
-      const stats = await getStats()
-      return NextResponse.json({ bookings, stats })
+      const [total, week, today] = await Promise.all([
+        sql`SELECT COUNT(*) as count FROM bookings WHERE status != 'geannuleerd'`,
+        sql`SELECT COUNT(*) as count FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+            WHERE a.date >= DATE_TRUNC('week', CURRENT_DATE)
+              AND a.date < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '7 days'
+              AND b.status != 'geannuleerd'`,
+        sql`SELECT COUNT(*) as count FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+            WHERE a.date = CURRENT_DATE AND b.status != 'geannuleerd'`,
+      ])
+      return NextResponse.json({
+        bookings,
+        stats: {
+          total: parseInt(total.rows[0].count, 10),
+          thisWeek: parseInt(week.rows[0].count, 10),
+          today: parseInt(today.rows[0].count, 10),
+        },
+      })
     }
 
     return NextResponse.json({ bookings })
   } catch (err) {
     console.error('GET /api/admin/bookings error:', err)
-    return NextResponse.json({ error: 'Kan boekingen niet laden' }, { status: 500 })
+    return NextResponse.json({ error: 'Kan boekingen niet laden', detail: String(err) }, { status: 500 })
   }
 }

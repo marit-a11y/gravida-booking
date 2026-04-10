@@ -27,14 +27,17 @@ const STATUSES = ['alle', 'bevestigd', 'afgerond', 'geannuleerd']
 export default function BoekingenPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [filterDate, setFilterDate] = useState('')
   const [filterRegion, setFilterRegion] = useState('')
   const [filterStatus, setFilterStatus] = useState('alle')
+  const [filterCustomerNumber, setFilterCustomerNumber] = useState('')
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
 
   const loadBookings = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const params = new URLSearchParams()
       if (filterDate) params.set('date', filterDate)
@@ -45,7 +48,14 @@ export default function BoekingenPage() {
       if (res.ok) {
         const data = await res.json()
         setBookings(data.bookings ?? [])
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setLoadError(data.error ?? `Fout ${res.status} — probeer opnieuw in te loggen.`)
+        setBookings([])
       }
+    } catch {
+      setLoadError('Verbindingsfout — controleer je internetverbinding.')
+      setBookings([])
     } finally {
       setLoading(false)
     }
@@ -54,6 +64,14 @@ export default function BoekingenPage() {
   useEffect(() => {
     loadBookings()
   }, [loadBookings])
+
+  // Client-side customer number filter (fast, no extra API call needed)
+  const displayedBookings = filterCustomerNumber.trim()
+    ? bookings.filter(b =>
+        b.customer_number.includes(filterCustomerNumber.trim()) ||
+        `${b.first_name} ${b.last_name}`.toLowerCase().includes(filterCustomerNumber.trim().toLowerCase())
+      )
+    : bookings
 
   const handleStatusChange = async (id: number, status: string) => {
     setUpdatingId(id)
@@ -93,12 +111,25 @@ export default function BoekingenPage() {
     URL.revokeObjectURL(url)
   }
 
+  const hasActiveFilters = filterDate || filterRegion || filterStatus !== 'alle' || filterCustomerNumber
+  const clearFilters = () => {
+    setFilterDate('')
+    setFilterRegion('')
+    setFilterStatus('alle')
+    setFilterCustomerNumber('')
+  }
+
   return (
     <div>
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="page-title">Boekingen</h1>
-          <p className="text-gravida-sage mt-1">{bookings.length} boeking{bookings.length !== 1 ? 'en' : ''} gevonden</p>
+          <p className="text-gravida-sage mt-1">
+            {loading ? 'Laden...' : `${displayedBookings.length} boeking${displayedBookings.length !== 1 ? 'en' : ''} gevonden`}
+            {filterCustomerNumber.trim() && bookings.length !== displayedBookings.length && (
+              <span className="ml-1 text-xs">({bookings.length} totaal)</span>
+            )}
+          </p>
         </div>
         <button onClick={handleExportCsv} className="btn-secondary flex items-center gap-2">
           <span>↓</span> Exporteer CSV
@@ -107,7 +138,18 @@ export default function BoekingenPage() {
 
       {/* Filters */}
       <div className="card mb-6">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {/* Customer number / name search */}
+          <div>
+            <label className="label">Klantnummer / naam</label>
+            <input
+              type="text"
+              className="input-field"
+              value={filterCustomerNumber}
+              onChange={(e) => setFilterCustomerNumber(e.target.value)}
+              placeholder="bijv. 3164 of Manuela"
+            />
+          </div>
           <div>
             <label className="label">Datum</label>
             <input
@@ -140,15 +182,23 @@ export default function BoekingenPage() {
             </select>
           </div>
         </div>
-        {(filterDate || filterRegion || filterStatus !== 'alle') && (
+        {hasActiveFilters && (
           <button
-            onClick={() => { setFilterDate(''); setFilterRegion(''); setFilterStatus('alle') }}
+            onClick={clearFilters}
             className="text-xs text-gravida-sage hover:text-gravida-green mt-3 underline"
           >
             Filters wissen
           </button>
         )}
       </div>
+
+      {/* Error message */}
+      {loadError && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm flex items-center justify-between">
+          <span>⚠️ {loadError}</span>
+          <button onClick={loadBookings} className="text-xs underline ml-4">Opnieuw proberen</button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="card overflow-hidden p-0">
@@ -157,9 +207,9 @@ export default function BoekingenPage() {
             <div className="w-6 h-6 border-3 border-gravida-sage border-t-transparent rounded-full animate-spin mr-2" />
             Laden...
           </div>
-        ) : bookings.length === 0 ? (
+        ) : displayedBookings.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-gravida-light-sage">
-            Geen boekingen gevonden.
+            {hasActiveFilters ? 'Geen boekingen gevonden voor deze filters.' : 'Nog geen boekingen.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -174,7 +224,7 @@ export default function BoekingenPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gravida-cream">
-                {bookings.map((b) => (
+                {displayedBookings.map((b) => (
                   <tr key={b.id} className="hover:bg-gravida-off-white transition-colors">
                     <td className="px-4 py-3 font-mono font-semibold text-gravida-sage whitespace-nowrap">
                       {b.customer_number}

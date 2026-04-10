@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllAvailability, createAvailability } from '@/lib/db'
+import { sql } from '@vercel/postgres'
+import { createAvailability } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const availability = await getAllAvailability()
-    return NextResponse.json({ availability })
+    const result = await sql`
+      SELECT
+        a.id,
+        a.date::text,
+        a.region,
+        a.slots,
+        a.max_per_slot,
+        a.notes,
+        a.is_active,
+        a.created_at::text,
+        COALESCE(
+          jsonb_agg(b.time_slot ORDER BY b.time_slot) FILTER (WHERE b.time_slot IS NOT NULL AND b.status != 'cancelled'),
+          '[]'::jsonb
+        ) AS booked_slots
+      FROM availability a
+      LEFT JOIN bookings b ON b.availability_id = a.id AND b.status != 'cancelled'
+      GROUP BY a.id
+      ORDER BY a.date ASC, a.id ASC
+    `
+    return NextResponse.json({ availability: result.rows })
   } catch (err) {
     console.error('GET /api/admin/availability error:', err)
     return NextResponse.json({ error: 'Kan beschikbaarheid niet laden' }, { status: 500 })
@@ -25,7 +44,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate date format
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return NextResponse.json({ error: 'Ongeldig datumformaat (gebruik YYYY-MM-DD)' }, { status: 400 })
     }
