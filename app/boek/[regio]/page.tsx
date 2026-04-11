@@ -59,6 +59,30 @@ const REGION_INFO: Record<string, { text: string; travelFee?: string; diy?: bool
   },
 }
 
+// ─── Artificial scarcity ────────────────────────────────────────────────────
+// Returns a deterministic set of slot strings that appear "full" to the visitor,
+// even though they are actually still free in the backend.
+// Rules: always ≥2 real slots remain bookable; fake-booked slots are consecutive
+// (bundled at the beginning) so it looks natural.
+function getFakeBookedSlots(date: string, region: string, allSlots: SlotWithCount[]): Set<string> {
+  const free = allSlots.filter(s => s.available)
+  if (free.length <= 2) return new Set() // Too few to fake anything
+
+  // Simple deterministic hash of date + region → stable across page loads
+  let seed = 0
+  for (const ch of date + region) seed = ((seed * 31) + ch.charCodeAt(0)) >>> 0
+
+  // How many to fake: 1–3, but never more than (free.length - 2)
+  const maxFake = Math.min(3, free.length - 2)
+  const fakeCount = (seed % maxFake) + 1   // 1 … maxFake
+
+  // Bundle them: start at seed-based offset, capped so they fit
+  const maxStart = free.length - fakeCount
+  const startIdx = seed % (maxStart + 1)
+
+  return new Set(free.slice(startIdx, startIdx + fakeCount).map(s => s.slot))
+}
+
 function notifyHeight(containerEl?: HTMLElement | null) {
   if (typeof window === 'undefined') return
   requestAnimationFrame(() => {
@@ -303,35 +327,58 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
       )}
 
       {/* ── SLOTS ── */}
-      {step === 'slots' && selectedAvail && (
-        <div>
-          <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#5e7763', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, marginBottom: 16 }}>
-            ← Terug naar kalender
-          </button>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-            <h3 style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>{formatDutchDate(selectedAvail.date)}</h3>
-            <p style={{ color: '#6b8c6e', fontSize: 13, marginBottom: 20 }}>Kies een tijdslot</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))', gap: 10 }}>
-              {slots.filter(s => s.available).map(s => {
-                const [h, m] = s.slot.split(':').map(Number)
-                const endMin = h * 60 + m + 60
-                const endStr = `${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`
-                return (
-                  <button key={s.slot} onClick={() => handleSlotSelect(s.slot)}
-                    style={{ padding: '12px 8px', borderRadius: 12, border: '2px solid #5e7763', background: '#fff', color: '#2d3b2e', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all .15s', textAlign: 'center' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#5e7763'; (e.currentTarget as HTMLElement).style.color = '#fff' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#fff'; (e.currentTarget as HTMLElement).style.color = '#2d3b2e' }}>
-                    {s.slot}–{endStr}
-                  </button>
-                )
-              })}
-              {slots.filter(s => s.available).length === 0 && (
-                <p style={{ color: '#9aad9a', fontSize: 14 }}>Geen beschikbare tijdslots meer op deze dag.</p>
+      {step === 'slots' && selectedAvail && (() => {
+        const fakeBooked = getFakeBookedSlots(selectedAvail.date, selectedAvail.region, slots)
+        const realFreeCount = slots.filter(s => s.available && !fakeBooked.has(s.slot)).length
+        return (
+          <div>
+            <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#5e7763', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, marginBottom: 16 }}>
+              ← Terug naar kalender
+            </button>
+            <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              <h3 style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>{formatDutchDate(selectedAvail.date)}</h3>
+              <p style={{ color: '#6b8c6e', fontSize: 13, marginBottom: realFreeCount > 0 && realFreeCount <= 3 ? 8 : 20 }}>Kies een tijdslot</p>
+
+              {/* Urgency notice */}
+              {realFreeCount > 0 && realFreeCount <= 3 && (
+                <p style={{ color: '#c0622a', fontSize: 13, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🔥 Nog {realFreeCount} tijdslot{realFreeCount !== 1 ? 'en' : ''} beschikbaar
+                </p>
               )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))', gap: 10 }}>
+                {slots.map(s => {
+                  const [h, m] = s.slot.split(':').map(Number)
+                  const endMin = h * 60 + m + 60
+                  const endStr = `${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`
+                  const isTaken = !s.available || fakeBooked.has(s.slot)
+
+                  if (isTaken) {
+                    return (
+                      <div key={s.slot} style={{ padding: '12px 8px', borderRadius: 12, border: '2px solid #e5e7eb', background: '#f9fafb', color: '#9ca3af', fontSize: 14, textAlign: 'center', userSelect: 'none' }}>
+                        <div style={{ fontWeight: 600, textDecoration: 'line-through' }}>{s.slot}–{endStr}</div>
+                        <div style={{ fontSize: 11, marginTop: 3, color: '#d1a57a', fontWeight: 500 }}>Vol</div>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <button key={s.slot} onClick={() => handleSlotSelect(s.slot)}
+                      style={{ padding: '12px 8px', borderRadius: 12, border: '2px solid #5e7763', background: '#fff', color: '#2d3b2e', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all .15s', textAlign: 'center' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#5e7763'; (e.currentTarget as HTMLElement).style.color = '#fff' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#fff'; (e.currentTarget as HTMLElement).style.color = '#2d3b2e' }}>
+                      {s.slot}–{endStr}
+                    </button>
+                  )
+                })}
+                {realFreeCount === 0 && (
+                  <p style={{ color: '#9aad9a', fontSize: 14 }}>Geen beschikbare tijdslots meer op deze dag.</p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── FORM ── */}
       {(step === 'form' || step === 'loading') && selectedAvail && selectedSlot && (
