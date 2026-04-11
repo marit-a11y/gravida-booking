@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
-import { createBooking } from '@/lib/db'
+import { createBooking, getAvailabilityById } from '@/lib/db'
+import { sendBookingEmails } from '@/lib/email'
 import { bookingsToCsv } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -173,6 +174,34 @@ export async function POST(request: NextRequest) {
       pregnancy_weeks: pregnancy_weeks ? parseInt(pregnancy_weeks) : undefined,
       notes: notes?.trim() || undefined,
     })
+
+    // Send confirmation + staff notification emails (non-blocking)
+    const availability = await getAvailabilityById(availability_id)
+    if (availability) {
+      const staffEmails = await sql`
+        SELECT email FROM staff
+        WHERE is_active = true
+          AND email IS NOT NULL
+          AND regions @> ${JSON.stringify([availability.region])}::jsonb
+      `.then(r => r.rows.map(row => row.email as string)).catch(() => [] as string[])
+
+      sendBookingEmails({
+        customer_number: booking.customer_number,
+        first_name: booking.first_name,
+        last_name: booking.last_name,
+        email: booking.email,
+        phone: booking.phone,
+        address: booking.address,
+        zip_code: booking.zip_code,
+        city: booking.city,
+        date: availability.date,
+        time_slot: booking.time_slot,
+        region: availability.region,
+        pregnancy_weeks: booking.pregnancy_weeks,
+        notes: booking.notes,
+        staff_emails: staffEmails,
+      }).catch(err => console.error('sendBookingEmails error:', err))
+    }
 
     return NextResponse.json(booking, { status: 201 })
   } catch (err) {
