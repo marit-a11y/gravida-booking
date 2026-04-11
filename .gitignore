@@ -35,3 +35,10 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# Tijdelijke en debug bestanden
+.env.vercel.tmp
+elementor-data.json
+elementor-gfd.json
+app/api/diagnose/
+app/api/test-bk/
