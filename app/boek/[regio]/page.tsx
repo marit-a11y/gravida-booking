@@ -61,22 +61,23 @@ const REGION_INFO: Record<string, { text: string; travelFee?: string; diy?: bool
 
 // ─── Artificial scarcity ────────────────────────────────────────────────────
 // Returns a deterministic set of slot strings that appear "full" to the visitor,
-// even though they are actually still free in the backend.
-// Rules: always ≥2 real slots remain bookable; fake-booked slots are consecutive
-// (bundled at the beginning) so it looks natural.
+// even though they are still free in the backend.
+// Rules: leave 1 or 2 real slots bookable; fake-booked slots are consecutive
+// so the day looks genuinely busy (ochtend vol, nog 1 middag vrij).
 function getFakeBookedSlots(date: string, region: string, allSlots: SlotWithCount[]): Set<string> {
   const free = allSlots.filter(s => s.available)
-  if (free.length <= 2) return new Set() // Too few to fake anything
+  if (free.length <= 1) return new Set() // Nothing to fake if only 1 real slot
 
-  // Simple deterministic hash of date + region → stable across page loads
+  // Deterministic hash of date + region — stable across refreshes / devices
   let seed = 0
   for (const ch of date + region) seed = ((seed * 31) + ch.charCodeAt(0)) >>> 0
 
-  // How many to fake: 1–3, but never more than (free.length - 2)
-  const maxFake = Math.min(3, free.length - 2)
-  const fakeCount = (seed % maxFake) + 1   // 1 … maxFake
+  // Leave 1 slot free (~40% of days) or 2 slots free (~60% of days)
+  const minFree = (seed % 5 < 2) ? 1 : 2
+  const fakeCount = free.length - minFree
+  if (fakeCount <= 0) return new Set()
 
-  // Bundle them: start at seed-based offset, capped so they fit
+  // Bundle from a seed-based start so pattern varies across days
   const maxStart = free.length - fakeCount
   const startIdx = seed % (maxStart + 1)
 
@@ -337,12 +338,20 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
             </button>
             <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
               <h3 style={{ fontWeight: 600, fontSize: 16, marginBottom: 4 }}>{formatDutchDate(selectedAvail.date)}</h3>
-              <p style={{ color: '#6b8c6e', fontSize: 13, marginBottom: realFreeCount > 0 && realFreeCount <= 3 ? 8 : 20 }}>Kies een tijdslot</p>
+              <p style={{ color: '#6b8c6e', fontSize: 13, marginBottom: realFreeCount > 0 && realFreeCount <= 3 ? 8 : 20 }}>Kies een tijdslot voor jouw scan aan huis</p>
 
               {/* Urgency notice */}
-              {realFreeCount > 0 && realFreeCount <= 3 && (
+              {realFreeCount === 1 && (
+                <div style={{ background: '#fff3e0', border: '1px solid #f4a535', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>⚠️</span>
+                  <p style={{ color: '#b45309', fontSize: 13, fontWeight: 700, margin: 0 }}>
+                    Let op: er is nog maar 1 tijdslot beschikbaar!
+                  </p>
+                </div>
+              )}
+              {realFreeCount >= 2 && realFreeCount <= 3 && (
                 <p style={{ color: '#c0622a', fontSize: 13, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  🔥 Nog {realFreeCount} tijdslot{realFreeCount !== 1 ? 'en' : ''} beschikbaar
+                  🔥 Nog {realFreeCount} tijdsloten beschikbaar
                 </p>
               )}
 
