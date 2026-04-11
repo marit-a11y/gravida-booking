@@ -34,6 +34,19 @@ interface AvailabilityEntry {
 
 const STATUSES = ['alle', 'bevestigd', 'afgerond', 'geannuleerd']
 
+const ALL_REGIONS = [
+  'Noord-Holland & Flevoland',
+  'Utrecht & Gelderland & Overijssel',
+  'Zuid-Holland',
+  'Noord-Brabant',
+  'Limburg',
+  'Groningen, Friesland en Drenthe',
+  'Showroom bezoek Haarlem',
+  'Haarlem studioscan',
+  'Curacao',
+  'DIY scan',
+]
+
 const EMPTY_FORM = {
   first_name: '',
   last_name: '',
@@ -153,12 +166,17 @@ export default function BoekingenPage() {
   }
 
   // ─── New booking helpers ───────────────────────────────────────────────────
+  const [manualDate, setManualDate] = useState('')
+  const [manualSlot, setManualSlot] = useState('')
+
   const openNewModal = async () => {
     setShowNewModal(true)
     setNewForm(EMPTY_FORM)
     setSelectedRegion('')
     setSelectedAvailId(null)
     setSelectedSlot('')
+    setManualDate('')
+    setManualSlot('')
     setNewBookingError('')
     setNewBookingSuccess('')
     try {
@@ -172,15 +190,24 @@ export default function BoekingenPage() {
     } catch { /* ignore */ }
   }
 
-  const regions = [...new Set(availabilityList.map(a => a.region))].sort()
   const datesForRegion = availabilityList
     .filter(a => a.region === selectedRegion)
     .sort((a, b) => a.date.localeCompare(b.date))
+  const hasAvailability = datesForRegion.length > 0
   const slotsForAvail = availabilityList.find(a => a.id === selectedAvailId)?.slots ?? []
 
   const handleNewBooking = async () => {
-    if (!selectedAvailId || !selectedSlot) {
-      setNewBookingError('Selecteer een regio, datum en tijdslot.')
+    if (!selectedRegion) {
+      setNewBookingError('Selecteer een regio.')
+      return
+    }
+    // When there's availability, use it; otherwise use manual input
+    if (hasAvailability && (!selectedAvailId || !selectedSlot)) {
+      setNewBookingError('Selecteer een datum en tijdslot.')
+      return
+    }
+    if (!hasAvailability && (!manualDate || !manualSlot)) {
+      setNewBookingError('Vul een datum en tijdslot in.')
       return
     }
     const required = ['first_name', 'last_name', 'email', 'phone', 'address', 'city', 'zip_code'] as const
@@ -193,12 +220,38 @@ export default function BoekingenPage() {
     setNewBookingLoading(true)
     setNewBookingError('')
     try {
+      // If no availability entry exists, auto-create one
+      let availId = selectedAvailId
+      let timeSlot = selectedSlot
+
+      if (!hasAvailability || !availId) {
+        timeSlot = manualSlot
+        // Create an availability entry on-the-fly
+        const availRes = await fetch('/api/admin/availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: manualDate,
+            region: selectedRegion,
+            slots: [manualSlot],
+            max_per_slot: 2,
+          }),
+        })
+        if (!availRes.ok) {
+          setNewBookingError('Kon beschikbaarheid niet aanmaken.')
+          setNewBookingLoading(false)
+          return
+        }
+        const availData = await availRes.json()
+        availId = availData.availability.id
+      }
+
       const res = await fetch('/api/admin/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          availability_id: selectedAvailId,
-          time_slot: selectedSlot,
+          availability_id: availId,
+          time_slot: timeSlot,
           ...newForm,
           pregnancy_weeks: newForm.pregnancy_weeks || undefined,
           notes: newForm.notes || undefined,
@@ -413,10 +466,10 @@ export default function BoekingenPage() {
                           }}
                         >
                           <option value="">Selecteer regio...</option>
-                          {regions.map(r => <option key={r} value={r}>{r}</option>)}
+                          {ALL_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       </div>
-                      {selectedRegion && (
+                      {selectedRegion && hasAvailability && (
                         <div>
                           <label className="label">Datum *</label>
                           <select
@@ -448,6 +501,19 @@ export default function BoekingenPage() {
                             {slotsForAvail.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </div>
+                      )}
+                      {selectedRegion && !hasAvailability && (
+                        <>
+                          <p className="text-xs text-gravida-light-sage">Geen beschikbaarheid gevonden — vul handmatig in:</p>
+                          <div>
+                            <label className="label">Datum *</label>
+                            <input type="date" className="input-field" value={manualDate} onChange={e => setManualDate(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="label">Tijdslot *</label>
+                            <input type="time" className="input-field" value={manualSlot} onChange={e => setManualSlot(e.target.value)} placeholder="bijv. 14:00" />
+                          </div>
+                        </>
                       )}
                     </div>
                   </Section>
