@@ -22,7 +22,29 @@ interface Booking {
   created_at: string
 }
 
+interface AvailabilityEntry {
+  id: number
+  date: string
+  region: string
+  slots: string[]
+  max_per_slot: number
+  is_active: boolean
+  is_closed: boolean
+}
+
 const STATUSES = ['alle', 'bevestigd', 'afgerond', 'geannuleerd']
+
+const EMPTY_FORM = {
+  first_name: '',
+  last_name: '',
+  email: '',
+  phone: '',
+  address: '',
+  city: '',
+  zip_code: '',
+  pregnancy_weeks: '',
+  notes: '',
+}
 
 export default function BoekingenPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -34,6 +56,17 @@ export default function BoekingenPage() {
   const [filterCustomerNumber, setFilterCustomerNumber] = useState('')
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
+
+  // New booking modal state
+  const [showNewModal, setShowNewModal] = useState(false)
+  const [newForm, setNewForm] = useState(EMPTY_FORM)
+  const [availabilityList, setAvailabilityList] = useState<AvailabilityEntry[]>([])
+  const [selectedRegion, setSelectedRegion] = useState('')
+  const [selectedAvailId, setSelectedAvailId] = useState<number | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState('')
+  const [newBookingLoading, setNewBookingLoading] = useState(false)
+  const [newBookingError, setNewBookingError] = useState('')
+  const [newBookingSuccess, setNewBookingSuccess] = useState('')
 
   const loadBookings = useCallback(async () => {
     setLoading(true)
@@ -119,6 +152,73 @@ export default function BoekingenPage() {
     setFilterCustomerNumber('')
   }
 
+  // ─── New booking helpers ───────────────────────────────────────────────────
+  const openNewModal = async () => {
+    setShowNewModal(true)
+    setNewForm(EMPTY_FORM)
+    setSelectedRegion('')
+    setSelectedAvailId(null)
+    setSelectedSlot('')
+    setNewBookingError('')
+    setNewBookingSuccess('')
+    try {
+      const res = await fetch('/api/admin/availability')
+      if (res.ok) {
+        const data = await res.json()
+        setAvailabilityList(
+          (data.availability ?? []).filter((a: AvailabilityEntry) => a.is_active && !a.is_closed)
+        )
+      }
+    } catch { /* ignore */ }
+  }
+
+  const regions = [...new Set(availabilityList.map(a => a.region))].sort()
+  const datesForRegion = availabilityList
+    .filter(a => a.region === selectedRegion)
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const slotsForAvail = availabilityList.find(a => a.id === selectedAvailId)?.slots ?? []
+
+  const handleNewBooking = async () => {
+    if (!selectedAvailId || !selectedSlot) {
+      setNewBookingError('Selecteer een regio, datum en tijdslot.')
+      return
+    }
+    const required = ['first_name', 'last_name', 'email', 'phone', 'address', 'city', 'zip_code'] as const
+    for (const f of required) {
+      if (!newForm[f].trim()) {
+        setNewBookingError('Vul alle verplichte velden in.')
+        return
+      }
+    }
+    setNewBookingLoading(true)
+    setNewBookingError('')
+    try {
+      const res = await fetch('/api/admin/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          availability_id: selectedAvailId,
+          time_slot: selectedSlot,
+          ...newForm,
+          pregnancy_weeks: newForm.pregnancy_weeks || undefined,
+          notes: newForm.notes || undefined,
+        }),
+      })
+      if (res.ok) {
+        const booking = await res.json()
+        setNewBookingSuccess(`Boeking aangemaakt — klantnummer ${booking.customer_number}`)
+        loadBookings()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setNewBookingError(data.error ?? 'Boeking aanmaken mislukt.')
+      }
+    } catch {
+      setNewBookingError('Verbindingsfout.')
+    } finally {
+      setNewBookingLoading(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-start justify-between mb-8">
@@ -131,9 +231,14 @@ export default function BoekingenPage() {
             )}
           </p>
         </div>
-        <button onClick={handleExportCsv} className="btn-secondary flex items-center gap-2">
-          <span>↓</span> Exporteer CSV
-        </button>
+        <div className="flex gap-2">
+          <button onClick={openNewModal} className="btn-primary flex items-center gap-2">
+            <span>+</span> Nieuwe boeking
+          </button>
+          <button onClick={handleExportCsv} className="btn-secondary flex items-center gap-2">
+            <span>↓</span> Exporteer CSV
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -270,6 +375,142 @@ export default function BoekingenPage() {
           </div>
         )}
       </div>
+
+      {/* New booking modal */}
+      {showNewModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gravida-cream flex items-start justify-between">
+              <h2 className="text-lg font-bold text-gravida-sage">Nieuwe boeking</h2>
+              <button
+                onClick={() => setShowNewModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center transition-colors text-gravida-light-sage"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {newBookingSuccess ? (
+                <div className="text-center py-6">
+                  <p className="text-green-700 font-semibold text-lg mb-2">{newBookingSuccess}</p>
+                  <button onClick={() => setShowNewModal(false)} className="btn-primary mt-4">Sluiten</button>
+                </div>
+              ) : (
+                <>
+                  {/* Afspraak selectie */}
+                  <Section title="Afspraak">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="label">Regio *</label>
+                        <select
+                          className="input-field"
+                          value={selectedRegion}
+                          onChange={(e) => {
+                            setSelectedRegion(e.target.value)
+                            setSelectedAvailId(null)
+                            setSelectedSlot('')
+                          }}
+                        >
+                          <option value="">Selecteer regio...</option>
+                          {regions.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+                      {selectedRegion && (
+                        <div>
+                          <label className="label">Datum *</label>
+                          <select
+                            className="input-field"
+                            value={selectedAvailId ?? ''}
+                            onChange={(e) => {
+                              setSelectedAvailId(Number(e.target.value) || null)
+                              setSelectedSlot('')
+                            }}
+                          >
+                            <option value="">Selecteer datum...</option>
+                            {datesForRegion.map(a => (
+                              <option key={a.id} value={a.id}>
+                                {new Date(a.date + 'T00:00:00').toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {selectedAvailId && (
+                        <div>
+                          <label className="label">Tijdslot *</label>
+                          <select
+                            className="input-field"
+                            value={selectedSlot}
+                            onChange={(e) => setSelectedSlot(e.target.value)}
+                          >
+                            <option value="">Selecteer tijdslot...</option>
+                            {slotsForAvail.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  </Section>
+
+                  {/* Klantgegevens */}
+                  <Section title="Klantgegevens">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label">Voornaam *</label>
+                        <input className="input-field" value={newForm.first_name} onChange={e => setNewForm(f => ({ ...f, first_name: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">Achternaam *</label>
+                        <input className="input-field" value={newForm.last_name} onChange={e => setNewForm(f => ({ ...f, last_name: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">E-mail *</label>
+                        <input type="email" className="input-field" value={newForm.email} onChange={e => setNewForm(f => ({ ...f, email: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">Telefoon *</label>
+                        <input className="input-field" value={newForm.phone} onChange={e => setNewForm(f => ({ ...f, phone: e.target.value }))} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="label">Adres *</label>
+                        <input className="input-field" value={newForm.address} onChange={e => setNewForm(f => ({ ...f, address: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">Postcode *</label>
+                        <input className="input-field" value={newForm.zip_code} onChange={e => setNewForm(f => ({ ...f, zip_code: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">Stad *</label>
+                        <input className="input-field" value={newForm.city} onChange={e => setNewForm(f => ({ ...f, city: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">Weken zwanger</label>
+                        <input type="number" className="input-field" value={newForm.pregnancy_weeks} onChange={e => setNewForm(f => ({ ...f, pregnancy_weeks: e.target.value }))} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="label">Opmerkingen</label>
+                        <textarea className="input-field" rows={2} value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} />
+                      </div>
+                    </div>
+                  </Section>
+
+                  {newBookingError && (
+                    <p className="text-red-600 text-sm">{newBookingError}</p>
+                  )}
+
+                  <button
+                    onClick={handleNewBooking}
+                    disabled={newBookingLoading}
+                    className="btn-primary w-full"
+                  >
+                    {newBookingLoading ? 'Bezig...' : 'Boeking aanmaken'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detail modal */}
       {detailBooking && (

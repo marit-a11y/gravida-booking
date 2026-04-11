@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
+import { createBooking } from '@/lib/db'
 import { bookingsToCsv } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -134,5 +135,49 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('GET /api/admin/bookings error:', err)
     return NextResponse.json({ error: 'Kan boekingen niet laden', detail: String(err) }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    const {
+      availability_id,
+      time_slot,
+      first_name,
+      last_name,
+      email,
+      phone,
+      address,
+      city,
+      zip_code,
+      pregnancy_weeks,
+      notes,
+    } = body
+
+    if (!availability_id || !time_slot || !first_name || !last_name || !email || !phone || !address || !city || !zip_code) {
+      return NextResponse.json({ error: 'Verplichte velden ontbreken' }, { status: 400 })
+    }
+
+    const booking = await createBooking({
+      availability_id,
+      time_slot,
+      first_name: first_name.trim(),
+      last_name: last_name.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      address: address.trim(),
+      city: city.trim(),
+      zip_code: zip_code.trim(),
+      pregnancy_weeks: pregnancy_weeks ? parseInt(pregnancy_weeks) : undefined,
+      notes: notes?.trim() || undefined,
+    })
+
+    return NextResponse.json(booking, { status: 201 })
+  } catch (err) {
+    console.error('POST /api/admin/bookings error:', err)
+    const msg = err instanceof Error ? err.message : 'Onbekende fout'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
