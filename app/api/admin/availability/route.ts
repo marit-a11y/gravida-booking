@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
-import { createAvailability } from '@/lib/db'
+import { createAvailability, setGroupForIds, getGroupMemberIds } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +57,33 @@ export async function POST(request: NextRequest) {
       max_per_slot: max_per_slot ?? 2,
       notes: notes?.trim() || undefined,
     })
+
+    // Auto-link: if another entry for the same region already exists on this date,
+    // put them all in the same group automatically
+    const siblings = await sql<{ id: number; group_id: string | null }>`
+      SELECT id, group_id::text FROM availability
+      WHERE date = ${date}::date AND region = ${region.trim()} AND id != ${availability.id} AND is_active = true
+    `
+    if (siblings.rows.length > 0) {
+      // Use existing group if one of the siblings already has one, otherwise create new
+      const existingGroupId = siblings.rows.find(r => r.group_id)?.group_id ?? null
+      const groupId = existingGroupId ?? crypto.randomUUID()
+      if (!existingGroupId) {
+        // New group — collect all existing member IDs from each sibling's group
+        const allIds = new Set<number>([availability.id])
+        for (const sib of siblings.rows) {
+          allIds.add(sib.id)
+          if (sib.group_id) {
+            const members = await getGroupMemberIds(sib.group_id)
+            members.forEach(id => allIds.add(id))
+          }
+        }
+        await setGroupForIds(Array.from(allIds), groupId)
+      } else {
+        // Add new entry to existing group
+        await setGroupForIds([availability.id], groupId)
+      }
+    }
 
     return NextResponse.json({ availability }, { status: 201 })
   } catch (err) {

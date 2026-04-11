@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazily initialized so the module can be imported at build time without an API key
+function getResend() { return new Resend(process.env.RESEND_API_KEY) }
 
 const FROM = process.env.EMAIL_FROM ?? 'Gravida <boekingen@gravida.nl>'
 const BRAND_GREEN = '#3d5c41'
@@ -195,7 +196,7 @@ export async function sendReminderEmail(params: {
 }): Promise<void> {
   if (!process.env.RESEND_API_KEY) return
   const dateFormatted = formatDutchDate(params.date)
-  await resend.emails.send({
+  await getResend().emails.send({
     from: FROM,
     to: params.email,
     subject: `Herinnering: jouw scan op ${dateFormatted} om ${params.time_slot}`,
@@ -242,7 +243,7 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
 
   // Customer confirmation
   sends.push(
-    resend.emails.send({
+    getResend().emails.send({
       from: FROM,
       to: params.email,
       subject: customerSubject,
@@ -253,7 +254,7 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
   // Staff notification (only if we have recipients)
   if (staffRecipients.length > 0) {
     sends.push(
-      resend.emails.send({
+      getResend().emails.send({
         from: FROM,
         to: staffRecipients,
         subject: staffSubject,
