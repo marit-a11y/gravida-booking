@@ -451,7 +451,7 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
                 </div>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Aantal weken zwanger (optioneel)</label>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Aantal weken zwanger op moment van de scan</label>
                 <input className={inp('pregnancy_weeks')} type="number" min="16" max="40" value={form.pregnancy_weeks} onChange={e => setForm(f => ({...f, pregnancy_weeks: e.target.value}))} placeholder="bijv. 28"/>
               </div>
               <div>

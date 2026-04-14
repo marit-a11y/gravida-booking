@@ -486,7 +486,7 @@ export default function BookingPage() {
               </div>
 
               <div>
-                <label className="label">Weken zwanger (optioneel)</label>
+                <label className="label">Aantal weken zwanger op moment van de scan</label>
                 <input
                   type="number"
                   className="input-field"
