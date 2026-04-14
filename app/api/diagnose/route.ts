@@ -40,11 +40,36 @@ export async function GET(request: NextRequest) {
               )
           )
       `
+      // All Limburg availability (unfiltered)
+      const limburgAll = await sql`
+        SELECT id, date::text, region, is_active, is_closed
+        FROM availability WHERE region = 'Limburg' AND is_active = true AND is_closed = false AND date >= CURRENT_DATE
+        ORDER BY date ASC
+      `
+      // Limburg through public filter
+      const limburgFiltered = await sql`
+        SELECT a.id, a.date::text, a.region
+        FROM availability a
+        WHERE a.is_active = true AND a.is_closed = false AND a.date >= CURRENT_DATE
+          AND a.region = 'Limburg'
+          AND EXISTS (
+            SELECT 1 FROM staff s
+            WHERE s.is_active = true
+              AND s.regions @> ${JSON.stringify(['Limburg'])}::jsonb
+              AND NOT EXISTS (
+                SELECT 1 FROM absence ab
+                WHERE ab.staff_id = s.id
+                  AND ab.date_from <= a.date
+                  AND ab.date_to >= a.date
+              )
+          )
+        ORDER BY a.date ASC
+      `
       return NextResponse.json({
         staff: staff.rows,
         absences: absences.rows,
-        availability_april_21: avail21.rows,
-        test_NH_after_filter: testNH.rows,
+        limburg_all: limburgAll.rows,
+        limburg_after_filter: limburgFiltered.rows,
       })
     }
 
