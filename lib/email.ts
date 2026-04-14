@@ -3,7 +3,7 @@ import { Resend } from 'resend'
 // Lazily initialized so the module can be imported at build time without an API key
 function getResend() { return new Resend(process.env.RESEND_API_KEY) }
 
-const FROM = process.env.EMAIL_FROM ?? 'Gravida <boekingen@gravida.nl>'
+const FROM = (process.env.EMAIL_FROM ?? 'Gravida <boekingen@gravida.nl>').trim()
 const BRAND_GREEN = '#3d5c41'
 const BRAND_LIGHT = '#f5f4f0'
 
@@ -235,7 +235,7 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
 
   // Determine staff recipients: configured addresses + matching staff emails
   const staffRecipients = [
-    ...(process.env.STAFF_EMAIL ? [process.env.STAFF_EMAIL] : []),
+    ...(process.env.STAFF_EMAIL ? [process.env.STAFF_EMAIL.trim()] : []),
     ...params.staff_emails,
   ].filter((e, i, arr) => e && arr.indexOf(e) === i) // deduplicate
 
