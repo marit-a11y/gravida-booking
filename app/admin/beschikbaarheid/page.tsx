@@ -49,6 +49,16 @@ const REGIONS = [
   'Curacao',
 ]
 
+// Regio's met een publieke boekingspagina (aan-huis scans in NL)
+const BOOKABLE_REGIONS = [
+  'Noord-Holland & Flevoland',
+  'Utrecht & Gelderland & Overijssel',
+  'Zuid-Holland',
+  'Noord-Brabant',
+  'Limburg',
+  'Groningen, Friesland en Drenthe',
+]
+
 // Studio regions: 120 min per scan (no travel). Other regions: 90 min (60 min + 30 min travel)
 const STUDIO_REGIONS = ['Haarlem studioscan', 'Family scan Haarlem', 'Showroom bezoek Haarlem']
 function getSlotSpacing(region: string) {
@@ -398,6 +408,31 @@ export default function BeschikbaarheidPage() {
     await doActualSave({ dates: allModalDates, slots: previewSlots, region: form.region, notes: form.notes.trim(), editingId, selectedDate, linkWithIds: Array.from(linkWith) })
   }
 
+  // Add all bookable NL regions at once for a given date
+  const [addingAllRegions, setAddingAllRegions] = useState(false)
+  const addAllRegions = async (dateStr: string) => {
+    setAddingAllRegions(true)
+    try {
+      const dow = getDowMon(dateStr)
+      for (const region of BOOKABLE_REGIONS) {
+        // Skip if already exists for this date + region
+        const exists = availability.some(a => a.date === dateStr && a.region === region && a.is_active)
+        if (exists) continue
+        const staffTimes = getStaffTimes(region, dow)
+        const startTime = staffTimes?.start ?? '09:00'
+        const endTime = staffTimes?.end ?? '17:00'
+        const slots = generateTimeSlots(startTime, endTime, getSlotSpacing(region))
+        if (slots.length === 0) continue
+        await fetch('/api/admin/availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr, region, slots, max_per_slot: 1 }),
+        })
+      }
+      await loadAvailability()
+    } finally { setAddingAllRegions(false) }
+  }
+
   const handleDelete = async (id: number) => {
     const res = await fetch(`/api/admin/availability/${id}`, { method: 'DELETE' })
     if (res.ok) { setDeleteConfirm(null); await loadAvailability() }
@@ -582,13 +617,24 @@ export default function BeschikbaarheidPage() {
                     </div>
                   ))}
 
-                  {/* Add link */}
+                  {/* Add links */}
                   {!isPast && (
-                    <button onClick={() => openAddModal(dateStr)}
-                      className={`text-xs mt-1 w-full text-left transition-colors hover:text-gravida-sage
-                        ${dayEntries.length>0?'text-gravida-sage/30':'text-gravida-cream'}`}>
-                      + {dayEntries.length>0?'meer':'toevoegen'}
-                    </button>
+                    <div className="mt-1 flex flex-col gap-0.5">
+                      <button onClick={() => openAddModal(dateStr)}
+                        className={`text-xs w-full text-left transition-colors hover:text-gravida-sage
+                          ${dayEntries.length>0?'text-gravida-sage/30':'text-gravida-cream'}`}>
+                        + {dayEntries.length>0?'meer':'toevoegen'}
+                      </button>
+                      {dayEntries.filter(a => BOOKABLE_REGIONS.includes(a.region)).length < BOOKABLE_REGIONS.length && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); addAllRegions(dateStr) }}
+                          disabled={addingAllRegions}
+                          className="text-[10px] w-full text-left text-gravida-sage/30 hover:text-gravida-sage transition-colors"
+                        >
+                          {addingAllRegions ? '...' : "+ alle regio's"}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               )
