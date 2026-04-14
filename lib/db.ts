@@ -445,6 +445,8 @@ export interface DiyRental {
   status: string
   deposit_amount: number
   deposit_status: string
+  mollie_payment_id: string | null
+  payment_status: string
   notes: string | null
   created_at: string
 }
@@ -492,7 +494,7 @@ export async function getDiyRentals(filters?: { status?: string }): Promise<DiyR
     const result = await sql<DiyRental>`
       SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
              r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
-             r.status, r.deposit_amount, r.deposit_status, r.notes, r.created_at::text
+             r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.notes, r.created_at::text
       FROM diy_rentals r
       LEFT JOIN diy_scanners s ON r.scanner_id = s.id
       WHERE r.status = ${status}
@@ -503,7 +505,7 @@ export async function getDiyRentals(filters?: { status?: string }): Promise<DiyR
   const result = await sql<DiyRental>`
     SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
            r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
-           r.status, r.deposit_amount, r.deposit_status, r.notes, r.created_at::text
+           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.notes, r.created_at::text
     FROM diy_rentals r
     LEFT JOIN diy_scanners s ON r.scanner_id = s.id
     ORDER BY r.rental_week DESC, r.created_at DESC
@@ -515,7 +517,7 @@ export async function getDiyRentalById(id: number): Promise<DiyRental | null> {
   const result = await sql<DiyRental>`
     SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
            r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
-           r.status, r.deposit_amount, r.deposit_status, r.notes, r.created_at::text
+           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.notes, r.created_at::text
     FROM diy_rentals r
     LEFT JOIN diy_scanners s ON r.scanner_id = s.id
     WHERE r.id = ${id}
@@ -532,7 +534,7 @@ export async function findFreeScannerForWeek(rentalWeek: string): Promise<number
         SELECT 1 FROM diy_rentals r
         WHERE r.scanner_id = s.id
           AND r.rental_week = ${rentalWeek}::date
-          AND r.status IN ('gereserveerd', 'verzonden')
+          AND r.status IN ('wacht_op_betaling', 'gereserveerd', 'verzonden')
       )
     ORDER BY s.id ASC
     LIMIT 1
@@ -549,21 +551,23 @@ export async function createDiyRental(input: CreateDiyRentalInput): Promise<DiyR
   const result = await sql<DiyRental>`
     INSERT INTO diy_rentals (
       scanner_id, rental_week, first_name, last_name, email, phone,
-      address, city, zip_code, notes
+      address, city, zip_code, notes, status
     ) VALUES (
       ${scannerId}, ${input.rental_week}::date,
       ${input.first_name}, ${input.last_name}, ${input.email}, ${input.phone},
-      ${input.address}, ${input.city}, ${input.zip_code}, ${input.notes ?? null}
+      ${input.address}, ${input.city}, ${input.zip_code}, ${input.notes ?? null},
+      'wacht_op_betaling'
     )
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
-              address, city, zip_code, status, deposit_amount, deposit_status, notes, created_at::text
+              address, city, zip_code, status, deposit_amount, deposit_status,
+              mollie_payment_id, payment_status, notes, created_at::text
   `
   return result.rows[0]
 }
 
 export async function updateDiyRental(
   id: number,
-  input: { status?: string; deposit_status?: string; notes?: string | null }
+  input: { status?: string; deposit_status?: string; payment_status?: string; notes?: string | null }
 ): Promise<DiyRental | null> {
   const existing = await getDiyRentalById(id)
   if (!existing) return null
@@ -571,10 +575,31 @@ export async function updateDiyRental(
     UPDATE diy_rentals
     SET status = ${input.status ?? existing.status},
         deposit_status = ${input.deposit_status ?? existing.deposit_status},
+        payment_status = ${input.payment_status ?? existing.payment_status},
         notes = ${input.notes !== undefined ? input.notes : existing.notes}
     WHERE id = ${id}
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
-              address, city, zip_code, status, deposit_amount, deposit_status, notes, created_at::text
+              address, city, zip_code, status, deposit_amount, deposit_status,
+              mollie_payment_id, payment_status, notes, created_at::text
+  `
+  return result.rows[0] ?? null
+}
+
+export async function updateDiyRentalPayment(
+  id: number,
+  input: { mollie_payment_id?: string; payment_status?: string; status?: string }
+): Promise<DiyRental | null> {
+  const existing = await getDiyRentalById(id)
+  if (!existing) return null
+  const result = await sql<DiyRental>`
+    UPDATE diy_rentals
+    SET mollie_payment_id = ${input.mollie_payment_id ?? existing.mollie_payment_id},
+        payment_status = ${input.payment_status ?? existing.payment_status},
+        status = ${input.status ?? existing.status}
+    WHERE id = ${id}
+    RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
+              address, city, zip_code, status, deposit_amount, deposit_status,
+              mollie_payment_id, payment_status, notes, created_at::text
   `
   return result.rows[0] ?? null
 }

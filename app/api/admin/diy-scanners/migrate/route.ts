@@ -35,6 +35,10 @@ export async function GET() {
       )
     `
 
+    // Add Mollie payment columns
+    await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS mollie_payment_id VARCHAR(50)`
+    await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'open'`
+
     // Seed scanners if empty
     const existing = await sql`SELECT COUNT(*) as count FROM diy_scanners`
     if (parseInt(existing.rows[0].count, 10) === 0) {

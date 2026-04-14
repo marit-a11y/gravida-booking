@@ -24,7 +24,7 @@ export default function DiyScanPage() {
   const [weeks, setWeeks] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedWeek, setSelectedWeek] = useState('')
-  const [step, setStep] = useState<'landing' | 'form' | 'success'>('landing')
+  const [step, setStep] = useState<'landing' | 'form'>('landing')
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
     address: '', city: '', zip_code: '', notes: '',
@@ -53,8 +53,13 @@ export default function DiyScanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, rental_week: selectedWeek }),
       })
-      if (res.ok) { setStep('success') }
-      else {
+      if (res.ok) {
+        const data = await res.json()
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl
+          return
+        }
+      } else {
         const data = await res.json().catch(() => ({}))
         setError(data.error ?? 'Er ging iets mis. Probeer het opnieuw.')
       }
@@ -141,7 +146,7 @@ export default function DiyScanPage() {
                   <div className="relative z-10">
                     <h2 className="text-3xl md:text-4xl mb-6" style={{ fontFamily: 'Noto Serif' }}>Transparante Borg</h2>
                     <p className="text-lg max-w-xl mx-auto mb-10" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                      Voor de hoogwaardige scanapparatuur vragen we een borg van <span className="font-bold text-white">&euro;200</span>. Deze wordt direct na ontvangst en controle van de set weer op je rekening teruggestort.
+                      Voor de hoogwaardige scanapparatuur vragen we een borg van <span className="font-bold text-white">&euro;200</span>. Deze wordt direct na ontvangst en controle van de set weer op je rekening teruggestort. De borg kan ook verrekend worden met de bestelling van een beeldje.
                     </p>
                     <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full" style={{ border: '1px solid rgba(255,255,255,0.2)' }}>
                       <span className="material-symbols-outlined text-sm">verified_user</span>
@@ -269,14 +274,14 @@ export default function DiyScanPage() {
                   <div className="mt-10 p-6 rounded-2xl flex items-start gap-4" style={{ background: '#f5f3ef' }}>
                     <span className="material-symbols-outlined mt-0.5" style={{ color: '#253c27', fontSize: 20 }}>info</span>
                     <p className="text-sm leading-relaxed" style={{ color: '#434842' }}>
-                      Er geldt een borg van <strong>&euro;200</strong>. Deze wordt volledig teruggestort zodra de scanner in goede staat retour is ontvangen.
+                      Er geldt een borg van <strong>&euro;200</strong> die je bij het reserveren via iDEAL betaalt. Deze wordt teruggestort zodra de scanner in goede staat retour is, of kan verrekend worden met de bestelling van een beeldje.
                     </p>
                   </div>
 
                   <button onClick={handleSubmit} disabled={submitting}
                     className="w-full mt-8 py-4 rounded-xl font-medium text-sm flex items-center justify-center gap-3 transition-all hover:opacity-90"
                     style={{ background: '#253c27', color: '#fff', cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
-                    {submitting ? 'Bezig met reserveren...' : 'Reservering bevestigen'}
+                    {submitting ? 'Even geduld...' : 'Afrekenen — €200 borg via iDEAL'}
                     {!submitting && <span className="material-symbols-outlined text-sm">arrow_forward</span>}
                   </button>
                 </div>
@@ -284,30 +289,6 @@ export default function DiyScanPage() {
             </section>
           )}
 
-          {/* Success */}
-          {step === 'success' && (
-            <section className="py-32 px-8 md:px-20">
-              <div className="max-w-2xl mx-auto text-center">
-                <div className="p-14 md:p-20 rounded-[2rem]" style={{ background: '#fff', border: '1px solid rgba(195,200,191,0.3)' }}>
-                  <div className="w-20 h-20 rounded-full mx-auto mb-8 flex items-center justify-center" style={{ background: '#dbe6d7' }}>
-                    <span className="material-symbols-outlined text-3xl" style={{ color: '#253c27', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                  </div>
-                  <h2 className="text-3xl md:text-4xl mb-4" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>Reservering bevestigd</h2>
-                  <p className="text-lg mb-2 leading-relaxed" style={{ color: '#434842' }}>
-                    Je DIY 3D scan kit is gereserveerd voor
-                  </p>
-                  <p className="text-xl font-semibold mb-8" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>{formatWeekLong(selectedWeek)}</p>
-                  <p className="text-sm mb-12" style={{ color: '#737971' }}>
-                    Je ontvangt een bevestiging per e-mail met alle details over de verzending en het retourproces.
-                  </p>
-                  <a href="https://www.gravida.nl" className="inline-flex items-center gap-3 px-8 py-4 rounded-xl font-medium text-sm transition-all hover:opacity-90" style={{ background: '#253c27', color: '#fff' }}>
-                    Terug naar gravida.nl
-                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                  </a>
-                </div>
-              </div>
-            </section>
-          )}
         </main>
       </div>
     </>

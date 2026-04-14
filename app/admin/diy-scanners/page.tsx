@@ -24,17 +24,28 @@ interface Rental {
   status: string
   deposit_amount: number
   deposit_status: string
+  mollie_payment_id: string | null
+  payment_status: string
   notes: string | null
   created_at: string
 }
 
-const RENTAL_STATUSES = ['alle', 'gereserveerd', 'verzonden', 'retour', 'scans_uitgezocht']
+const RENTAL_STATUSES = ['alle', 'wacht_op_betaling', 'gereserveerd', 'verzonden', 'retour', 'scans_uitgezocht']
 
 const STATUS_COLORS: Record<string, string> = {
+  wacht_op_betaling: 'bg-orange-100 text-orange-700',
   gereserveerd: 'bg-yellow-100 text-yellow-700',
   verzonden: 'bg-blue-100 text-blue-700',
   retour: 'bg-purple-100 text-purple-700',
   scans_uitgezocht: 'bg-green-100 text-green-700',
+  geannuleerd: 'bg-red-100 text-red-700',
+}
+
+const PAYMENT_COLORS: Record<string, string> = {
+  open: 'bg-gray-100 text-gray-600',
+  betaald: 'bg-green-100 text-green-700',
+  mislukt: 'bg-red-100 text-red-700',
+  teruggestort: 'bg-blue-100 text-blue-700',
 }
 
 function formatWeek(mondayStr: string): string {
@@ -228,7 +239,7 @@ export default function DiyScannerPage() {
             <table className="w-full text-sm">
               <thead className="bg-gravida-cream/50">
                 <tr>
-                  {['Naam', 'Week', 'Scanner', 'Status', 'Borg', ''].map(h => (
+                  {['Naam', 'Week', 'Scanner', 'Status', 'Betaling', 'Borg', ''].map(h => (
                     <th key={h} className="text-left px-4 py-3 font-medium text-gravida-light-sage whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -250,6 +261,11 @@ export default function DiyScannerPage() {
                           <option key={s} value={s}>{s.replace('_', ' ')}</option>
                         ))}
                       </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${PAYMENT_COLORS[r.payment_status] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {r.payment_status === 'betaald' ? 'Betaald' : r.payment_status === 'teruggestort' ? 'Teruggestort' : r.payment_status === 'mislukt' ? 'Mislukt' : 'Open'}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2 py-1 rounded-full ${

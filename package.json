@@ -9,6 +9,7 @@
     "setup-db": "npx ts-node --project tsconfig.json scripts/setup-db.ts"
   },
   "dependencies": {
+    "@mollie/api-client": "^4.5.0",
     "@vercel/postgres": "^0.10.0",
     "date-fns": "^3.6.0",
     "jose": "^5.2.4",
