@@ -266,7 +266,7 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
           {info.diy && (
             <p style={{ fontSize: 14, color: '#3d5c40', lineHeight: 1.6, marginTop: 8, marginBottom: 0 }}>
               Liever zelf scannen? Je kunt onze{' '}
-              <a href="/diy-3d-zwangerschapsscan/" style={{ color: '#5e7763', fontWeight: 500 }}>DIY 3D scan kit</a>{' '}
+              <a href="https://www.gravida.nl/diy-3d-zwangerschapsscan/" style={{ color: '#5e7763', fontWeight: 500 }}>DIY 3D scan kit</a>{' '}
               gratis gebruiken tegen een borg.
             </p>
           )}
