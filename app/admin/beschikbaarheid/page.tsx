@@ -39,11 +39,15 @@ const REGIONS = [
   'Groningen, Friesland en Drenthe',
   'Showroom bezoek Haarlem',
   'Haarlem studioscan',
+  'Family scan Haarlem',
   'Curacao',
 ]
 
-// Slot spacing: 60 min appointment + 30 min travel buffer = 90 min between slots
-const SLOT_SPACING = 90
+// Studio regions: 120 min per scan (no travel). Other regions: 90 min (60 min + 30 min travel)
+const STUDIO_REGIONS = ['Haarlem studioscan', 'Family scan Haarlem', 'Showroom bezoek Haarlem']
+function getSlotSpacing(region: string) {
+  return STUDIO_REGIONS.includes(region) ? 120 : 90
+}
 
 type RecurrenceType = 'none' | 'weekly' | 'biweekly' | 'monthly'
 
@@ -325,7 +329,7 @@ export default function BeschikbaarheidPage() {
     setError(''); setModalOpen(true)
   }
 
-  const previewSlots  = generateTimeSlots(form.start_time, form.end_time, SLOT_SPACING)
+  const previewSlots  = generateTimeSlots(form.start_time, form.end_time, getSlotSpacing(form.region))
   const editingAvail  = editingId ? availability.find(a => a.id === editingId) ?? null : null
 
   // When recurrence changes, update until_date default
@@ -414,7 +418,7 @@ export default function BeschikbaarheidPage() {
   const bulkDates  = bulkMode === 'week'
     ? getDatesInRange(bulkStartDate, bulkEndDate, bulkWeekdays)
     : getDatesInRange(monthStart, monthEnd, bulkWeekdays)
-  const bulkPreviewSlots = generateTimeSlots(bulkForm.start_time, bulkForm.end_time, SLOT_SPACING)
+  const bulkPreviewSlots = generateTimeSlots(bulkForm.start_time, bulkForm.end_time, getSlotSpacing(bulkForm.region))
 
   // Actually perform the bulk save
   const doBulkActualSave = async (save: PendingSave) => {

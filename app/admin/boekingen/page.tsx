@@ -43,6 +43,7 @@ const ALL_REGIONS = [
   'Groningen, Friesland en Drenthe',
   'Showroom bezoek Haarlem',
   'Haarlem studioscan',
+  'Family scan Haarlem',
   'Curacao',
   'DIY scan',
 ]
