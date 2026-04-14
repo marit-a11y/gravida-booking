@@ -23,6 +23,12 @@ interface StaffMember {
   working_hours: Record<string, { active: boolean; start: string; end: string }>
 }
 
+interface Absence {
+  staff_id: number
+  date_from: string
+  date_to: string
+}
+
 const DAY_KEYS = ['ma','di','wo','do','vr','za','zo']
 
 const DUTCH_MONTHS    = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December']
@@ -232,11 +238,17 @@ export default function BeschikbaarheidPage() {
 
   useEffect(() => { loadAvailability() }, [loadAvailability])
 
-  // Load staff once for working-hours lookup
+  const [absences, setAbsences] = useState<Absence[]>([])
+
+  // Load staff + absences once
   useEffect(() => {
     fetch('/api/admin/staff')
       .then(r => r.ok ? r.json() : { staff: [] })
       .then(d => setStaff(d.staff ?? []))
+      .catch(() => {})
+    fetch('/api/admin/absence')
+      .then(r => r.ok ? r.json() : { absence: [] })
+      .then(d => setAbsences(d.absence ?? []))
       .catch(() => {})
   }, [])
 
@@ -250,6 +262,15 @@ export default function BeschikbaarheidPage() {
       if (h?.active) return { start: h.start, end: h.end }
     }
     return null
+  }
+
+  // Check if ALL staff for a region are absent on a given date
+  const isAllStaffAbsent = (region: string, date: string): boolean => {
+    const regionStaff = staff.filter(s => s.regions?.includes(region))
+    if (regionStaff.length === 0) return false
+    return regionStaff.every(s =>
+      absences.some(ab => ab.staff_id === s.id && ab.date_from <= date && ab.date_to >= date)
+    )
   }
 
   // availMap: first entry per date (for calendar display)
@@ -533,7 +554,8 @@ export default function BeschikbaarheidPage() {
                         ${a.is_closed ? 'opacity-50 cursor-pointer' : 'cursor-grab active:cursor-grabbing'}
                         ${draggedAvail?.id===a.id?'opacity-40 scale-95':''}`}>
                       <div className="flex items-center gap-1">
-                        <p className={`text-xs leading-tight truncate font-medium flex-1 ${a.is_closed ? 'text-gravida-light-sage line-through' : 'text-gravida-sage'}`}>{a.region}</p>
+                        <p className={`text-xs leading-tight truncate font-medium flex-1 ${a.is_closed ? 'text-gravida-light-sage line-through' : isAllStaffAbsent(a.region, dateStr) ? 'text-orange-500' : 'text-gravida-sage'}`}>{a.region}</p>
+                        {!a.is_closed && isAllStaffAbsent(a.region, dateStr) && <span title="Alle medewerkers afwezig" className="text-[10px]">⚠️</span>}
                         {a.is_closed && <span title="Gesloten door koppeling" className="text-[10px]">🔒</span>}
                         {!a.is_closed && a.group_id && <span title="Gekoppeld — sluit bij boeking" className="text-[10px]">🔗</span>}
                       </div>
