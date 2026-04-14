@@ -67,6 +67,7 @@ export default function BoekingenPage() {
   const [filterRegion, setFilterRegion] = useState('')
   const [filterStatus, setFilterStatus] = useState('alle')
   const [filterCustomerNumber, setFilterCustomerNumber] = useState('')
+  const [sortNewest, setSortNewest] = useState(false)
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
 
@@ -111,13 +112,17 @@ export default function BoekingenPage() {
     loadBookings()
   }, [loadBookings])
 
-  // Client-side customer number filter (fast, no extra API call needed)
-  const displayedBookings = filterCustomerNumber.trim()
+  // Client-side customer number filter + sort
+  const filteredBookings = filterCustomerNumber.trim()
     ? bookings.filter(b =>
         b.customer_number.includes(filterCustomerNumber.trim()) ||
         `${b.first_name} ${b.last_name}`.toLowerCase().includes(filterCustomerNumber.trim().toLowerCase())
       )
     : bookings
+
+  const displayedBookings = sortNewest
+    ? [...filteredBookings].sort((a, b) => b.created_at.localeCompare(a.created_at))
+    : filteredBookings
 
   const handleStatusChange = async (id: number, status: string) => {
     setUpdatingId(id)
@@ -309,7 +314,7 @@ export default function BoekingenPage() {
             />
           </div>
           <div>
-            <label className="label">Datum</label>
+            <label className="label">Afspraakdatum</label>
             <input
               type="date"
               className="input-field"
@@ -340,14 +345,25 @@ export default function BoekingenPage() {
             </select>
           </div>
         </div>
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="text-xs text-gravida-sage hover:text-gravida-green mt-3 underline"
-          >
-            Filters wissen
-          </button>
-        )}
+        <div className="flex items-center gap-4 mt-3">
+          <label className="flex items-center gap-2 text-xs text-gravida-sage cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={sortNewest}
+              onChange={(e) => setSortNewest(e.target.checked)}
+              className="rounded border-gravida-cream accent-gravida-green"
+            />
+            Sorteer op nieuwste reserveringen
+          </label>
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-gravida-sage hover:text-gravida-green underline"
+            >
+              Filters wissen
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Error message */}
@@ -374,7 +390,7 @@ export default function BoekingenPage() {
             <table className="w-full text-sm">
               <thead className="bg-gravida-cream/50">
                 <tr>
-                  {['Nr', 'Naam', 'Datum', 'Tijdslot', 'Regio', 'Telefoon', 'Status', ''].map((h) => (
+                  {['Nr', 'Naam', 'Afspraak', 'Tijdslot', 'Regio', 'Geboekt op', 'Status', ''].map((h) => (
                     <th key={h} className="text-left px-4 py-3 font-medium text-gravida-light-sage whitespace-nowrap">
                       {h}
                     </th>
@@ -395,7 +411,9 @@ export default function BoekingenPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">{b.time_slot}</td>
                     <td className="px-4 py-3 max-w-[150px] truncate text-gravida-sage">{b.region ?? '—'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{b.phone}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-gravida-light-sage text-xs">
+                      {b.created_at ? formatDutchDateShort(b.created_at.split(' ')[0]) : '—'}
+                    </td>
                     <td className="px-4 py-3">
                       <select
                         value={b.status}
