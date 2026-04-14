@@ -14,15 +14,16 @@ export async function GET(request: NextRequest) {
     // and is NOT absent on that date
     let rows
     if (region) {
+      const regionJsonb = JSON.stringify([region])
       const result = await sql`
         SELECT a.id, a.date::text, a.region, a.slots, a.max_per_slot, a.notes
         FROM availability a
-        WHERE a.is_active = true AND a.is_closed = false AND a.date >= ${today}
+        WHERE a.is_active = true AND a.is_closed = false AND a.date >= ${today}::date
           AND a.region = ${region}
           AND EXISTS (
             SELECT 1 FROM staff s
             WHERE s.is_active = true
-              AND s.regions @> ${JSON.stringify([region])}::jsonb
+              AND s.regions::jsonb @> ${regionJsonb}::jsonb
               AND NOT EXISTS (
                 SELECT 1 FROM absence ab
                 WHERE ab.staff_id = s.id
@@ -37,11 +38,11 @@ export async function GET(request: NextRequest) {
       const result = await sql`
         SELECT a.id, a.date::text, a.region, a.slots, a.max_per_slot, a.notes
         FROM availability a
-        WHERE a.is_active = true AND a.is_closed = false AND a.date >= ${today}
+        WHERE a.is_active = true AND a.is_closed = false AND a.date >= ${today}::date
           AND EXISTS (
             SELECT 1 FROM staff s
             WHERE s.is_active = true
-              AND s.regions @> to_jsonb(ARRAY[a.region])
+              AND s.regions::jsonb @> to_jsonb(ARRAY[a.region])
               AND NOT EXISTS (
                 SELECT 1 FROM absence ab
                 WHERE ab.staff_id = s.id
