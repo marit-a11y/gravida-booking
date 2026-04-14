@@ -87,12 +87,12 @@ export default function DiyScanPage() {
               <section className="relative min-h-[700px] flex items-center px-8 md:px-20 overflow-hidden">
                 <div className="max-w-[1440px] mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
                   <div className="md:col-span-6 z-10">
-                    <span className="uppercase tracking-widest text-xs mb-6 block" style={{ fontFamily: 'Manrope', color: 'rgba(37,60,39,0.6)' }}>DIY 3D Zwangerschapsscan</span>
+                    <span className="uppercase tracking-widest text-xs mb-6 block" style={{ fontFamily: 'Manrope', color: 'rgba(37,60,39,0.6)' }}>DIY 3D Scan Kit</span>
                     <h1 className="text-5xl md:text-7xl mb-8" style={{ fontFamily: 'Noto Serif', color: '#253c27', lineHeight: 1.1 }}>
-                      Vang het wonder in <em>tijdloze</em> details.
+                      Scan je buik <em>thuis</em>, op jouw tempo.
                     </h1>
                     <p className="text-lg max-w-md mb-10 leading-relaxed" style={{ color: '#434842' }}>
-                      Een unieke ervaring om de vormen van je zwangerschap te vereeuwigen met onze 3D-scan technologie, gewoon bij je thuis.
+                      Met onze DIY scan kit maak je zelf een 3D-scan van je zwangere buik. De kit wordt thuisbezorgd, de scan duurt slechts enkele minuten en wij verwerken alles professioneel.
                     </p>
                     <a href="#booking" className="inline-flex items-center gap-3 px-8 py-4 rounded-xl font-medium text-sm transition-all hover:opacity-90" style={{ background: '#253c27', color: '#fff' }}>
                       Reserveer je week
@@ -101,7 +101,7 @@ export default function DiyScanPage() {
                   </div>
                   <div className="md:col-span-6 relative h-[500px] md:h-[600px]">
                     <div className="absolute inset-0 rounded-[2rem] overflow-hidden" style={{ background: '#f0eeea' }}>
-                      <img className="w-full h-full object-cover mix-blend-multiply opacity-90" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDt40PN3a4qhjqI6G0L1Jse2xq4qtmWwUnEPTwJ0ojGtWOGc_WBgLSboz0I_herItcnfvYCZH-h7fYpktkHMlLHPLAbTKWWV0I_xLaPGlQ1pN2N-XBqqDn1wVly_ehqn8DkcrYyjGfWVrmzC5QoX_uy77yjxv4xmQTNIRdpco807-GeG124O79tbZKS7K_BqJ6LIp79FX8xV7flxfN-9cD3eY-J7hb9_mkCi1Pzkcn1r_SNE4QwVFz0KmCTsXgpfUyE3d4JDjVUMRte" alt="Zwangere vrouw silhouet" />
+                      <img className="w-full h-full object-contain p-8" src="/diy-hero.jpg" alt="3D zwangerschapsbeeldje" />
                     </div>
                   </div>
                 </div>
@@ -116,10 +116,10 @@ export default function DiyScanPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {[
-                      { icon: 'local_shipping', title: 'Woensdag', desc: 'Wij verzenden de professionele scan-set naar jouw adres in een discrete verpakking.', filled: false },
-                      { icon: 'inventory_2', title: 'Donderdag', desc: 'De set komt aan. Pak het rustig uit en lees de eenvoudige handleiding voor de perfecte scan.', filled: false },
-                      { icon: '3d_rotation', title: 'Vrijdag t/m Zondag', desc: 'Neem de tijd. Scan op je eigen tempo in de vertrouwde omgeving van je eigen huis.', filled: true },
-                      { icon: 'keyboard_return', title: 'Maandag', desc: 'Plak de retoursticker op de doos en geef het af bij een PostNL punt. Wij doen de rest.', filled: false },
+                      { icon: 'local_shipping', title: 'Woensdag', desc: 'Wij verzenden de scan kit naar jouw adres. Alles zit erin: scanner, handleiding en retourlabel.', filled: false },
+                      { icon: 'inventory_2', title: 'Donderdag', desc: 'De kit komt aan. Pak rustig uit en lees de eenvoudige instructies. Geen technische kennis nodig.', filled: false },
+                      { icon: '3d_rotation', title: 'Vrijdag t/m Zondag', desc: 'Maak de scan op je eigen tempo. De scan zelf duurt slechts enkele minuten. Wij raden zwangerschapsweek 32+ aan.', filled: true },
+                      { icon: 'keyboard_return', title: 'Maandag', desc: 'Plak de retoursticker op de doos en geef het af bij een PostNL punt. Wij verwerken je scan professioneel.', filled: false },
                     ].map((s, i) => (
                       <div key={i} className="p-10 rounded-[2rem] flex flex-col items-start gap-8" style={{ background: '#fbf9f5', border: '1px solid rgba(195,200,191,0.1)' }}>
                         <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: s.filled ? '#253c27' : '#dbe6d7' }}>
@@ -151,6 +151,27 @@ export default function DiyScanPage() {
                   <div className="absolute inset-0 opacity-10 pointer-events-none">
                     <div className="absolute -top-1/2 -left-1/4 w-full h-full rounded-full bg-gradient-to-br from-white to-transparent blur-3xl"></div>
                   </div>
+                </div>
+              </section>
+
+              {/* Na de scan */}
+              <section className="py-20 px-8 md:px-20">
+                <div className="max-w-[1440px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { icon: 'search', title: 'Professionele controle', desc: 'Na ontvangst controleren en verwerken wij je scan tot een hoogwaardig 3D-bestand.' },
+                    { icon: 'preview', title: 'Voorvertoning ontvangen', desc: 'Je ontvangt een preview van je scan. Geen directe beslissing nodig over een beeldje.' },
+                    { icon: 'savings', title: 'Scan bewaard', desc: 'Je scan wordt een jaar gratis opgeslagen. Bestel je beeldje wanneer het jou uitkomt.' },
+                  ].map((item, i) => (
+                    <div key={i} className="p-8 rounded-[2rem] flex items-start gap-5" style={{ background: '#fbf9f5', border: '1px solid rgba(195,200,191,0.2)' }}>
+                      <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: '#dbe6d7' }}>
+                        <span className="material-symbols-outlined text-sm" style={{ color: '#253c27' }}>{item.icon}</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold mb-1" style={{ color: '#253c27' }}>{item.title}</h3>
+                        <p className="text-sm leading-relaxed" style={{ color: '#434842' }}>{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </section>
 
