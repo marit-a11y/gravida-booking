@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { getDaysInMonth, getFirstDayOfWeek, formatDutchDate, toLocalDateString } from '@/lib/utils'
+import { trackPixel } from '@/components/MetaPixel'
 
 // Slug → display name
 const REGION_MAP: Record<string, string> = {
@@ -173,6 +174,10 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
 
   const handleSlotSelect = (slot: string) => {
     setSelectedSlot(slot); setStep('form')
+    trackPixel('InitiateCheckout', {
+      content_name: 'Zwangerschapsscan-boeking',
+      content_category: regionName,
+    })
     containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -214,7 +219,18 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
         setSubmitError(d.error ?? 'Er ging iets mis. Probeer het opnieuw.')
         setStep('form'); return
       }
-      setBooking(await res.json()); setStep('done')
+      const bookingData = await res.json()
+      setBooking(bookingData); setStep('done')
+      // Meta Pixel — Lead (client-side, deduped met server CAPI via meta_event_id)
+      trackPixel(
+        'Lead',
+        {
+          content_name: 'Zwangerschapsscan-boeking',
+          content_category: regionName,
+          currency: 'EUR',
+        },
+        bookingData.meta_event_id,
+      )
     } catch {
       setSubmitError('Er ging iets mis. Controleer uw internetverbinding.')
       setStep('form')

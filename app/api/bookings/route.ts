@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { createBooking, getAvailabilityById, getBookingCountForSlot, closeSiblingsByGroupId } from '@/lib/db'
 import { sendBookingEmails } from '@/lib/email'
+import { sendCapiEvent, extractUserDataFromRequest, newEventId } from '@/lib/meta-pixel'
 
 export const dynamic = 'force-dynamic'
 
@@ -102,7 +103,31 @@ export async function POST(request: NextRequest) {
       staff_emails: staffEmails,
     }).catch(err => console.error('sendBookingEmails error:', err))
 
-    return NextResponse.json(booking, { status: 201 })
+    // Meta Conversions API — Lead event (server-side, deduped met browser pixel via event_id)
+    const metaEventId = newEventId()
+    const origin = request.headers.get('origin') ?? request.headers.get('referer') ?? ''
+    sendCapiEvent({
+      eventName: 'Lead',
+      eventId:   metaEventId,
+      eventSourceUrl: origin || undefined,
+      userData: {
+        ...extractUserDataFromRequest(request),
+        email:      booking.email,
+        phone:      booking.phone,
+        first_name: booking.first_name,
+        last_name:  booking.last_name,
+        city:       booking.city,
+        zip:        booking.zip_code,
+        country:    'nl',
+      },
+      customData: {
+        content_name: 'Zwangerschapsscan-boeking',
+        content_category: availability.region,
+        currency: 'EUR',
+      },
+    }).catch(err => console.error('Meta CAPI Lead error:', err))
+
+    return NextResponse.json({ ...booking, meta_event_id: metaEventId }, { status: 201 })
   } catch (err) {
     console.error('POST /api/bookings error:', err)
     const msg = err instanceof Error ? err.message : 'Onbekende fout'

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import MetaPixel from '@/components/MetaPixel'
 
 export const metadata: Metadata = {
   title: 'Gravida – Zwangerschapsscans aan huis',
@@ -28,6 +29,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-gravida-off-white text-gravida-green min-h-screen">
+        <MetaPixel />
         {children}
       </body>
     </html>
