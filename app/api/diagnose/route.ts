@@ -6,9 +6,50 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const name = searchParams.get('name') ?? 'sophie'
+    const mode = searchParams.get('mode') ?? 'booking'
 
-    // Search bookings by name (case insensitive), including cancelled, including orphaned availability
+    if (mode === 'absence') {
+      // Debug absence filtering
+      const staff = await sql`
+        SELECT id, name, regions, is_active FROM staff WHERE is_active = true
+      `
+      const absences = await sql`
+        SELECT ab.id, ab.staff_id, s.name as staff_name, ab.date_from::text, ab.date_to::text, ab.reason
+        FROM absence ab JOIN staff s ON ab.staff_id = s.id
+        ORDER BY ab.date_from DESC
+      `
+      const avail21 = await sql`
+        SELECT id, date::text, region, slots, is_active, is_closed
+        FROM availability
+        WHERE date = '2026-04-21'::date
+      `
+      // Test the exact query used in public API for each region on april 21
+      const testNH = await sql`
+        SELECT a.id, a.date::text, a.region
+        FROM availability a
+        WHERE a.is_active = true AND a.is_closed = false AND a.date = '2026-04-21'::date
+          AND EXISTS (
+            SELECT 1 FROM staff s
+            WHERE s.is_active = true
+              AND s.regions @> ${JSON.stringify(['Noord-Holland & Flevoland'])}::jsonb
+              AND NOT EXISTS (
+                SELECT 1 FROM absence ab
+                WHERE ab.staff_id = s.id
+                  AND ab.date_from <= a.date
+                  AND ab.date_to >= a.date
+              )
+          )
+      `
+      return NextResponse.json({
+        staff: staff.rows,
+        absences: absences.rows,
+        availability_april_21: avail21.rows,
+        test_NH_after_filter: testNH.rows,
+      })
+    }
+
+    // Default: booking search
+    const name = searchParams.get('name') ?? 'sophie'
     const byName = await sql`
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.status,
@@ -19,8 +60,6 @@ export async function GET(request: NextRequest) {
          OR LOWER(b.last_name) LIKE LOWER(${'%' + name + '%'})
       ORDER BY b.created_at DESC
     `
-
-    // Also check: bookings whose availability_id points to nothing
     const orphaned = await sql`
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.status, b.created_at::text
@@ -28,8 +67,6 @@ export async function GET(request: NextRequest) {
       LEFT JOIN availability a ON b.availability_id = a.id
       WHERE a.id IS NULL
     `
-
-    // Counter state
     const counter = await sql`SELECT last_number FROM customer_counter WHERE id = 1`
 
     return NextResponse.json({
