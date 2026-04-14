@@ -29,32 +29,32 @@ const DUTCH_DAYS_SHORT = ['Ma','Di','Wo','Do','Vr','Za','Zo']
 const REGION_INFO: Record<string, { text: string; travelFee?: string; diy?: boolean }> = {
   'Noord-Brabant': {
     text: 'Wij plannen 3Dscans aan huis per regio efficiënt op vaste routes. Indien nodig nemen we contact met je op om het gekozen tijdslot in overleg iets aan te passen.',
-    travelFee: '€69',
+    travelFee: '€49',
     diy: true,
   },
   'Zuid-Holland': {
     text: 'Wij plannen 3Dscans aan huis per regio efficiënt op vaste routes. Indien nodig nemen we contact met je op om het gekozen tijdslot in overleg iets aan te passen.',
-    travelFee: '€39',
+    travelFee: '€29',
     diy: true,
   },
   'Noord-Holland & Flevoland': {
     text: 'Wij plannen 3Dscans aan huis per regio efficiënt op vaste routes. Indien nodig nemen we contact met je op om het gekozen tijdslot in overleg iets aan te passen.',
-    travelFee: '€39',
+    travelFee: '€19',
     diy: true,
   },
   'Utrecht & Gelderland & Overijssel': {
     text: 'Wij plannen 3Dscans aan huis per regio efficiënt op vaste routes. Indien nodig nemen we contact met je op om het gekozen tijdslot in overleg iets aan te passen.',
-    travelFee: '€69',
+    travelFee: '€49',
     diy: true,
   },
   'Limburg': {
     text: 'Wij plannen 3Dscans aan huis per regio efficiënt op vaste routes. Indien nodig nemen we contact met je op om het gekozen tijdslot in overleg iets aan te passen.',
-    travelFee: '€69',
+    travelFee: '€49',
     diy: true,
   },
   'Groningen, Friesland en Drenthe': {
     text: 'Wij plannen 3Dscans aan huis per regio efficiënt op vaste routes. Indien nodig nemen we contact met je op om het gekozen tijdslot in overleg iets aan te passen.',
-    travelFee: '€69',
+    travelFee: '€49',
     diy: true,
   },
 }
