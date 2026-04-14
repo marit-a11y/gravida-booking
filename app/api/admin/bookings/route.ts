@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
           AND regions @> ${JSON.stringify([availability.region])}::jsonb
       `.then(r => r.rows.map(row => row.email as string)).catch(() => [] as string[])
 
-      sendBookingEmails({
+      await sendBookingEmails({
         customer_number: booking.customer_number,
         first_name: booking.first_name,
         last_name: booking.last_name,

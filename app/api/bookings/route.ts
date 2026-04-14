@@ -71,39 +71,36 @@ export async function POST(request: NextRequest) {
       notes: notes?.trim() || undefined,
     })
 
-    // Close sibling availability entries in the same group (non-blocking)
+    // Close sibling availability entries in the same group
     if (availability.group_id) {
-      closeSiblingsByGroupId(availability.group_id, availability_id)
+      await closeSiblingsByGroupId(availability.group_id, availability_id)
         .catch(err => console.error('closeSiblingsByGroupId error:', err))
     }
 
-    // Find staff email addresses for this region (non-blocking)
-    const staffEmailsPromise = sql`
+    // Send confirmation + staff emails (must await on Vercel serverless)
+    const staffEmails = await sql`
       SELECT email FROM staff
       WHERE is_active = true
         AND email IS NOT NULL
         AND regions @> ${JSON.stringify([availability.region])}::jsonb
     `.then(r => r.rows.map(row => row.email as string)).catch(() => [] as string[])
 
-    // Send confirmation emails in background (don't block the response)
-    staffEmailsPromise.then(staffEmails => {
-      sendBookingEmails({
-        customer_number: booking.customer_number,
-        first_name: booking.first_name,
-        last_name: booking.last_name,
-        email: booking.email,
-        phone: booking.phone,
-        address: booking.address,
-        zip_code: booking.zip_code,
-        city: booking.city,
-        date: availability.date,
-        time_slot: booking.time_slot,
-        region: availability.region,
-        pregnancy_weeks: booking.pregnancy_weeks,
-        notes: booking.notes,
-        staff_emails: staffEmails,
-      }).catch(err => console.error('sendBookingEmails error:', err))
-    })
+    await sendBookingEmails({
+      customer_number: booking.customer_number,
+      first_name: booking.first_name,
+      last_name: booking.last_name,
+      email: booking.email,
+      phone: booking.phone,
+      address: booking.address,
+      zip_code: booking.zip_code,
+      city: booking.city,
+      date: availability.date,
+      time_slot: booking.time_slot,
+      region: availability.region,
+      pregnancy_weeks: booking.pregnancy_weeks,
+      notes: booking.notes,
+      staff_emails: staffEmails,
+    }).catch(err => console.error('sendBookingEmails error:', err))
 
     return NextResponse.json(booking, { status: 201 })
   } catch (err) {
