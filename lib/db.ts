@@ -206,10 +206,10 @@ export async function getBookings(filters?: {
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
              b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-             b.created_at::text, a.date::text as date, a.region
+             b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
-      WHERE a.date = ${date}::date AND a.region ILIKE ${'%' + region + '%'} AND b.status = ${status}
+      WHERE COALESCE(b.date, a.date) = ${date}::date AND COALESCE(b.region, a.region) ILIKE ${'%' + region + '%'} AND b.status = ${status}
       ORDER BY b.created_at DESC
     `
     return result.rows
@@ -219,10 +219,10 @@ export async function getBookings(filters?: {
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
              b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-             b.created_at::text, a.date::text as date, a.region
+             b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
-      WHERE a.date = ${date}::date AND a.region ILIKE ${'%' + region + '%'}
+      WHERE COALESCE(b.date, a.date) = ${date}::date AND COALESCE(b.region, a.region) ILIKE ${'%' + region + '%'}
       ORDER BY b.created_at DESC
     `
     return result.rows
@@ -232,10 +232,10 @@ export async function getBookings(filters?: {
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
              b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-             b.created_at::text, a.date::text as date, a.region
+             b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
-      WHERE a.date = ${date}::date AND b.status = ${status}
+      WHERE COALESCE(b.date, a.date) = ${date}::date AND b.status = ${status}
       ORDER BY b.created_at DESC
     `
     return result.rows
@@ -245,10 +245,10 @@ export async function getBookings(filters?: {
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
              b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-             b.created_at::text, a.date::text as date, a.region
+             b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
-      WHERE a.region ILIKE ${'%' + region + '%'} AND b.status = ${status}
+      WHERE COALESCE(b.region, a.region) ILIKE ${'%' + region + '%'} AND b.status = ${status}
       ORDER BY b.created_at DESC
     `
     return result.rows
@@ -258,11 +258,11 @@ export async function getBookings(filters?: {
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
              b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-             b.created_at::text, a.date::text as date, a.region
+             b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
-      WHERE a.date = ${date}::date
-      ORDER BY b.created_at DESC
+      WHERE COALESCE(b.date, a.date) = ${date}::date
+      Order BY b.created_at DESC
     `
     return result.rows
   }
@@ -271,10 +271,10 @@ export async function getBookings(filters?: {
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
              b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-             b.created_at::text, a.date::text as date, a.region
+             b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
-      WHERE a.region ILIKE ${'%' + region + '%'}
+      WHERE COALESCE(b.region, a.region) ILIKE ${'%' + region + '%'}
       ORDER BY b.created_at DESC
     `
     return result.rows
@@ -284,7 +284,7 @@ export async function getBookings(filters?: {
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
              b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-             b.created_at::text, a.date::text as date, a.region
+             b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
       WHERE b.status = ${status}
@@ -297,7 +297,7 @@ export async function getBookings(filters?: {
     SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
            b.first_name, b.last_name, b.email, b.phone, b.address,
            b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-           b.created_at::text, a.date::text as date, a.region
+           b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
     FROM bookings b
     LEFT JOIN availability a ON b.availability_id = a.id
     ORDER BY b.created_at DESC
@@ -310,7 +310,7 @@ export async function getBookingById(id: number): Promise<Booking | null> {
     SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
            b.first_name, b.last_name, b.email, b.phone, b.address,
            b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-           b.created_at::text, a.date::text as date, a.region
+           b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
     FROM bookings b
     LEFT JOIN availability a ON b.availability_id = a.id
     WHERE b.id = ${id}
@@ -335,11 +335,17 @@ export async function getNextCustomerNumber(): Promise<string> {
 export async function createBooking(input: CreateBookingInput): Promise<Booking> {
   const customerNumber = await getNextCustomerNumber()
 
+  // Resolve date and region from availability so booking survives availability deletion
+  const avail = await getAvailabilityById(input.availability_id)
+  const date = avail?.date ?? null
+  const region = avail?.region ?? null
+
   const result = await sql<Booking>`
     INSERT INTO bookings (
       customer_number, availability_id, time_slot,
       first_name, last_name, email, phone,
-      address, city, zip_code, pregnancy_weeks, notes
+      address, city, zip_code, pregnancy_weeks, notes,
+      date, region
     ) VALUES (
       ${customerNumber},
       ${input.availability_id},
@@ -352,11 +358,14 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
       ${input.city},
       ${input.zip_code},
       ${input.pregnancy_weeks ?? null},
-      ${input.notes ?? null}
+      ${input.notes ?? null},
+      ${date}::date,
+      ${region}
     )
     RETURNING id, customer_number, availability_id, time_slot,
               first_name, last_name, email, phone, address,
-              city, zip_code, pregnancy_weeks, notes, status, created_at::text
+              city, zip_code, pregnancy_weeks, notes, status, created_at::text,
+              date::text, region
   `
   return result.rows[0]
 }
@@ -393,14 +402,14 @@ export async function getStats() {
     sql<{ count: string }>`
       SELECT COUNT(*) as count FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
-      WHERE a.date >= DATE_TRUNC('week', CURRENT_DATE)
-        AND a.date < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '7 days'
+      WHERE COALESCE(b.date, a.date) >= DATE_TRUNC('week', CURRENT_DATE)
+        AND COALESCE(b.date, a.date) < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '7 days'
         AND b.status != 'geannuleerd'
     `,
     sql<{ count: string }>`
       SELECT COUNT(*) as count FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
-      WHERE a.date = CURRENT_DATE AND b.status != 'geannuleerd'
+      WHERE COALESCE(b.date, a.date) = CURRENT_DATE AND b.status != 'geannuleerd'
     `,
   ])
 

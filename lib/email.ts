@@ -231,7 +231,7 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
 
   const dateFormatted = formatDutchDate(params.date)
   const customerSubject = `Bevestiging: jouw 3D scan op ${dateFormatted} om ${params.time_slot}`
-  const staffSubject = `Nieuwe boeking: ${params.first_name} ${params.last_name} · ${dateFormatted} ${params.time_slot} · ${params.region}`
+  const staffSubject = `Nieuwe boeking: ${params.first_name} ${params.last_name} (${params.email}) · ${dateFormatted} ${params.time_slot} · ${params.region}`
 
   // Determine staff recipients: configured addresses + matching staff emails
   const staffRecipients = [
@@ -257,6 +257,7 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
       getResend().emails.send({
         from: FROM,
         to: staffRecipients,
+        replyTo: params.email,
         subject: staffSubject,
         html: staffEmailHtml(params),
       }).catch(err => console.error('Staff email failed:', err))

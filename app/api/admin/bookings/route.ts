@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     const exportCsv    = searchParams.get('export') === 'csv'
     const includeStats = searchParams.get('stats') === '1'
 
-    // Build bookings query with optional filters
+    // Use COALESCE so bookings survive availability deletion
+    // b.date / b.region are the denormalised copies; a.date / a.region are the JOIN fallbacks
     let bookings: Record<string, unknown>[] = []
 
     if (date && region && status) {
@@ -23,49 +24,62 @@ export async function GET(request: NextRequest) {
         SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
                b.first_name, b.last_name, b.email, b.phone, b.address,
                b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-               b.created_at::text, a.date::text as date, a.region
+               b.created_at::text,
+               COALESCE(b.date, a.date)::text as date,
+               COALESCE(b.region, a.region) as region
         FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
-        WHERE a.date = ${date}::date AND a.region ILIKE ${'%' + region + '%'} AND b.status = ${status}
-        ORDER BY a.date ASC, b.time_slot ASC`
+        WHERE COALESCE(b.date, a.date) = ${date}::date
+          AND COALESCE(b.region, a.region) ILIKE ${'%' + region + '%'}
+          AND b.status = ${status}
+        ORDER BY COALESCE(b.date, a.date) ASC, b.time_slot ASC`
       bookings = r.rows
     } else if (date && region) {
       const r = await sql`
         SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
                b.first_name, b.last_name, b.email, b.phone, b.address,
                b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-               b.created_at::text, a.date::text as date, a.region
+               b.created_at::text,
+               COALESCE(b.date, a.date)::text as date,
+               COALESCE(b.region, a.region) as region
         FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
-        WHERE a.date = ${date}::date AND a.region ILIKE ${'%' + region + '%'}
-        ORDER BY a.date ASC, b.time_slot ASC`
+        WHERE COALESCE(b.date, a.date) = ${date}::date
+          AND COALESCE(b.region, a.region) ILIKE ${'%' + region + '%'}
+        ORDER BY COALESCE(b.date, a.date) ASC, b.time_slot ASC`
       bookings = r.rows
     } else if (date && status) {
       const r = await sql`
         SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
                b.first_name, b.last_name, b.email, b.phone, b.address,
                b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-               b.created_at::text, a.date::text as date, a.region
+               b.created_at::text,
+               COALESCE(b.date, a.date)::text as date,
+               COALESCE(b.region, a.region) as region
         FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
-        WHERE a.date = ${date}::date AND b.status = ${status}
-        ORDER BY a.date ASC, b.time_slot ASC`
+        WHERE COALESCE(b.date, a.date) = ${date}::date AND b.status = ${status}
+        ORDER BY COALESCE(b.date, a.date) ASC, b.time_slot ASC`
       bookings = r.rows
     } else if (region && status) {
       const r = await sql`
         SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
                b.first_name, b.last_name, b.email, b.phone, b.address,
                b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-               b.created_at::text, a.date::text as date, a.region
+               b.created_at::text,
+               COALESCE(b.date, a.date)::text as date,
+               COALESCE(b.region, a.region) as region
         FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
-        WHERE a.region ILIKE ${'%' + region + '%'} AND b.status = ${status}
-        ORDER BY a.date ASC, b.time_slot ASC`
+        WHERE COALESCE(b.region, a.region) ILIKE ${'%' + region + '%'} AND b.status = ${status}
+        ORDER BY COALESCE(b.date, a.date) ASC, b.time_slot ASC`
       bookings = r.rows
     } else if (date) {
       const r = await sql`
         SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
                b.first_name, b.last_name, b.email, b.phone, b.address,
                b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-               b.created_at::text, a.date::text as date, a.region
+               b.created_at::text,
+               COALESCE(b.date, a.date)::text as date,
+               COALESCE(b.region, a.region) as region
         FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
-        WHERE a.date = ${date}::date
+        WHERE COALESCE(b.date, a.date) = ${date}::date
         ORDER BY b.time_slot ASC`
       bookings = r.rows
     } else if (region) {
@@ -73,30 +87,35 @@ export async function GET(request: NextRequest) {
         SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
                b.first_name, b.last_name, b.email, b.phone, b.address,
                b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-               b.created_at::text, a.date::text as date, a.region
+               b.created_at::text,
+               COALESCE(b.date, a.date)::text as date,
+               COALESCE(b.region, a.region) as region
         FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
-        WHERE a.region ILIKE ${'%' + region + '%'}
-        ORDER BY a.date ASC, b.time_slot ASC`
+        WHERE COALESCE(b.region, a.region) ILIKE ${'%' + region + '%'}
+        ORDER BY COALESCE(b.date, a.date) ASC, b.time_slot ASC`
       bookings = r.rows
     } else if (status) {
       const r = await sql`
         SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
                b.first_name, b.last_name, b.email, b.phone, b.address,
                b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-               b.created_at::text, a.date::text as date, a.region
+               b.created_at::text,
+               COALESCE(b.date, a.date)::text as date,
+               COALESCE(b.region, a.region) as region
         FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
         WHERE b.status = ${status}
-        ORDER BY a.date ASC, b.time_slot ASC`
+        ORDER BY COALESCE(b.date, a.date) ASC, b.time_slot ASC`
       bookings = r.rows
     } else {
-      // No filters — return all, ordered by appointment date
       const r = await sql`
         SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
                b.first_name, b.last_name, b.email, b.phone, b.address,
                b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
-               b.created_at::text, a.date::text as date, a.region
+               b.created_at::text,
+               COALESCE(b.date, a.date)::text as date,
+               COALESCE(b.region, a.region) as region
         FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
-        ORDER BY a.date ASC, b.time_slot ASC`
+        ORDER BY COALESCE(b.date, a.date) ASC, b.time_slot ASC`
       bookings = r.rows
     }
 
@@ -116,11 +135,11 @@ export async function GET(request: NextRequest) {
       const [total, week, today] = await Promise.all([
         sql`SELECT COUNT(*) as count FROM bookings WHERE status != 'geannuleerd'`,
         sql`SELECT COUNT(*) as count FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
-            WHERE a.date >= DATE_TRUNC('week', CURRENT_DATE)
-              AND a.date < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '7 days'
+            WHERE COALESCE(b.date, a.date) >= DATE_TRUNC('week', CURRENT_DATE)
+              AND COALESCE(b.date, a.date) < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '7 days'
               AND b.status != 'geannuleerd'`,
         sql`SELECT COUNT(*) as count FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
-            WHERE a.date = CURRENT_DATE AND b.status != 'geannuleerd'`,
+            WHERE COALESCE(b.date, a.date) = CURRENT_DATE AND b.status != 'geannuleerd'`,
       ])
       return NextResponse.json({
         bookings,
