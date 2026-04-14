@@ -65,11 +65,33 @@ export async function GET(request: NextRequest) {
           )
         ORDER BY a.date ASC
       `
+      // Exact replica of public API query
+      const today = new Date().toISOString().split('T')[0]
+      const region = 'Limburg'
+      const publicQuery = await sql`
+        SELECT a.id, a.date::text, a.region, a.slots, a.max_per_slot, a.notes
+        FROM availability a
+        WHERE a.is_active = true AND a.is_closed = false AND a.date >= ${today}
+          AND a.region = ${region}
+          AND EXISTS (
+            SELECT 1 FROM staff s
+            WHERE s.is_active = true
+              AND s.regions @> ${JSON.stringify([region])}::jsonb
+              AND NOT EXISTS (
+                SELECT 1 FROM absence ab
+                WHERE ab.staff_id = s.id
+                  AND ab.date_from <= a.date
+                  AND ab.date_to >= a.date
+              )
+          )
+        ORDER BY a.date ASC
+      `
       return NextResponse.json({
         staff: staff.rows,
-        absences: absences.rows,
+        today,
         limburg_all: limburgAll.rows,
         limburg_after_filter: limburgFiltered.rows,
+        limburg_public_query: publicQuery.rows,
       })
     }
 
