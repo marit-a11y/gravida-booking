@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from 'react'
 
-function formatWeek(mondayStr: string): string {
+/* eslint-disable @next/next/no-page-custom-font */
+
+function formatWeekShort(mondayStr: string): string {
+  const mon = new Date(mondayStr + 'T00:00:00')
+  const thu = new Date(mon); thu.setDate(mon.getDate() + 3)
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  const fmt = (d: Date) => d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' })
+  return `${fmt(thu)} – ${fmt(sun)}`
+}
+
+function formatWeekLong(mondayStr: string): string {
   const mon = new Date(mondayStr + 'T00:00:00')
   const thu = new Date(mon); thu.setDate(mon.getDate() + 3)
   const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
@@ -10,13 +20,11 @@ function formatWeek(mondayStr: string): string {
   return `${fmt(thu)} t/m ${fmt(sun)}`
 }
 
-const BRAND = { green: '#3d5c41', cream: '#f5f4f0', offWhite: '#faf9f7', sage: '#6b8c6e' }
-
 export default function DiyScanPage() {
   const [weeks, setWeeks] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedWeek, setSelectedWeek] = useState('')
-  const [step, setStep] = useState<'select' | 'form' | 'success'>('select')
+  const [step, setStep] = useState<'landing' | 'form' | 'success'>('landing')
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
     address: '', city: '', zip_code: '', notes: '',
@@ -38,7 +46,6 @@ export default function DiyScanPage() {
       if (!form[f].trim()) { setError('Vul alle verplichte velden in.'); return }
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) { setError('Vul een geldig e-mailadres in.'); return }
-
     setSubmitting(true); setError('')
     try {
       const res = await fetch('/api/diy-rentals', {
@@ -46,9 +53,8 @@ export default function DiyScanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, rental_week: selectedWeek }),
       })
-      if (res.ok) {
-        setStep('success')
-      } else {
+      if (res.ok) { setStep('success') }
+      else {
         const data = await res.json().catch(() => ({}))
         setError(data.error ?? 'Er ging iets mis. Probeer het opnieuw.')
       }
@@ -57,127 +63,250 @@ export default function DiyScanPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: BRAND.offWhite, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
-      {/* Header */}
-      <div style={{ background: BRAND.green, padding: '28px 24px', textAlign: 'center' }}>
-        <h1 style={{ color: '#fff', fontSize: 26, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>Gravida</h1>
-        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, margin: '4px 0 0' }}>DIY 3D Scan Kit Reserveren</p>
-      </div>
+    <>
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Manrope:wght@300;400;500;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+      </head>
 
-      <div style={{ maxWidth: 560, margin: '0 auto', padding: '32px 16px' }}>
-        {/* Info blok */}
-        <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', marginBottom: 24, border: '1px solid #e8e6e0' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 600, color: '#1e2d1f', margin: '0 0 12px' }}>Hoe werkt het?</h2>
-          <div style={{ fontSize: 14, color: '#3d4d3e', lineHeight: 1.7 }}>
-            <p style={{ margin: '0 0 8px' }}>Leen gratis onze 3D scanner en maak thuis op je eigen tempo prachtige scans van je buik.</p>
-            <p style={{ margin: '0 0 8px' }}><strong>Tijdlijn:</strong></p>
-            <ul style={{ margin: '0 0 8px', paddingLeft: 20 }}>
-              <li>Wij verzenden de scanner op <strong>woensdag</strong></li>
-              <li>Jij ontvangt hem op <strong>donderdag</strong></li>
-              <li>Scannen van <strong>donderdag t/m zondag</strong></li>
-              <li>Retour sturen op <strong>maandag</strong></li>
-            </ul>
-            <p style={{ margin: '0', background: BRAND.cream, padding: '10px 14px', borderRadius: 10, fontSize: 13 }}>
-              Er geldt een borg van <strong>&euro;200</strong>. Deze wordt volledig teruggestort zodra de scanner in goede staat retour is.
-            </p>
+      <div className="min-h-screen" style={{ background: '#fbf9f5', fontFamily: 'Manrope, sans-serif', color: '#1b1c1a' }}>
+        {/* Nav */}
+        <nav style={{ background: 'rgba(251,249,245,0.8)', backdropFilter: 'blur(20px)' }} className="fixed top-0 w-full z-50">
+          <div className="flex justify-between items-center px-8 py-6 max-w-[1440px] mx-auto">
+            <a href="https://www.gravida.nl" className="text-2xl italic" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>Gravida</a>
+            <a href="https://www.gravida.nl" className="text-sm hover:opacity-70 transition-opacity" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>
+              Terug naar gravida.nl
+            </a>
           </div>
-        </div>
+        </nav>
 
-        {step === 'select' && (
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', border: '1px solid #e8e6e0' }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#1e2d1f', margin: '0 0 16px' }}>Kies je week</h2>
-            {loading ? (
-              <p style={{ textAlign: 'center', color: BRAND.sage, padding: '32px 0' }}>Beschikbaarheid laden...</p>
-            ) : weeks.length === 0 ? (
-              <p style={{ textAlign: 'center', color: BRAND.sage, padding: '32px 0' }}>Momenteel geen scanners beschikbaar. Probeer het later opnieuw.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {weeks.map(w => (
-                  <button key={w} onClick={() => { setSelectedWeek(w); setStep('form') }}
-                    style={{
-                      background: BRAND.cream, border: '2px solid transparent', borderRadius: 12,
-                      padding: '14px 18px', textAlign: 'left', cursor: 'pointer', fontSize: 15,
-                      color: '#1e2d1f', fontWeight: 500, transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { (e.target as HTMLElement).style.borderColor = BRAND.green }}
-                    onMouseLeave={e => { (e.target as HTMLElement).style.borderColor = 'transparent' }}
-                  >
-                    {formatWeek(w)}
+        <main className="pt-24">
+          {step === 'landing' && (
+            <>
+              {/* Hero */}
+              <section className="relative min-h-[700px] flex items-center px-8 md:px-20 overflow-hidden">
+                <div className="max-w-[1440px] mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
+                  <div className="md:col-span-6 z-10">
+                    <span className="uppercase tracking-widest text-xs mb-6 block" style={{ fontFamily: 'Manrope', color: 'rgba(37,60,39,0.6)' }}>DIY 3D Zwangerschapsscan</span>
+                    <h1 className="text-5xl md:text-7xl mb-8" style={{ fontFamily: 'Noto Serif', color: '#253c27', lineHeight: 1.1 }}>
+                      Vang het wonder in <em>tijdloze</em> details.
+                    </h1>
+                    <p className="text-lg max-w-md mb-10 leading-relaxed" style={{ color: '#434842' }}>
+                      Een unieke ervaring om de vormen van je zwangerschap te vereeuwigen met onze 3D-scan technologie, gewoon bij je thuis.
+                    </p>
+                    <a href="#booking" className="inline-flex items-center gap-3 px-8 py-4 rounded-xl font-medium text-sm transition-all hover:opacity-90" style={{ background: '#253c27', color: '#fff' }}>
+                      Reserveer je week
+                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                    </a>
+                  </div>
+                  <div className="md:col-span-6 relative h-[500px] md:h-[600px]">
+                    <div className="absolute inset-0 rounded-[2rem] overflow-hidden" style={{ background: '#f0eeea' }}>
+                      <img className="w-full h-full object-cover mix-blend-multiply opacity-90" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDt40PN3a4qhjqI6G0L1Jse2xq4qtmWwUnEPTwJ0ojGtWOGc_WBgLSboz0I_herItcnfvYCZH-h7fYpktkHMlLHPLAbTKWWV0I_xLaPGlQ1pN2N-XBqqDn1wVly_ehqn8DkcrYyjGfWVrmzC5QoX_uy77yjxv4xmQTNIRdpco807-GeG124O79tbZKS7K_BqJ6LIp79FX8xV7flxfN-9cD3eY-J7hb9_mkCi1Pzkcn1r_SNE4QwVFz0KmCTsXgpfUyE3d4JDjVUMRte" alt="Zwangere vrouw silhouet" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Hoe werkt het */}
+              <section className="py-32 px-8 md:px-20" style={{ background: '#f5f3ef' }}>
+                <div className="max-w-[1440px] mx-auto">
+                  <div className="text-center mb-24">
+                    <h2 className="text-4xl mb-4" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>Hoe werkt het?</h2>
+                    <div className="h-1 w-12 mx-auto" style={{ background: '#253c27' }}></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {[
+                      { icon: 'local_shipping', title: 'Woensdag', desc: 'Wij verzenden de professionele scan-set naar jouw adres in een discrete verpakking.', filled: false },
+                      { icon: 'inventory_2', title: 'Donderdag', desc: 'De set komt aan. Pak het rustig uit en lees de eenvoudige handleiding voor de perfecte scan.', filled: false },
+                      { icon: '3d_rotation', title: 'Vrijdag t/m Zondag', desc: 'Neem de tijd. Scan op je eigen tempo in de vertrouwde omgeving van je eigen huis.', filled: true },
+                      { icon: 'keyboard_return', title: 'Maandag', desc: 'Plak de retoursticker op de doos en geef het af bij een PostNL punt. Wij doen de rest.', filled: false },
+                    ].map((s, i) => (
+                      <div key={i} className="p-10 rounded-[2rem] flex flex-col items-start gap-8" style={{ background: '#fbf9f5', border: '1px solid rgba(195,200,191,0.1)' }}>
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: s.filled ? '#253c27' : '#dbe6d7' }}>
+                          <span className="material-symbols-outlined" style={{ color: s.filled ? '#fff' : '#253c27', fontVariationSettings: s.filled ? "'FILL' 1" : "'FILL' 0" }}>{s.icon}</span>
+                        </div>
+                        <div>
+                          <h3 className="text-xl mb-3" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>{s.title}</h3>
+                          <p className="leading-relaxed text-sm" style={{ color: '#434842' }}>{s.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              {/* Borg callout */}
+              <section className="py-20 px-8">
+                <div className="max-w-4xl mx-auto p-12 md:p-20 rounded-[2.5rem] relative overflow-hidden text-center" style={{ background: '#253c27', color: '#fff' }}>
+                  <div className="relative z-10">
+                    <h2 className="text-3xl md:text-4xl mb-6" style={{ fontFamily: 'Noto Serif' }}>Transparante Borg</h2>
+                    <p className="text-lg max-w-xl mx-auto mb-10" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                      Voor de hoogwaardige scanapparatuur vragen we een borg van <span className="font-bold text-white">&euro;200</span>. Deze wordt direct na ontvangst en controle van de set weer op je rekening teruggestort.
+                    </p>
+                    <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full" style={{ border: '1px solid rgba(255,255,255,0.2)' }}>
+                      <span className="material-symbols-outlined text-sm">verified_user</span>
+                      <span className="text-xs uppercase tracking-widest">Veilig &amp; Vertrouwd</span>
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 opacity-10 pointer-events-none">
+                    <div className="absolute -top-1/2 -left-1/4 w-full h-full rounded-full bg-gradient-to-br from-white to-transparent blur-3xl"></div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Kies je week */}
+              <section className="py-32 px-8 md:px-20" id="booking">
+                <div className="max-w-[1440px] mx-auto">
+                  <div className="max-w-xl mb-16">
+                    <h2 className="text-4xl mb-6" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>Kies je week</h2>
+                    <p style={{ color: '#434842' }}>Selecteer de periode waarin jij je 3D-scan wilt maken. We raden aan om dit tussen week 30 en 36 van je zwangerschap te doen.</p>
+                  </div>
+
+                  {loading ? (
+                    <p className="text-center py-20" style={{ color: '#737971' }}>Beschikbaarheid laden...</p>
+                  ) : weeks.length === 0 ? (
+                    <p className="text-center py-20" style={{ color: '#737971' }}>Momenteel geen scanners beschikbaar. Probeer het later opnieuw.</p>
+                  ) : (
+                    <div className="flex gap-6 overflow-x-auto pb-10" style={{ scrollbarWidth: 'none' }}>
+                      {weeks.map((w, i) => (
+                        <button key={w} onClick={() => { setSelectedWeek(w); setStep('form'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                          className="min-w-[300px] p-8 rounded-[2rem] text-left transition-all cursor-pointer group"
+                          style={{ background: i === 0 ? '#3b533d' : '#f5f3ef', border: i === 0 ? '2px solid #253c27' : '1px solid transparent' }}
+                          onMouseEnter={e => { if (i !== 0) (e.currentTarget as HTMLElement).style.borderColor = '#c3c8bf' }}
+                          onMouseLeave={e => { if (i !== 0) (e.currentTarget as HTMLElement).style.borderColor = 'transparent' }}
+                        >
+                          <div className="flex justify-between items-start mb-12">
+                            <span className="text-[10px] uppercase tracking-widest px-3 py-1 rounded-full font-medium"
+                              style={i === 0 ? { background: '#253c27', color: '#aac6aa' } : { background: '#e4e2de', color: '#434842' }}>
+                              {i === 0 ? 'Eerstvolgende' : 'Beschikbaar'}
+                            </span>
+                            <span className="material-symbols-outlined" style={{ color: i === 0 ? '#aac6aa' : '#434842' }}>
+                              {i === 0 ? 'event_available' : 'event'}
+                            </span>
+                          </div>
+                          <h4 className="text-2xl mb-2" style={{ fontFamily: 'Noto Serif', color: i === 0 ? '#fff' : '#253c27' }}>{formatWeekShort(w)}</h4>
+                          <p className="text-sm mb-8" style={{ color: i === 0 ? '#aac6aa' : '#434842' }}>Scanner beschikbaar</p>
+                          <div className="h-[1px] w-full mb-8" style={{ background: i === 0 ? 'rgba(170,198,170,0.2)' : 'rgba(195,200,191,0.3)' }}></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xl" style={{ fontFamily: 'Noto Serif', color: i === 0 ? '#fff' : '#253c27' }}>Gratis</span>
+                            {i === 0 ? (
+                              <span className="material-symbols-outlined" style={{ color: '#aac6aa' }}>check_circle</span>
+                            ) : (
+                              <span className="text-xs uppercase tracking-widest font-bold" style={{ color: '#253c27' }}>Selecteer</span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            </>
+          )}
+
+          {/* Formulier */}
+          {step === 'form' && (
+            <section className="py-16 px-8 md:px-20">
+              <div className="max-w-2xl mx-auto">
+                <button onClick={() => setStep('landing')} className="mb-8 text-sm hover:opacity-70 transition-opacity flex items-center gap-2" style={{ color: '#253c27', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Manrope' }}>
+                  <span className="material-symbols-outlined text-sm">arrow_back</span>
+                  Andere week kiezen
+                </button>
+
+                <div className="p-10 md:p-14 rounded-[2rem]" style={{ background: '#fff', border: '1px solid rgba(195,200,191,0.3)' }}>
+                  <span className="text-[10px] uppercase tracking-widest mb-4 block" style={{ color: 'rgba(37,60,39,0.6)' }}>Geselecteerde week</span>
+                  <h2 className="text-3xl mb-2" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>{formatWeekShort(selectedWeek)}</h2>
+                  <p className="text-sm mb-10" style={{ color: '#737971' }}>{formatWeekLong(selectedWeek)}</p>
+
+                  <div className="h-[1px] w-full mb-10" style={{ background: 'rgba(195,200,191,0.3)' }}></div>
+
+                  <h3 className="text-xl mb-8" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>Jouw gegevens</h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <FormInput label="Voornaam" value={form.first_name} onChange={v => setForm(f => ({ ...f, first_name: v }))} required />
+                    <FormInput label="Achternaam" value={form.last_name} onChange={v => setForm(f => ({ ...f, last_name: v }))} required />
+                    <FormInput label="E-mailadres" type="email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} required />
+                    <FormInput label="Telefoonnummer" value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} required />
+                    <div className="md:col-span-2">
+                      <FormInput label="Adres" value={form.address} onChange={v => setForm(f => ({ ...f, address: v }))} required />
+                    </div>
+                    <FormInput label="Postcode" value={form.zip_code} onChange={v => setForm(f => ({ ...f, zip_code: v }))} required />
+                    <FormInput label="Stad" value={form.city} onChange={v => setForm(f => ({ ...f, city: v }))} required />
+                    <div className="md:col-span-2">
+                      <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: '#737971', fontFamily: 'Manrope' }}>Opmerkingen</label>
+                      <textarea rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                        className="w-full px-5 py-4 rounded-xl text-sm focus:outline-none transition-all"
+                        style={{ border: '1.5px solid #e4e2de', background: '#fbf9f5', fontFamily: 'Manrope', resize: 'vertical' }}
+                        onFocus={e => (e.target.style.borderColor = '#253c27')}
+                        onBlur={e => (e.target.style.borderColor = '#e4e2de')}
+                      />
+                    </div>
+                  </div>
+
+                  {error && <p className="text-sm mt-4" style={{ color: '#ba1a1a' }}>{error}</p>}
+
+                  <div className="mt-10 p-6 rounded-2xl flex items-start gap-4" style={{ background: '#f5f3ef' }}>
+                    <span className="material-symbols-outlined mt-0.5" style={{ color: '#253c27', fontSize: 20 }}>info</span>
+                    <p className="text-sm leading-relaxed" style={{ color: '#434842' }}>
+                      Er geldt een borg van <strong>&euro;200</strong>. Deze wordt volledig teruggestort zodra de scanner in goede staat retour is ontvangen.
+                    </p>
+                  </div>
+
+                  <button onClick={handleSubmit} disabled={submitting}
+                    className="w-full mt-8 py-4 rounded-xl font-medium text-sm flex items-center justify-center gap-3 transition-all hover:opacity-90"
+                    style={{ background: '#253c27', color: '#fff', cursor: submitting ? 'wait' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
+                    {submitting ? 'Bezig met reserveren...' : 'Reservering bevestigen'}
+                    {!submitting && <span className="material-symbols-outlined text-sm">arrow_forward</span>}
                   </button>
-                ))}
+                </div>
               </div>
-            )}
-          </div>
-        )}
+            </section>
+          )}
 
-        {step === 'form' && (
-          <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', border: '1px solid #e8e6e0' }}>
-            <button onClick={() => setStep('select')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: BRAND.sage, marginBottom: 12, padding: 0 }}>
-              &larr; Andere week kiezen
-            </button>
-            <h2 style={{ fontSize: 18, fontWeight: 600, color: '#1e2d1f', margin: '0 0 4px' }}>Jouw gegevens</h2>
-            <p style={{ fontSize: 13, color: BRAND.sage, margin: '0 0 20px' }}>Week: {formatWeek(selectedWeek)}</p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Input label="Voornaam *" value={form.first_name} onChange={v => setForm(f => ({ ...f, first_name: v }))} />
-              <Input label="Achternaam *" value={form.last_name} onChange={v => setForm(f => ({ ...f, last_name: v }))} />
-              <Input label="E-mail *" type="email" value={form.email} onChange={v => setForm(f => ({ ...f, email: v }))} />
-              <Input label="Telefoon *" value={form.phone} onChange={v => setForm(f => ({ ...f, phone: v }))} />
-              <div style={{ gridColumn: '1 / -1' }}>
-                <Input label="Adres *" value={form.address} onChange={v => setForm(f => ({ ...f, address: v }))} />
+          {/* Success */}
+          {step === 'success' && (
+            <section className="py-32 px-8 md:px-20">
+              <div className="max-w-2xl mx-auto text-center">
+                <div className="p-14 md:p-20 rounded-[2rem]" style={{ background: '#fff', border: '1px solid rgba(195,200,191,0.3)' }}>
+                  <div className="w-20 h-20 rounded-full mx-auto mb-8 flex items-center justify-center" style={{ background: '#dbe6d7' }}>
+                    <span className="material-symbols-outlined text-3xl" style={{ color: '#253c27', fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                  </div>
+                  <h2 className="text-3xl md:text-4xl mb-4" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>Reservering bevestigd</h2>
+                  <p className="text-lg mb-2 leading-relaxed" style={{ color: '#434842' }}>
+                    Je DIY 3D scan kit is gereserveerd voor
+                  </p>
+                  <p className="text-xl font-semibold mb-8" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>{formatWeekLong(selectedWeek)}</p>
+                  <p className="text-sm mb-12" style={{ color: '#737971' }}>
+                    Je ontvangt een bevestiging per e-mail met alle details over de verzending en het retourproces.
+                  </p>
+                  <a href="https://www.gravida.nl" className="inline-flex items-center gap-3 px-8 py-4 rounded-xl font-medium text-sm transition-all hover:opacity-90" style={{ background: '#253c27', color: '#fff' }}>
+                    Terug naar gravida.nl
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </a>
+                </div>
               </div>
-              <Input label="Postcode *" value={form.zip_code} onChange={v => setForm(f => ({ ...f, zip_code: v }))} />
-              <Input label="Stad *" value={form.city} onChange={v => setForm(f => ({ ...f, city: v }))} />
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Opmerkingen</label>
-                <textarea
-                  rows={2}
-                  value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e0ddd7', fontSize: 15, resize: 'vertical', boxSizing: 'border-box' }}
-                />
-              </div>
-            </div>
-
-            {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 12 }}>{error}</p>}
-
-            <button onClick={handleSubmit} disabled={submitting}
-              style={{
-                width: '100%', marginTop: 20, padding: '14px', background: BRAND.green, color: '#fff',
-                border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: submitting ? 'wait' : 'pointer',
-                opacity: submitting ? 0.7 : 1,
-              }}>
-              {submitting ? 'Bezig met reserveren...' : 'Reserveren'}
-            </button>
-          </div>
-        )}
-
-        {step === 'success' && (
-          <div style={{ background: '#fff', borderRadius: 16, padding: '40px 24px', border: '1px solid #e8e6e0', textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-            <h2 style={{ fontSize: 22, fontWeight: 600, color: '#1e2d1f', margin: '0 0 12px' }}>Reservering bevestigd!</h2>
-            <p style={{ fontSize: 15, color: '#3d4d3e', lineHeight: 1.7, margin: '0 0 8px' }}>
-              Je DIY 3D scan kit is gereserveerd voor <strong>{formatWeek(selectedWeek)}</strong>.
-            </p>
-            <p style={{ fontSize: 14, color: BRAND.sage, margin: '0 0 24px' }}>
-              Je ontvangt een bevestiging per e-mail met alle details.
-            </p>
-            <a href="/" style={{ color: BRAND.green, fontSize: 14, fontWeight: 500 }}>Terug naar de homepage</a>
-          </div>
-        )}
+            </section>
+          )}
+        </main>
       </div>
-    </div>
+    </>
   )
 }
 
-function Input({ label, value, onChange, type = 'text' }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string
+function FormInput({ label, value, onChange, type = 'text', required }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean
 }) {
   return (
     <div>
-      <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6 }}>{label}</label>
+      <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: '#737971', fontFamily: 'Manrope' }}>
+        {label}{required && ' *'}
+      </label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)}
-        style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1.5px solid #e0ddd7', fontSize: 15, boxSizing: 'border-box' }} />
+        className="w-full px-5 py-4 rounded-xl text-sm focus:outline-none transition-all"
+        style={{ border: '1.5px solid #e4e2de', background: '#fbf9f5', fontFamily: 'Manrope' }}
+        onFocus={e => (e.target.style.borderColor = '#253c27')}
+        onBlur={e => (e.target.style.borderColor = '#e4e2de')}
+      />
     </div>
   )
 }
