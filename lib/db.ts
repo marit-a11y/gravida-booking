@@ -419,3 +419,183 @@ export async function getStats() {
     today: parseInt(todayResult.rows[0].count, 10),
   }
 }
+
+// ─── DIY Scanners ────────────────────────────────────────────────────────────
+
+export interface DiyScanner {
+  id: number
+  name: string
+  is_available: boolean
+  notes: string | null
+  created_at: string
+}
+
+export interface DiyRental {
+  id: number
+  scanner_id: number
+  scanner_name?: string
+  rental_week: string
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  zip_code: string
+  status: string
+  deposit_amount: number
+  deposit_status: string
+  notes: string | null
+  created_at: string
+}
+
+export interface CreateDiyRentalInput {
+  rental_week: string
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  zip_code: string
+  notes?: string
+}
+
+export async function getDiyScanners(): Promise<DiyScanner[]> {
+  const result = await sql<DiyScanner>`
+    SELECT id, name, is_available, notes, created_at::text FROM diy_scanners ORDER BY id ASC
+  `
+  return result.rows
+}
+
+export async function updateDiyScanner(
+  id: number,
+  input: { is_available?: boolean; notes?: string | null; name?: string }
+): Promise<DiyScanner | null> {
+  const existing = await sql<DiyScanner>`SELECT * FROM diy_scanners WHERE id = ${id}`
+  if (!existing.rows[0]) return null
+  const s = existing.rows[0]
+  const result = await sql<DiyScanner>`
+    UPDATE diy_scanners
+    SET is_available = ${input.is_available ?? s.is_available},
+        notes = ${input.notes !== undefined ? input.notes : s.notes},
+        name = ${input.name ?? s.name}
+    WHERE id = ${id}
+    RETURNING id, name, is_available, notes, created_at::text
+  `
+  return result.rows[0] ?? null
+}
+
+export async function getDiyRentals(filters?: { status?: string }): Promise<DiyRental[]> {
+  const status = filters?.status ?? null
+  if (status) {
+    const result = await sql<DiyRental>`
+      SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
+             r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
+             r.status, r.deposit_amount, r.deposit_status, r.notes, r.created_at::text
+      FROM diy_rentals r
+      LEFT JOIN diy_scanners s ON r.scanner_id = s.id
+      WHERE r.status = ${status}
+      ORDER BY r.rental_week DESC, r.created_at DESC
+    `
+    return result.rows
+  }
+  const result = await sql<DiyRental>`
+    SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
+           r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
+           r.status, r.deposit_amount, r.deposit_status, r.notes, r.created_at::text
+    FROM diy_rentals r
+    LEFT JOIN diy_scanners s ON r.scanner_id = s.id
+    ORDER BY r.rental_week DESC, r.created_at DESC
+  `
+  return result.rows
+}
+
+export async function getDiyRentalById(id: number): Promise<DiyRental | null> {
+  const result = await sql<DiyRental>`
+    SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
+           r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
+           r.status, r.deposit_amount, r.deposit_status, r.notes, r.created_at::text
+    FROM diy_rentals r
+    LEFT JOIN diy_scanners s ON r.scanner_id = s.id
+    WHERE r.id = ${id}
+  `
+  return result.rows[0] ?? null
+}
+
+/** Find a free scanner for a given week. Returns scanner id or null. */
+export async function findFreeScannerForWeek(rentalWeek: string): Promise<number | null> {
+  const result = await sql<{ id: number }>`
+    SELECT s.id FROM diy_scanners s
+    WHERE s.is_available = true
+      AND NOT EXISTS (
+        SELECT 1 FROM diy_rentals r
+        WHERE r.scanner_id = s.id
+          AND r.rental_week = ${rentalWeek}::date
+          AND r.status IN ('gereserveerd', 'verzonden')
+      )
+    ORDER BY s.id ASC
+    LIMIT 1
+  `
+  return result.rows[0]?.id ?? null
+}
+
+export async function createDiyRental(input: CreateDiyRentalInput): Promise<DiyRental> {
+  const scannerId = await findFreeScannerForWeek(input.rental_week)
+  if (!scannerId) {
+    throw new Error('Geen scanner beschikbaar voor deze week')
+  }
+
+  const result = await sql<DiyRental>`
+    INSERT INTO diy_rentals (
+      scanner_id, rental_week, first_name, last_name, email, phone,
+      address, city, zip_code, notes
+    ) VALUES (
+      ${scannerId}, ${input.rental_week}::date,
+      ${input.first_name}, ${input.last_name}, ${input.email}, ${input.phone},
+      ${input.address}, ${input.city}, ${input.zip_code}, ${input.notes ?? null}
+    )
+    RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
+              address, city, zip_code, status, deposit_amount, deposit_status, notes, created_at::text
+  `
+  return result.rows[0]
+}
+
+export async function updateDiyRental(
+  id: number,
+  input: { status?: string; deposit_status?: string; notes?: string | null }
+): Promise<DiyRental | null> {
+  const existing = await getDiyRentalById(id)
+  if (!existing) return null
+  const result = await sql<DiyRental>`
+    UPDATE diy_rentals
+    SET status = ${input.status ?? existing.status},
+        deposit_status = ${input.deposit_status ?? existing.deposit_status},
+        notes = ${input.notes !== undefined ? input.notes : existing.notes}
+    WHERE id = ${id}
+    RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
+              address, city, zip_code, status, deposit_amount, deposit_status, notes, created_at::text
+  `
+  return result.rows[0] ?? null
+}
+
+/** Get weeks (as Monday dates) in the next 12 weeks that have at least 1 free scanner. */
+export async function getAvailableDiyWeeks(): Promise<string[]> {
+  // Generate next 12 Mondays
+  const weeks: string[] = []
+  const now = new Date()
+  // Find next Monday
+  const d = new Date(now)
+  d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7))
+  for (let i = 0; i < 12; i++) {
+    weeks.push(d.toISOString().split('T')[0])
+    d.setDate(d.getDate() + 7)
+  }
+
+  const available: string[] = []
+  for (const week of weeks) {
+    const free = await findFreeScannerForWeek(week)
+    if (free) available.push(week)
+  }
+  return available
+}

@@ -268,3 +268,136 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
 
   await Promise.all(sends)
 }
+
+// ─── DIY Scanner Rental emails ───────────────────────────────────────────────
+
+function formatDiyWeek(mondayStr: string): string {
+  const mon = new Date(mondayStr + 'T00:00:00')
+  const thu = new Date(mon); thu.setDate(mon.getDate() + 3)
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  return `${formatDutchDate(thu.toISOString().split('T')[0])} t/m ${formatDutchDate(sun.toISOString().split('T')[0])}`
+}
+
+function diyCustomerEmailHtml(params: {
+  first_name: string
+  rental_week: string
+}): string {
+  const weekFormatted = formatDiyWeek(params.rental_week)
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  return layout(`
+    ${p(`Hi ${params.first_name},`)}
+    ${p(`Leuk dat je een DIY 3D scan kit hebt gereserveerd! Hierbij bevestigen we je reservering voor <strong>${weekFormatted}</strong>.`)}
+    ${p('De scanner wordt op <strong>woensdag</strong> naar je verstuurd, zodat je deze uiterlijk <strong>donderdag</strong> in huis hebt. Je kunt de scanner gebruiken van donderdag tot en met zondag.')}
+    ${p('Stuur de scanner uiterlijk <strong>maandag</strong> retour, zodat wij deze op dinsdag kunnen verwerken.')}
+    ${p('Voor de scanner geldt een borg van <strong>&euro;200</strong>. Deze wordt teruggestort zodra de scanner in goede staat retour is ontvangen.')}
+    ${p('Heb je vragen over het gebruik van de scanner? Stuur ons gerust een berichtje!')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Veel plezier met scannen!<br/>
+      <strong style="color:#1e2d1f;">Team Gravida</strong>
+    </p>
+  `)
+}
+
+function diyStaffEmailHtml(params: {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  zip_code: string
+  rental_week: string
+}): string {
+  const weekFormatted = formatDiyWeek(params.rental_week)
+  const row = (label: string, value: string) => value ? `
+    <tr>
+      <td style="padding:5px 0;font-size:13px;color:#8a9e8c;width:140px;vertical-align:top;">${label}</td>
+      <td style="padding:5px 0;font-size:14px;color:#1e2d1f;">${value}</td>
+    </tr>` : ''
+
+  return layout(`
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:600;color:#1e2d1f;letter-spacing:-0.5px;">
+      Nieuwe DIY scan kit reservering
+    </h1>
+    <p style="margin:0 0 28px;font-size:15px;color:#5a6e5c;">
+      Er is een DIY 3D scan kit gereserveerd via de website.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 14px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Reservering</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('📅 Periode', weekFormatted)}
+          ${row('📦 Verzenden op', 'Woensdag')}
+          ${row('📬 Retour op', 'Maandag')}
+          ${row('💰 Borg', '€200')}
+        </table>
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 14px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Klantgegevens</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('👤 Naam', `${params.first_name} ${params.last_name}`)}
+          ${row('📧 E-mail', `<a href="mailto:${params.email}" style="color:${BRAND_GREEN};">${params.email}</a>`)}
+          ${row('📞 Telefoon', `<a href="tel:${params.phone}" style="color:${BRAND_GREEN};">${params.phone}</a>`)}
+          ${row('🏠 Adres', `${params.address}, ${params.zip_code} ${params.city}`)}
+        </table>
+      </td></tr>
+    </table>
+
+    <a href="https://gravida-booking.vercel.app/admin/diy-scanners"
+       style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;">
+      Bekijk in het beheerpaneel →
+    </a>
+  `)
+}
+
+export interface DiyRentalEmailParams {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  zip_code: string
+  rental_week: string
+}
+
+export async function sendDiyRentalEmails(params: DiyRentalEmailParams): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — skipping email')
+    return
+  }
+
+  const weekFormatted = formatDiyWeek(params.rental_week)
+  const staffEmail = (process.env.STAFF_EMAIL ?? '').trim()
+
+  const sends: Promise<unknown>[] = []
+
+  sends.push(
+    getResend().emails.send({
+      from: FROM,
+      to: params.email,
+      subject: `Bevestiging: DIY scan kit gereserveerd voor ${weekFormatted}`,
+      html: diyCustomerEmailHtml(params),
+    }).catch(err => console.error('DIY customer email failed:', err))
+  )
+
+  if (staffEmail) {
+    sends.push(
+      getResend().emails.send({
+        from: FROM,
+        to: staffEmail,
+        replyTo: params.email,
+        subject: `Nieuwe DIY reservering: ${params.first_name} ${params.last_name} (${params.email}) · ${weekFormatted}`,
+        html: diyStaffEmailHtml(params),
+      }).catch(err => console.error('DIY staff email failed:', err))
+    )
+  }
+
+  await Promise.all(sends)
+}
