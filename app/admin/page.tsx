@@ -104,7 +104,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="card">
           <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Vandaag</p>
           <p className="text-4xl font-bold text-gravida-green">{stats?.today ?? 0}</p>
@@ -125,7 +125,7 @@ export default function AdminDashboard() {
       {/* Weekly calendar */}
       <div className="card mb-8">
         <h2 className="section-title mb-4">Deze week</h2>
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
           {weekDays.map((day, i) => {
             const avail = weekAvailability.find((a) => a.date === day)
             const isToday = day === todayStr
@@ -133,7 +133,7 @@ export default function AdminDashboard() {
             return (
               <div
                 key={day}
-                className={`rounded-xl p-3 text-center transition-colors ${
+                className={`rounded-xl p-2 sm:p-3 text-center transition-colors ${
                   isToday ? 'bg-gravida-green text-white' :
                   isPast ? 'bg-gravida-cream/50' : 'bg-gravida-cream'
                 }`}
@@ -171,7 +171,25 @@ export default function AdminDashboard() {
             Geen boekingen vandaag.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-3">
+            {todayBookings.map((b) => (
+              <div key={b.id} className="border border-gravida-cream rounded-xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-semibold text-gravida-sage text-sm">{b.customer_number}</span>
+                  <StatusBadge status={b.status} />
+                </div>
+                <p className="font-medium">{b.first_name} {b.last_name}</p>
+                <div className="flex items-center gap-4 text-sm text-gravida-sage">
+                  <span>{b.time_slot}</span>
+                  <span>{b.phone}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gravida-cream">
@@ -197,6 +215,7 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

@@ -162,7 +162,7 @@ export default function AfwezigheidPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="page-title">Afwezigheid</h1>
           <p className="text-gravida-sage mt-1">Vakanties en vrije dagen per medewerker.</p>
@@ -194,12 +194,13 @@ export default function AfwezigheidPage() {
       )}
 
       {/* Calendar */}
-      <div className="card">
+      <div className="card overflow-x-auto">
         <div className="flex items-center justify-between mb-6">
           <button onClick={prevMonth} className="w-9 h-9 rounded-full hover:bg-gravida-cream flex items-center justify-center text-lg">‹</button>
           <h2 className="section-title">{DUTCH_MONTHS[calMonth]} {calYear}</h2>
           <button onClick={nextMonth} className="w-9 h-9 rounded-full hover:bg-gravida-cream flex items-center justify-center text-lg">›</button>
         </div>
+        <div className="min-w-[480px]">
         <div className="grid grid-cols-7 gap-1 mb-2">
           {DUTCH_DAYS_SHORT.map(d => <div key={d} className="text-center text-xs font-medium text-gravida-light-sage py-1">{d}</div>)}
         </div>
@@ -216,7 +217,7 @@ export default function AfwezigheidPage() {
               const hasAbs   = entries.length > 0
               return (
                 <div key={dateStr}
-                  className={`relative min-h-[64px] rounded-xl p-2 text-left border-2 transition-all
+                  className={`relative min-h-[48px] sm:min-h-[64px] rounded-xl p-1.5 sm:p-2 text-left border-2 transition-all
                     ${isToday ? 'border-gravida-sage' : 'border-transparent'}
                     ${hasAbs ? 'bg-amber-50' : isPast ? 'opacity-40' : ''}`}>
                   <span className={`text-sm font-semibold ${isToday ? 'text-gravida-sage' : 'text-gravida-green'}`}>{dayNum}</span>
@@ -245,6 +246,7 @@ export default function AfwezigheidPage() {
             })}
           </div>
         )}
+        </div>
       </div>
 
       {/* Upcoming list */}
@@ -258,7 +260,7 @@ export default function AfwezigheidPage() {
               const idx = staff.findIndex(s => s.id === a.staff_id)
               const c = STAFF_COLORS[idx >= 0 ? idx % STAFF_COLORS.length : 0]
               return (
-                <div key={a.id} className="flex items-center justify-between py-3 border-b border-gravida-cream last:border-0 gap-4">
+                <div key={a.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-gravida-cream last:border-0 gap-2 sm:gap-4">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${c.dot}`}/>
                     <div className="min-w-0">
@@ -270,7 +272,7 @@ export default function AfwezigheidPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2 shrink-0 ml-5 sm:ml-0">
                     <button onClick={() => openEdit(a)} className="btn-secondary text-xs px-3 py-1.5">Bewerken</button>
                     <button onClick={() => setDeleteConfirm(a.id)} className="btn-danger text-xs px-3 py-1.5">Verwijderen</button>
                   </div>

@@ -280,7 +280,7 @@ export default function BoekingenPage() {
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
           <h1 className="page-title">Boekingen</h1>
           <p className="text-gravida-sage mt-1">
@@ -291,18 +291,18 @@ export default function BoekingenPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button onClick={openNewModal} className="btn-primary flex items-center gap-2">
-            <span>+</span> Nieuwe boeking
+          <button onClick={openNewModal} className="btn-primary flex items-center gap-2 text-sm">
+            <span>+</span> <span className="hidden sm:inline">Nieuwe</span> boeking
           </button>
-          <button onClick={handleExportCsv} className="btn-secondary flex items-center gap-2">
-            <span>↓</span> Exporteer CSV
+          <button onClick={handleExportCsv} className="btn-secondary flex items-center gap-2 text-sm">
+            <span>↓</span> <span className="hidden sm:inline">Exporteer</span> CSV
           </button>
         </div>
       </div>
 
       {/* Filters */}
       <div className="card mb-6">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Customer number / name search */}
           <div>
             <label className="label">Klantnummer / naam</label>
@@ -387,7 +387,41 @@ export default function BoekingenPage() {
             {hasActiveFilters ? 'Geen boekingen gevonden voor deze filters.' : 'Nog geen boekingen.'}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile cards */}
+          <div className="sm:hidden p-4 space-y-3">
+            {displayedBookings.map((b) => (
+              <div key={b.id} className="border border-gravida-cream rounded-xl p-4 space-y-2" onClick={() => setDetailBooking(b)}>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-semibold text-gravida-sage text-sm">{b.customer_number}</span>
+                  <select
+                    value={b.status}
+                    disabled={updatingId === b.id}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => handleStatusChange(b.id, e.target.value)}
+                    className={`text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer outline-none ${
+                      b.status === 'bevestigd' ? 'bg-green-100 text-green-700' :
+                      b.status === 'geannuleerd' ? 'bg-red-100 text-red-700' :
+                      b.status === 'afgerond' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    <option value="bevestigd">bevestigd</option>
+                    <option value="afgerond">afgerond</option>
+                    <option value="geannuleerd">geannuleerd</option>
+                  </select>
+                </div>
+                <p className="font-medium">{b.first_name} {b.last_name}</p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gravida-sage">
+                  <span>{b.date ? formatDutchDateShort(b.date) : '—'}</span>
+                  <span>{b.time_slot}</span>
+                </div>
+                <p className="text-xs text-gravida-light-sage truncate">{b.region ?? '—'}</p>
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gravida-cream/50">
                 <tr>
@@ -445,6 +479,7 @@ export default function BoekingenPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

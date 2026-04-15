@@ -520,10 +520,10 @@ export default function BeschikbaarheidPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="page-title">Beschikbaarheid</h1>
-          <p className="text-gravida-sage mt-1">Klik op een dag om beschikbaarheid toe te voegen of te bewerken.</p>
+          <p className="text-gravida-sage mt-1 text-sm">Klik op een dag om beschikbaarheid toe te voegen of te bewerken.</p>
         </div>
         <button onClick={() => { setBulkOpen(true); setBulkError(''); setBulkResult(null) }} className="btn-primary shrink-0">
           + Bulk toevoegen
@@ -531,12 +531,13 @@ export default function BeschikbaarheidPage() {
       </div>
 
       {/* Calendar */}
-      <div className="card">
+      <div className="card overflow-x-auto">
         <div className="flex items-center justify-between mb-6">
           <button onClick={prevMonth} className="w-9 h-9 rounded-full hover:bg-gravida-cream flex items-center justify-center text-lg">‹</button>
           <h2 className="section-title">{DUTCH_MONTHS[calMonth]} {calYear}</h2>
           <button onClick={nextMonth} className="w-9 h-9 rounded-full hover:bg-gravida-cream flex items-center justify-center text-lg">›</button>
         </div>
+        <div className="min-w-[480px]">
         <div className="grid grid-cols-7 gap-1 mb-2">
           {DUTCH_DAYS_SHORT.map((d) => <div key={d} className="text-center text-xs font-medium text-gravida-light-sage py-1">{d}</div>)}
         </div>
@@ -552,7 +553,7 @@ export default function BeschikbaarheidPage() {
               const isPast    = dateStr < todayStr
               return (
                 <div key={dateStr}
-                  className={`relative min-h-[72px] rounded-xl p-2 text-left transition-all duration-150 border-2
+                  className={`relative min-h-[52px] sm:min-h-[72px] rounded-xl p-1 sm:p-2 text-left transition-all duration-150 border-2
                     ${dragOverDate===dateStr&&!isPast ? 'border-gravida-sage bg-gravida-sage/20 scale-[1.02]' : isToday ? 'border-gravida-sage' : 'border-transparent'}
                     ${dayEntries.length>0&&dragOverDate!==dateStr?'bg-gravida-sage/10':isPast?'opacity-40':''}
                     ${isPast?'cursor-default':''}`}
@@ -641,6 +642,7 @@ export default function BeschikbaarheidPage() {
             })}
           </div>
         )}
+        </div>
       </div>
 
       {/* Upcoming list */}
@@ -657,9 +659,9 @@ export default function BeschikbaarheidPage() {
         ) : (
           <div className="space-y-2">
             {availability.filter(a=>a.date>=todayStr&&a.is_active).slice(0,15).map((avail)=>(
-              <div key={avail.id} className={`flex items-center justify-between py-3 border-b border-gravida-cream last:border-0 ${avail.is_closed ? 'opacity-60' : ''}`}>
-                <div>
-                  <div className="flex items-center gap-2">
+              <div key={avail.id} className={`flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-gravida-cream last:border-0 gap-2 ${avail.is_closed ? 'opacity-60' : ''}`}>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className={`font-medium text-sm ${avail.is_closed ? 'line-through text-gravida-light-sage' : ''}`}>{formatDutchDate(avail.date)}</p>
                     {avail.is_closed && <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">🔒 Gesloten</span>}
                     {!avail.is_closed && avail.group_id && <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium">🔗 Gekoppeld</span>}
@@ -673,9 +675,9 @@ export default function BeschikbaarheidPage() {
                   </div>
                   {avail.notes&&<p className="text-xs text-gravida-light-sage italic">{avail.notes}</p>}
                 </div>
-                <div className="flex gap-2 ml-4">
-                  <button onClick={()=>openEditModal(avail)} className="btn-secondary text-sm px-3 py-1.5">Bewerken</button>
-                  <button onClick={()=>setDeleteConfirm(avail.id)} className="btn-danger text-sm px-3 py-1.5">Verwijderen</button>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={()=>openEditModal(avail)} className="btn-secondary text-xs sm:text-sm px-3 py-1.5">Bewerken</button>
+                  <button onClick={()=>setDeleteConfirm(avail.id)} className="btn-danger text-xs sm:text-sm px-3 py-1.5">Verwijderen</button>
                 </div>
               </div>
             ))}

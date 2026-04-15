@@ -173,7 +173,7 @@ export default function MedewerkersPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="page-title">Medewerkers</h1>
           <p className="text-gravida-sage mt-1">Beheer medewerkers, regio&apos;s en werktijden.</p>
@@ -189,18 +189,18 @@ export default function MedewerkersPage() {
             const wh = parseWorkingHours(s.working_hours)
             return (
               <div key={s.id} className="card flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-full bg-gravida-sage/20 flex items-center justify-center text-gravida-green font-semibold text-lg shrink-0">
                       {s.name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold text-gravida-green">{s.name}</p>
-                      {s.email && <p className="text-sm text-gravida-sage">{s.email}</p>}
+                      {s.email && <p className="text-sm text-gravida-sage truncate">{s.email}</p>}
                       {s.notes && <p className="text-xs text-gravida-light-sage italic mt-0.5">{s.notes}</p>}
                     </div>
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2 shrink-0 ml-14 sm:ml-0">
                     <button onClick={() => openEdit(s)} className="btn-secondary text-xs px-3 py-1.5">Bewerken</button>
                     <button onClick={() => setDeleteConfirm(s.id)} className="btn-danger text-xs px-3 py-1.5">Verwijderen</button>
                   </div>

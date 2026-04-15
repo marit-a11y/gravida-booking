@@ -169,12 +169,12 @@ export default function DiyScannerPage() {
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
         <div>
           <h1 className="page-title">DIY Scanners</h1>
           <p className="text-gravida-sage mt-1">Beheer inventaris en reserveringen</p>
         </div>
-        <button onClick={openNewModal} className="btn-primary flex items-center gap-2">
+        <button onClick={openNewModal} className="btn-primary flex items-center gap-2 shrink-0">
           <span>+</span> Nieuwe reservering
         </button>
       </div>
@@ -210,8 +210,8 @@ export default function DiyScannerPage() {
 
       {/* Filters */}
       <div className="card mb-6">
-        <div className="flex items-center gap-4">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex-1">
             <label className="label">Status</label>
             <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               {RENTAL_STATUSES.map(s => (
@@ -219,7 +219,7 @@ export default function DiyScannerPage() {
               ))}
             </select>
           </div>
-          <p className="text-sm text-gravida-sage mt-5">
+          <p className="text-sm text-gravida-sage sm:mt-5">
             {loading ? 'Laden...' : `${rentals.length} reservering${rentals.length !== 1 ? 'en' : ''}`}
           </p>
         </div>
@@ -235,7 +235,41 @@ export default function DiyScannerPage() {
         ) : rentals.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-gravida-light-sage">Geen reserveringen gevonden.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobile cards */}
+          <div className="sm:hidden p-4 space-y-3">
+            {rentals.map(r => (
+              <div key={r.id} className="border border-gravida-cream rounded-xl p-4 space-y-2" onClick={() => setDetailRental(r)}>
+                <div className="flex items-center justify-between">
+                  <p className="font-medium">{r.first_name} {r.last_name}</p>
+                  <select
+                    value={r.status}
+                    disabled={updatingRental === r.id}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={e => updateRentalStatus(r.id, e.target.value)}
+                    className={`text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer outline-none ${STATUS_COLORS[r.status] ?? 'bg-gray-100 text-gray-600'}`}
+                  >
+                    {RENTAL_STATUSES.filter(s => s !== 'alle').map(s => (
+                      <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-sm text-gravida-sage">{formatWeek(r.rental_week)}</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${PAYMENT_COLORS[r.payment_status] ?? 'bg-gray-100 text-gray-600'}`}>
+                    {r.payment_status === 'betaald' ? 'Betaald' : r.payment_status === 'teruggestort' ? 'Teruggestort' : r.payment_status === 'mislukt' ? 'Mislukt' : 'Open'}
+                  </span>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    r.deposit_status === 'teruggestort' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                  }`}>
+                    {r.deposit_status === 'teruggestort' ? 'Teruggestort' : `€${r.deposit_amount} ingehouden`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gravida-cream/50">
                 <tr>
@@ -282,6 +316,7 @@ export default function DiyScannerPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
