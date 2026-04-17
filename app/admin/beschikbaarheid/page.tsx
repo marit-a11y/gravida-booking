@@ -286,6 +286,13 @@ export default function BeschikbaarheidPage() {
     )
   }
 
+  // Return list of absent staff member names for a given date
+  const getAbsentStaffOnDate = (date: string): string[] => {
+    return staff
+      .filter(s => absences.some(ab => ab.staff_id === s.id && ab.date_from <= date && ab.date_to >= date))
+      .map(s => s.name)
+  }
+
   // availMap: first entry per date (for calendar display)
   const availMap = new Map(availability.map((a) => [a.date, a]))
 
@@ -631,7 +638,21 @@ export default function BeschikbaarheidPage() {
                   onDragLeave={e => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setDragOverDate(null) }}
                   onDrop={e => { e.preventDefault(); handleDrop(dateStr) }}
                 >
-                  <span className={`text-sm font-semibold ${isToday?'text-gravida-sage':'text-gravida-green'}`}>{dayNum}</span>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className={`text-sm font-semibold ${isToday?'text-gravida-sage':'text-gravida-green'}`}>{dayNum}</span>
+                    {(() => {
+                      const absentNames = getAbsentStaffOnDate(dateStr)
+                      if (absentNames.length === 0) return null
+                      return (
+                        <span
+                          title={`${absentNames.join(', ')} afwezig`}
+                          className="text-[9px] leading-tight px-1 py-0.5 rounded bg-orange-100 text-orange-700 font-medium truncate max-w-[60px]"
+                        >
+                          {absentNames.join(', ')} afwezig
+                        </span>
+                      )
+                    })()}
+                  </div>
                   {dragOverDate===dateStr&&draggedAvail&&!isPast&&(
                     <p className="text-[10px] text-gravida-sage font-medium mt-0.5 leading-tight">+ Kopiëren</p>
                   )}
