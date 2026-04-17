@@ -251,6 +251,7 @@ export default function BeschikbaarheidPage() {
   const [absences, setAbsences] = useState<Absence[]>([])
   const [autoSyncing, setAutoSyncing] = useState(false)
   const [autoSyncMsg, setAutoSyncMsg] = useState('')
+  const [clearingDay, setClearingDay] = useState(false)
 
   // Load staff + absences once
   useEffect(() => {
@@ -435,9 +436,41 @@ export default function BeschikbaarheidPage() {
     } finally { setAddingAllRegions(false) }
   }
 
+  // Clear all bookable-region availability for a given date (preserves entries with bookings)
+  const clearDayRegions = async (dateStr: string) => {
+    const dayLabel = new Date(dateStr + 'T12:00:00').toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })
+    if (!confirm(`Alle regio-beschikbaarheid verwijderen voor ${dayLabel}?\n\nReserveringen blijven bestaan.`)) return
+    setClearingDay(true)
+    try {
+      const res = await fetch('/api/admin/availability/clear-day', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: dateStr }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAutoSyncMsg(`${data.deleted} regio(\'s) verwijderd${data.skipped_with_bookings > 0 ? ` · ${data.skipped_with_bookings} behouden i.v.m. boekingen` : ''}`)
+        await loadAvailability()
+        setTimeout(() => setAutoSyncMsg(''), 5000)
+      }
+    } finally { setClearingDay(false) }
+  }
+
   const handleDelete = async (id: number) => {
-    const res = await fetch(`/api/admin/availability/${id}`, { method: 'DELETE' })
-    if (res.ok) { setDeleteConfirm(null); await loadAvailability() }
+    try {
+      const res = await fetch(`/api/admin/availability/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setDeleteConfirm(null)
+        await loadAvailability()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error ?? 'Verwijderen mislukt. Probeer opnieuw.')
+        setDeleteConfirm(null)
+      }
+    } catch {
+      alert('Verbindingsfout. Probeer opnieuw.')
+      setDeleteConfirm(null)
+    }
   }
 
   const handleReopen = async (id: number) => {
@@ -670,6 +703,15 @@ export default function BeschikbaarheidPage() {
                           className="text-[10px] w-full text-left text-gravida-sage/30 hover:text-gravida-sage transition-colors"
                         >
                           {addingAllRegions ? '...' : "+ alle regio's"}
+                        </button>
+                      )}
+                      {dayEntries.filter(a => BOOKABLE_REGIONS.includes(a.region)).length > 0 && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); clearDayRegions(dateStr) }}
+                          disabled={clearingDay}
+                          className="text-[10px] w-full text-left text-gravida-light-sage/50 hover:text-red-500 transition-colors"
+                        >
+                          {clearingDay ? '...' : '× regio\u2019s leegmaken'}
                         </button>
                       )}
                     </div>

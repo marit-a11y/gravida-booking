@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { sql } from '@vercel/postgres'
 import { getAvailabilityById, updateAvailability, deleteAvailability, getGroupMemberIds, setGroupForIds, clearGroupForIds } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
@@ -78,6 +79,19 @@ export async function DELETE(
   try {
     const id = parseInt(params.id, 10)
     if (isNaN(id)) return NextResponse.json({ error: 'Ongeldig ID' }, { status: 400 })
+
+    // Check if there are bookings linked (any status)
+    const bookingsCheck = await sql`
+      SELECT COUNT(*) as count FROM bookings WHERE availability_id = ${id}
+    `
+    const hasBookings = parseInt(bookingsCheck.rows[0].count, 10) > 0
+
+    if (hasBookings) {
+      // Soft-delete: mark inactive so it disappears from calendars but
+      // the bookings keep their reference.
+      await updateAvailability(id, { is_active: false })
+      return NextResponse.json({ success: true, soft_deleted: true })
+    }
 
     const deleted = await deleteAvailability(id)
     if (!deleted) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 })
