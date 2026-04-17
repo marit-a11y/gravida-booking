@@ -420,6 +420,128 @@ export async function getStats() {
   }
 }
 
+// ─── Auto-generate standard availability ─────────────────────────────────────
+
+const BOOKABLE_REGIONS = [
+  'Noord-Holland & Flevoland',
+  'Utrecht & Gelderland & Overijssel',
+  'Zuid-Holland',
+  'Noord-Brabant',
+  'Limburg',
+  'Groningen, Friesland en Drenthe',
+]
+
+// Dutch-week day keys used in staff.working_hours JSONB
+const DAY_KEYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
+
+// Match the frontend slot-spacing rule: only applies to studio regions there,
+// but all bookable (aan-huis) regions use 90 min (60 min scan + 30 min travel).
+const BOOKABLE_SLOT_SPACING_MIN = 90
+
+interface StaffRow {
+  id: number
+  regions: string[]
+  working_hours: Record<string, { active: boolean; start: string; end: string }>
+}
+
+interface AbsenceRow {
+  staff_id: number
+  date_from: string
+  date_to: string
+}
+
+/** Generate time slots between start and end using spacing in minutes. */
+function buildSlots(start: string, end: string, spacingMin: number): string[] {
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const startMin = sh * 60 + sm
+  const endMin = eh * 60 + em
+  const slots: string[] = []
+  for (let m = startMin; m + spacingMin <= endMin; m += spacingMin) {
+    const h = Math.floor(m / 60)
+    const min = m % 60
+    slots.push(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`)
+  }
+  return slots
+}
+
+/**
+ * Generate "standard" availability entries for the 6 bookable NL regions for
+ * the next N weeks, based on staff working hours. Skips dates where an entry
+ * already exists (any region/date combo) and where all staff covering that
+ * region are absent.
+ *
+ * Returns the number of new availability rows inserted.
+ */
+export async function generateStandardAvailability(weeksAhead = 12): Promise<number> {
+  // Load active staff + absences
+  const staffResult = await sql<StaffRow>`
+    SELECT id, regions, working_hours FROM staff WHERE is_active = true
+  `
+  const staff = staffResult.rows.filter(s => s.working_hours && typeof s.working_hours === 'object')
+
+  const absenceResult = await sql<AbsenceRow>`
+    SELECT staff_id, date_from::text, date_to::text FROM absence
+  `
+  const absences = absenceResult.rows
+
+  // Date range: today + weeksAhead * 7 days
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const end = new Date(today)
+  end.setDate(end.getDate() + weeksAhead * 7)
+
+  // Pre-fetch existing availability for the period so we don't double-insert
+  const existingResult = await sql<{ date: string; region: string }>`
+    SELECT date::text, region FROM availability
+    WHERE date >= ${today.toISOString().split('T')[0]}::date
+      AND date <= ${end.toISOString().split('T')[0]}::date
+  `
+  const existingKeys = new Set(existingResult.rows.map(r => `${r.date}|${r.region}`))
+
+  let inserted = 0
+
+  for (let d = new Date(today); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.toISOString().split('T')[0]
+    const dow = (d.getDay() + 6) % 7 // 0=Mon … 6=Sun
+    const dayKey = DAY_KEYS[dow]
+
+    for (const region of BOOKABLE_REGIONS) {
+      const key = `${dateStr}|${region}`
+      if (existingKeys.has(key)) continue
+
+      // Find a staff member covering this region, active on this weekday,
+      // and NOT absent on this date.
+      const available = staff.find(s => {
+        if (!s.regions?.includes(region)) return false
+        const wh = s.working_hours?.[dayKey]
+        if (!wh?.active) return false
+        const isAbsent = absences.some(ab =>
+          ab.staff_id === s.id &&
+          ab.date_from <= dateStr &&
+          ab.date_to >= dateStr
+        )
+        return !isAbsent
+      })
+
+      if (!available) continue
+
+      const wh = available.working_hours[dayKey]
+      const slots = buildSlots(wh.start, wh.end, BOOKABLE_SLOT_SPACING_MIN)
+      if (slots.length === 0) continue
+
+      await sql`
+        INSERT INTO availability (date, region, slots, max_per_slot)
+        VALUES (${dateStr}::date, ${region}, ${JSON.stringify(slots)}::jsonb, 1)
+      `
+      existingKeys.add(key)
+      inserted++
+    }
+  }
+
+  return inserted
+}
+
 // ─── DIY Scanners ────────────────────────────────────────────────────────────
 
 export interface DiyScanner {

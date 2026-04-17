@@ -249,6 +249,8 @@ export default function BeschikbaarheidPage() {
   useEffect(() => { loadAvailability() }, [loadAvailability])
 
   const [absences, setAbsences] = useState<Absence[]>([])
+  const [autoSyncing, setAutoSyncing] = useState(false)
+  const [autoSyncMsg, setAutoSyncMsg] = useState('')
 
   // Load staff + absences once
   useEffect(() => {
@@ -525,10 +527,45 @@ export default function BeschikbaarheidPage() {
           <h1 className="page-title">Beschikbaarheid</h1>
           <p className="text-gravida-sage mt-1 text-sm">Klik op een dag om beschikbaarheid toe te voegen of te bewerken.</p>
         </div>
-        <button onClick={() => { setBulkOpen(true); setBulkError(''); setBulkResult(null) }} className="btn-primary shrink-0">
-          + Bulk toevoegen
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={async () => {
+              if (autoSyncing) return
+              setAutoSyncing(true)
+              setAutoSyncMsg('')
+              try {
+                const res = await fetch('/api/admin/availability/auto-generate', { method: 'POST' })
+                const data = await res.json()
+                if (res.ok) {
+                  setAutoSyncMsg(`${data.inserted} nieuwe dagen ingepland`)
+                  await loadAvailability()
+                } else {
+                  setAutoSyncMsg(data.error ?? 'Synchronisatie mislukt')
+                }
+              } catch {
+                setAutoSyncMsg('Verbindingsfout')
+              } finally {
+                setAutoSyncing(false)
+                setTimeout(() => setAutoSyncMsg(''), 5000)
+              }
+            }}
+            disabled={autoSyncing}
+            className="btn-secondary"
+            title="Genereer standaard beschikbaarheid voor alle NL regio's op basis van werktijden + afwezigheid"
+          >
+            {autoSyncing ? 'Synchroniseren...' : '↻ Synchroniseer komende 12 weken'}
+          </button>
+          <button onClick={() => { setBulkOpen(true); setBulkError(''); setBulkResult(null) }} className="btn-primary">
+            + Bulk toevoegen
+          </button>
+        </div>
       </div>
+
+      {autoSyncMsg && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-gravida-sage/10 text-gravida-sage text-sm border border-gravida-sage/20">
+          {autoSyncMsg}
+        </div>
+      )}
 
       {/* Calendar */}
       <div className="card overflow-x-auto">
