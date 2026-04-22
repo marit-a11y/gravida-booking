@@ -95,6 +95,25 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    if (mode === 'diy') {
+      const name = searchParams.get('name') ?? ''
+      const diyAll = name ? await sql`
+        SELECT id, scanner_id, rental_week::text, first_name, last_name, email, phone,
+               status, deposit_amount, deposit_status, payment_status, customer_number,
+               notes, internal_notes, created_at::text
+        FROM diy_rentals
+        WHERE LOWER(first_name) LIKE LOWER(${'%' + name + '%'}) OR LOWER(last_name) LIKE LOWER(${'%' + name + '%'})
+        ORDER BY created_at DESC
+      ` : await sql`
+        SELECT id, scanner_id, rental_week::text, first_name, last_name, email, phone,
+               status, deposit_amount, deposit_status, payment_status, customer_number,
+               notes, internal_notes, created_at::text
+        FROM diy_rentals
+        ORDER BY created_at DESC
+      `
+      return NextResponse.json({ search_name: name, count: diyAll.rows.length, results: diyAll.rows })
+    }
+
     // Default: booking search
     const name = searchParams.get('name') ?? 'sophie'
     const byName = await sql`

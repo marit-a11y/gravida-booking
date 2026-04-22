@@ -32,7 +32,7 @@ interface Rental {
   created_at: string
 }
 
-const RENTAL_STATUSES = ['alle', 'wacht_op_betaling', 'gereserveerd', 'verzonden', 'retour', 'scans_uitgezocht']
+const RENTAL_STATUSES = ['alle', 'wacht_op_betaling', 'gereserveerd', 'verzonden', 'retour', 'scans_uitgezocht', 'geannuleerd']
 
 const STATUS_COLORS: Record<string, string> = {
   wacht_op_betaling: 'bg-orange-100 text-orange-700',
