@@ -18,8 +18,10 @@ interface Booking {
   zip_code: string
   pregnancy_weeks: number | null
   notes: string | null
+  internal_notes: string | null
   status: string
   created_at: string
+  availability_id?: number
 }
 
 interface AvailabilityEntry {
@@ -71,6 +73,10 @@ export default function BoekingenPage() {
   const [sortNewest, setSortNewest] = useState(false)
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editForm, setEditForm] = useState<Partial<Booking> & { pregnancy_weeks_str?: string }>({})
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   // New booking modal state
   const [showNewModal, setShowNewModal] = useState(false)
@@ -642,58 +648,242 @@ export default function BoekingenPage() {
                 <p className="text-3xl font-bold font-mono text-gravida-sage">{detailBooking.customer_number}</p>
               </div>
               <button
-                onClick={() => setDetailBooking(null)}
+                onClick={() => { setDetailBooking(null); setEditMode(false); setEditError('') }}
                 className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center transition-colors text-gravida-light-sage"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <Section title="Klantgegevens">
-                <Row label="Naam" value={`${detailBooking.first_name} ${detailBooking.last_name}`} />
-                <Row label="E-mail" value={detailBooking.email} />
-                <Row label="Telefoon" value={detailBooking.phone} />
-                <Row label="Adres" value={`${detailBooking.address}, ${detailBooking.zip_code} ${detailBooking.city}`} />
-                {detailBooking.pregnancy_weeks && (
-                  <Row label="Weken zwanger" value={`${detailBooking.pregnancy_weeks} weken`} />
-                )}
-              </Section>
-
-              <Section title="Afspraakdetails">
-                <Row label="Datum" value={detailBooking.date ? formatDutchDateShort(detailBooking.date) : '—'} />
-                <Row label="Tijdslot" value={detailBooking.time_slot} />
-                <Row label="Regio" value={detailBooking.region ?? '—'} />
-              </Section>
-
-              {detailBooking.notes && (
-                <Section title="Opmerkingen">
-                  <p className="text-sm text-gravida-sage italic">{detailBooking.notes}</p>
+            {!editMode ? (
+              <div className="p-6 space-y-4">
+                <Section title="Klantgegevens">
+                  <Row label="Naam" value={`${detailBooking.first_name} ${detailBooking.last_name}`} />
+                  <Row label="E-mail" value={detailBooking.email} />
+                  <Row label="Telefoon" value={detailBooking.phone} />
+                  <Row label="Adres" value={`${detailBooking.address}, ${detailBooking.zip_code} ${detailBooking.city}`} />
+                  {detailBooking.pregnancy_weeks && (
+                    <Row label="Weken zwanger" value={`${detailBooking.pregnancy_weeks} weken`} />
+                  )}
                 </Section>
-              )}
 
-              <div>
-                <label className="label">Status wijzigen</label>
+                <Section title="Afspraakdetails">
+                  <Row label="Datum" value={detailBooking.date ? formatDutchDateShort(detailBooking.date) : '—'} />
+                  <Row label="Tijdslot" value={detailBooking.time_slot} />
+                  <Row label="Regio" value={detailBooking.region ?? '—'} />
+                </Section>
+
+                {detailBooking.notes && (
+                  <Section title="Opmerkingen klant">
+                    <p className="text-sm text-gravida-sage italic">{detailBooking.notes}</p>
+                  </Section>
+                )}
+
+                {detailBooking.internal_notes && (
+                  <Section title="Interne opmerkingen">
+                    <p className="text-sm text-amber-700 italic whitespace-pre-wrap">{detailBooking.internal_notes}</p>
+                  </Section>
+                )}
+
+                <div>
+                  <label className="label">Status wijzigen</label>
+                  <div className="flex gap-2">
+                    {['bevestigd', 'afgerond', 'geannuleerd'].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => handleStatusChange(detailBooking.id, s)}
+                        disabled={detailBooking.status === s || updatingId === detailBooking.id}
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors border ${
+                          detailBooking.status === s
+                            ? s === 'bevestigd' ? 'bg-green-100 text-green-700 border-green-200' :
+                              s === 'geannuleerd' ? 'bg-red-100 text-red-700 border-red-200' :
+                              'bg-blue-100 text-blue-700 border-blue-200'
+                            : 'bg-white border-gravida-cream text-gravida-light-sage hover:border-gravida-sage hover:text-gravida-sage'
+                        } disabled:cursor-default`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    // Load availability list for rescheduling
+                    try {
+                      const res = await fetch('/api/admin/availability')
+                      if (res.ok) {
+                        const data = await res.json()
+                        setAvailabilityList((data.availability ?? []).filter((a: AvailabilityEntry) => a.is_active && !a.is_closed))
+                      }
+                    } catch { /* ignore */ }
+                    setEditForm({
+                      first_name: detailBooking.first_name,
+                      last_name: detailBooking.last_name,
+                      email: detailBooking.email,
+                      phone: detailBooking.phone,
+                      address: detailBooking.address,
+                      city: detailBooking.city,
+                      zip_code: detailBooking.zip_code,
+                      pregnancy_weeks_str: detailBooking.pregnancy_weeks?.toString() ?? '',
+                      notes: detailBooking.notes ?? '',
+                      internal_notes: detailBooking.internal_notes ?? '',
+                      availability_id: detailBooking.availability_id,
+                      time_slot: detailBooking.time_slot,
+                    })
+                    setEditMode(true)
+                    setEditError('')
+                  }}
+                  className="w-full py-2 rounded-lg text-sm font-medium border border-gravida-cream text-gravida-sage hover:border-gravida-sage transition-colors"
+                >
+                  ✎ Bewerken
+                </button>
+              </div>
+            ) : (
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Voornaam</label>
+                    <input className="input-field" value={editForm.first_name ?? ''} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Achternaam</label>
+                    <input className="input-field" value={editForm.last_name ?? ''} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">E-mail</label>
+                    <input type="email" className="input-field" value={editForm.email ?? ''} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Telefoon</label>
+                    <input className="input-field" value={editForm.phone ?? ''} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="label">Adres</label>
+                    <input className="input-field" value={editForm.address ?? ''} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Postcode</label>
+                    <input className="input-field" value={editForm.zip_code ?? ''} onChange={e => setEditForm(f => ({ ...f, zip_code: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Stad</label>
+                    <input className="input-field" value={editForm.city ?? ''} onChange={e => setEditForm(f => ({ ...f, city: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Weken zwanger</label>
+                    <input type="number" className="input-field" value={editForm.pregnancy_weeks_str ?? ''} onChange={e => setEditForm(f => ({ ...f, pregnancy_weeks_str: e.target.value }))} />
+                  </div>
+                </div>
+
+                <Section title="Afspraak wijzigen">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <label className="label">Datum &amp; regio</label>
+                      <select
+                        className="input-field"
+                        value={editForm.availability_id ?? ''}
+                        onChange={e => {
+                          const id = Number(e.target.value)
+                          const sel = availabilityList.find(a => a.id === id)
+                          setEditForm(f => ({ ...f, availability_id: id, time_slot: sel?.slots[0] ?? f.time_slot }))
+                        }}
+                      >
+                        {detailBooking.availability_id && !availabilityList.some(a => a.id === detailBooking.availability_id) && (
+                          <option value={detailBooking.availability_id}>
+                            Huidig: {detailBooking.date ? formatDutchDateShort(detailBooking.date) : '?'} · {detailBooking.region}
+                          </option>
+                        )}
+                        {availabilityList.sort((a, b) => a.date.localeCompare(b.date)).map(a => (
+                          <option key={a.id} value={a.id}>
+                            {formatDutchDateShort(a.date)} · {a.region}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label">Tijdslot</label>
+                      {(() => {
+                        const sel = availabilityList.find(a => a.id === editForm.availability_id)
+                        const slots = sel?.slots ?? (editForm.time_slot ? [editForm.time_slot] : [])
+                        return (
+                          <select
+                            className="input-field"
+                            value={editForm.time_slot ?? ''}
+                            onChange={e => setEditForm(f => ({ ...f, time_slot: e.target.value }))}
+                          >
+                            {slots.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                </Section>
+
+                <div>
+                  <label className="label">Opmerkingen klant</label>
+                  <textarea className="input-field" rows={2} value={editForm.notes ?? ''} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+                </div>
+
+                <div>
+                  <label className="label">Interne opmerkingen (niet zichtbaar voor klant)</label>
+                  <textarea className="input-field" rows={3} value={editForm.internal_notes ?? ''} onChange={e => setEditForm(f => ({ ...f, internal_notes: e.target.value }))} />
+                </div>
+
+                {editError && <p className="text-red-600 text-sm">{editError}</p>}
+
                 <div className="flex gap-2">
-                  {['bevestigd', 'afgerond', 'geannuleerd'].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleStatusChange(detailBooking.id, s)}
-                      disabled={detailBooking.status === s || updatingId === detailBooking.id}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors border ${
-                        detailBooking.status === s
-                          ? s === 'bevestigd' ? 'bg-green-100 text-green-700 border-green-200' :
-                            s === 'geannuleerd' ? 'bg-red-100 text-red-700 border-red-200' :
-                            'bg-blue-100 text-blue-700 border-blue-200'
-                          : 'bg-white border-gravida-cream text-gravida-light-sage hover:border-gravida-sage hover:text-gravida-sage'
-                      } disabled:cursor-default`}
-                    >
-                      {s}
-                    </button>
-                  ))}
+                  <button
+                    onClick={() => { setEditMode(false); setEditError('') }}
+                    className="flex-1 py-2 rounded-lg text-sm font-medium border border-gravida-cream text-gravida-light-sage hover:border-gravida-sage transition-colors"
+                  >
+                    Annuleren
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setEditSaving(true); setEditError('')
+                      try {
+                        const payload = {
+                          first_name: editForm.first_name?.trim(),
+                          last_name: editForm.last_name?.trim(),
+                          email: editForm.email?.trim().toLowerCase(),
+                          phone: editForm.phone?.trim(),
+                          address: editForm.address?.trim(),
+                          city: editForm.city?.trim(),
+                          zip_code: editForm.zip_code?.trim(),
+                          pregnancy_weeks: editForm.pregnancy_weeks_str ? parseInt(editForm.pregnancy_weeks_str, 10) : null,
+                          notes: editForm.notes?.trim() || null,
+                          internal_notes: editForm.internal_notes?.trim() || null,
+                          availability_id: editForm.availability_id,
+                          time_slot: editForm.time_slot,
+                        }
+                        const res = await fetch(`/api/admin/bookings/${detailBooking.id}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(payload),
+                        })
+                        if (res.ok) {
+                          setEditMode(false)
+                          await loadBookings()
+                          setDetailBooking(null)
+                        } else {
+                          const data = await res.json().catch(() => ({}))
+                          setEditError(data.error ?? 'Opslaan mislukt')
+                        }
+                      } catch {
+                        setEditError('Verbindingsfout')
+                      } finally {
+                        setEditSaving(false)
+                      }
+                    }}
+                    disabled={editSaving}
+                    className="flex-1 btn-primary"
+                  >
+                    {editSaving ? 'Opslaan...' : 'Opslaan'}
+                  </button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}

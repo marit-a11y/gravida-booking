@@ -39,6 +39,14 @@ export async function GET() {
     await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS mollie_payment_id VARCHAR(50)`
     await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'open'`
 
+    // Add customer_number column (shared counter with bookings so there are no duplicates)
+    await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS customer_number VARCHAR(4)`
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_diy_rentals_customer_number ON diy_rentals(customer_number) WHERE customer_number IS NOT NULL`
+
+    // Internal notes (admin-only, not shown to customer)
+    await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS internal_notes TEXT`
+    await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS internal_notes TEXT`
+
     // Seed scanners if empty
     const existing = await sql`SELECT COUNT(*) as count FROM diy_scanners`
     if (parseInt(existing.rows[0].count, 10) === 0) {

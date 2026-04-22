@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { updateBookingStatus, getBookingById } from '@/lib/db'
+import { updateBookingStatus, updateBooking, getBookingById } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
 const VALID_STATUSES = ['bevestigd', 'afgerond', 'geannuleerd']
+const EDITABLE_FIELDS = [
+  'availability_id', 'time_slot', 'first_name', 'last_name', 'email', 'phone',
+  'address', 'city', 'zip_code', 'pregnancy_weeks', 'notes', 'internal_notes',
+  'date', 'region',
+]
 
 export async function PUT(
   request: NextRequest,
@@ -14,22 +19,40 @@ export async function PUT(
     if (isNaN(id)) return NextResponse.json({ error: 'Ongeldig ID' }, { status: 400 })
 
     const body = await request.json()
-    const { status } = body
+    const keys = Object.keys(body)
+    const isStatusOnly = keys.length === 1 && keys[0] === 'status'
 
-    if (!status || !VALID_STATUSES.includes(status)) {
+    // Status-only update (existing flow — keep compatible)
+    if (isStatusOnly) {
+      const { status } = body
+      if (!VALID_STATUSES.includes(status)) {
+        return NextResponse.json(
+          { error: `Ongeldige status. Kies uit: ${VALID_STATUSES.join(', ')}` },
+          { status: 400 }
+        )
+      }
+      const booking = await updateBookingStatus(id, status)
+      if (!booking) return NextResponse.json({ error: 'Boeking niet gevonden' }, { status: 404 })
+      return NextResponse.json({ booking })
+    }
+
+    // Broader edit — pick only whitelisted fields
+    if (body.status && !VALID_STATUSES.includes(body.status)) {
       return NextResponse.json(
         { error: `Ongeldige status. Kies uit: ${VALID_STATUSES.join(', ')}` },
         { status: 400 }
       )
     }
+    const input: Record<string, unknown> = {}
+    for (const k of EDITABLE_FIELDS) if (k in body) input[k] = body[k]
+    if ('status' in body) input.status = body.status
 
-    const booking = await updateBookingStatus(id, status)
+    const booking = await updateBooking(id, input)
     if (!booking) return NextResponse.json({ error: 'Boeking niet gevonden' }, { status: 404 })
-
     return NextResponse.json({ booking })
   } catch (err) {
     console.error('PUT /api/admin/bookings/[id] error:', err)
-    return NextResponse.json({ error: 'Status bijwerken mislukt' }, { status: 500 })
+    return NextResponse.json({ error: 'Bijwerken mislukt' }, { status: 500 })
   }
 }
 

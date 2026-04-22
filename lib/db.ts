@@ -29,6 +29,7 @@ export interface Booking {
   zip_code: string
   pregnancy_weeks: number | null
   notes: string | null
+  internal_notes: string | null
   status: string
   created_at: string
   // joined fields
@@ -205,7 +206,7 @@ export async function getBookings(filters?: {
     const result = await sql<Booking>`
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
-             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.internal_notes, b.status,
              b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
@@ -218,7 +219,7 @@ export async function getBookings(filters?: {
     const result = await sql<Booking>`
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
-             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.internal_notes, b.status,
              b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
@@ -231,7 +232,7 @@ export async function getBookings(filters?: {
     const result = await sql<Booking>`
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
-             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.internal_notes, b.status,
              b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
@@ -244,7 +245,7 @@ export async function getBookings(filters?: {
     const result = await sql<Booking>`
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
-             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.internal_notes, b.status,
              b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
@@ -257,7 +258,7 @@ export async function getBookings(filters?: {
     const result = await sql<Booking>`
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
-             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.internal_notes, b.status,
              b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
@@ -270,7 +271,7 @@ export async function getBookings(filters?: {
     const result = await sql<Booking>`
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
-             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.internal_notes, b.status,
              b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
@@ -283,7 +284,7 @@ export async function getBookings(filters?: {
     const result = await sql<Booking>`
       SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
              b.first_name, b.last_name, b.email, b.phone, b.address,
-             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+             b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.internal_notes, b.status,
              b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
       FROM bookings b
       LEFT JOIN availability a ON b.availability_id = a.id
@@ -296,7 +297,7 @@ export async function getBookings(filters?: {
   const result = await sql<Booking>`
     SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
            b.first_name, b.last_name, b.email, b.phone, b.address,
-           b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+           b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.internal_notes, b.status,
            b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
     FROM bookings b
     LEFT JOIN availability a ON b.availability_id = a.id
@@ -309,7 +310,7 @@ export async function getBookingById(id: number): Promise<Booking | null> {
   const result = await sql<Booking>`
     SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
            b.first_name, b.last_name, b.email, b.phone, b.address,
-           b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+           b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.internal_notes, b.status,
            b.created_at::text, COALESCE(b.date, a.date)::text as date, COALESCE(b.region, a.region) as region
     FROM bookings b
     LEFT JOIN availability a ON b.availability_id = a.id
@@ -364,7 +365,7 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
     )
     RETURNING id, customer_number, availability_id, time_slot,
               first_name, last_name, email, phone, address,
-              city, zip_code, pregnancy_weeks, notes, status, created_at::text,
+              city, zip_code, pregnancy_weeks, notes, internal_notes, status, created_at::text,
               date::text, region
   `
   return result.rows[0]
@@ -375,7 +376,65 @@ export async function updateBookingStatus(id: number, status: string): Promise<B
     UPDATE bookings SET status = ${status} WHERE id = ${id}
     RETURNING id, customer_number, availability_id, time_slot,
               first_name, last_name, email, phone, address,
-              city, zip_code, pregnancy_weeks, notes, status, created_at::text
+              city, zip_code, pregnancy_weeks, notes, internal_notes, status, created_at::text
+  `
+  return result.rows[0] ?? null
+}
+
+export interface UpdateBookingInput {
+  availability_id?: number
+  time_slot?: string
+  first_name?: string
+  last_name?: string
+  email?: string
+  phone?: string
+  address?: string
+  city?: string
+  zip_code?: string
+  pregnancy_weeks?: number | null
+  notes?: string | null
+  internal_notes?: string | null
+  status?: string
+  date?: string
+  region?: string
+}
+
+export async function updateBooking(id: number, input: UpdateBookingInput): Promise<Booking | null> {
+  const existing = await getBookingById(id)
+  if (!existing) return null
+
+  // If availability_id changes, sync date/region from that availability
+  let date = input.date ?? existing.date ?? null
+  let region = input.region ?? existing.region ?? null
+  if (input.availability_id && input.availability_id !== existing.availability_id) {
+    const avail = await getAvailabilityById(input.availability_id)
+    if (avail) {
+      date = avail.date
+      region = avail.region
+    }
+  }
+
+  const result = await sql<Booking>`
+    UPDATE bookings
+    SET availability_id = ${input.availability_id ?? existing.availability_id},
+        time_slot       = ${input.time_slot       ?? existing.time_slot},
+        first_name      = ${input.first_name      ?? existing.first_name},
+        last_name       = ${input.last_name       ?? existing.last_name},
+        email           = ${input.email           ?? existing.email},
+        phone           = ${input.phone           ?? existing.phone},
+        address         = ${input.address         ?? existing.address},
+        city            = ${input.city            ?? existing.city},
+        zip_code        = ${input.zip_code        ?? existing.zip_code},
+        pregnancy_weeks = ${input.pregnancy_weeks !== undefined ? input.pregnancy_weeks : existing.pregnancy_weeks},
+        notes           = ${input.notes           !== undefined ? input.notes           : existing.notes},
+        internal_notes  = ${input.internal_notes  !== undefined ? input.internal_notes  : existing.internal_notes},
+        status          = ${input.status          ?? existing.status},
+        date            = ${date}::date,
+        region          = ${region}
+    WHERE id = ${id}
+    RETURNING id, customer_number, availability_id, time_slot,
+              first_name, last_name, email, phone, address,
+              city, zip_code, pregnancy_weeks, notes, internal_notes, status, created_at::text
   `
   return result.rows[0] ?? null
 }
@@ -569,7 +628,9 @@ export interface DiyRental {
   deposit_status: string
   mollie_payment_id: string | null
   payment_status: string
+  customer_number: string | null
   notes: string | null
+  internal_notes: string | null
   created_at: string
 }
 
@@ -616,7 +677,7 @@ export async function getDiyRentals(filters?: { status?: string }): Promise<DiyR
     const result = await sql<DiyRental>`
       SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
              r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
-             r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.notes, r.created_at::text
+             r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.customer_number, r.notes, r.internal_notes, r.created_at::text
       FROM diy_rentals r
       LEFT JOIN diy_scanners s ON r.scanner_id = s.id
       WHERE r.status = ${status}
@@ -627,7 +688,7 @@ export async function getDiyRentals(filters?: { status?: string }): Promise<DiyR
   const result = await sql<DiyRental>`
     SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
            r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
-           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.notes, r.created_at::text
+           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.customer_number, r.notes, r.internal_notes, r.created_at::text
     FROM diy_rentals r
     LEFT JOIN diy_scanners s ON r.scanner_id = s.id
     ORDER BY r.rental_week DESC, r.created_at DESC
@@ -639,7 +700,7 @@ export async function getDiyRentalById(id: number): Promise<DiyRental | null> {
   const result = await sql<DiyRental>`
     SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
            r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
-           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.notes, r.created_at::text
+           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.customer_number, r.notes, r.internal_notes, r.created_at::text
     FROM diy_rentals r
     LEFT JOIN diy_scanners s ON r.scanner_id = s.id
     WHERE r.id = ${id}
@@ -670,39 +731,65 @@ export async function createDiyRental(input: CreateDiyRentalInput): Promise<DiyR
     throw new Error('Geen scanner beschikbaar voor deze week')
   }
 
+  // Shared counter with bookings so the numbering is globally unique
+  const customerNumber = await getNextCustomerNumber()
+
   const result = await sql<DiyRental>`
     INSERT INTO diy_rentals (
       scanner_id, rental_week, first_name, last_name, email, phone,
-      address, city, zip_code, notes, status
+      address, city, zip_code, notes, status, customer_number
     ) VALUES (
       ${scannerId}, ${input.rental_week}::date,
       ${input.first_name}, ${input.last_name}, ${input.email}, ${input.phone},
       ${input.address}, ${input.city}, ${input.zip_code}, ${input.notes ?? null},
-      'wacht_op_betaling'
+      'wacht_op_betaling', ${customerNumber}
     )
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
               address, city, zip_code, status, deposit_amount, deposit_status,
-              mollie_payment_id, payment_status, notes, created_at::text
+              mollie_payment_id, payment_status, customer_number, notes, internal_notes, created_at::text
   `
   return result.rows[0]
 }
 
 export async function updateDiyRental(
   id: number,
-  input: { status?: string; deposit_status?: string; payment_status?: string; notes?: string | null }
+  input: {
+    status?: string
+    deposit_status?: string
+    payment_status?: string
+    notes?: string | null
+    internal_notes?: string | null
+    rental_week?: string
+    first_name?: string
+    last_name?: string
+    email?: string
+    phone?: string
+    address?: string
+    city?: string
+    zip_code?: string
+  }
 ): Promise<DiyRental | null> {
   const existing = await getDiyRentalById(id)
   if (!existing) return null
   const result = await sql<DiyRental>`
     UPDATE diy_rentals
-    SET status = ${input.status ?? existing.status},
+    SET status         = ${input.status ?? existing.status},
         deposit_status = ${input.deposit_status ?? existing.deposit_status},
         payment_status = ${input.payment_status ?? existing.payment_status},
-        notes = ${input.notes !== undefined ? input.notes : existing.notes}
+        notes          = ${input.notes          !== undefined ? input.notes          : existing.notes},
+        internal_notes = ${input.internal_notes !== undefined ? input.internal_notes : existing.internal_notes},
+        rental_week    = ${input.rental_week ?? existing.rental_week}::date,
+        first_name     = ${input.first_name ?? existing.first_name},
+        last_name      = ${input.last_name ?? existing.last_name},
+        email          = ${input.email ?? existing.email},
+        phone          = ${input.phone ?? existing.phone},
+        address        = ${input.address ?? existing.address},
+        city           = ${input.city ?? existing.city},
+        zip_code       = ${input.zip_code ?? existing.zip_code}
     WHERE id = ${id}
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
               address, city, zip_code, status, deposit_amount, deposit_status,
-              mollie_payment_id, payment_status, notes, created_at::text
+              mollie_payment_id, payment_status, customer_number, notes, internal_notes, created_at::text
   `
   return result.rows[0] ?? null
 }
@@ -721,7 +808,7 @@ export async function updateDiyRentalPayment(
     WHERE id = ${id}
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
               address, city, zip_code, status, deposit_amount, deposit_status,
-              mollie_payment_id, payment_status, notes, created_at::text
+              mollie_payment_id, payment_status, customer_number, notes, internal_notes, created_at::text
   `
   return result.rows[0] ?? null
 }

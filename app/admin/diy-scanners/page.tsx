@@ -26,7 +26,9 @@ interface Rental {
   deposit_status: string
   mollie_payment_id: string | null
   payment_status: string
+  customer_number: string | null
   notes: string | null
+  internal_notes: string | null
   created_at: string
 }
 
@@ -64,6 +66,11 @@ export default function DiyScannerPage() {
   const [updatingScanner, setUpdatingScanner] = useState<number | null>(null)
   const [updatingRental, setUpdatingRental] = useState<number | null>(null)
   const [detailRental, setDetailRental] = useState<Rental | null>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editForm, setEditForm] = useState<Partial<Rental>>({})
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
+  const [availableWeeksForEdit, setAvailableWeeksForEdit] = useState<string[]>([])
 
   // New rental modal
   const [showNewModal, setShowNewModal] = useState(false)
@@ -241,7 +248,10 @@ export default function DiyScannerPage() {
             {rentals.map(r => (
               <div key={r.id} className="border border-gravida-cream rounded-xl p-4 space-y-2" onClick={() => setDetailRental(r)}>
                 <div className="flex items-center justify-between">
-                  <p className="font-medium">{r.first_name} {r.last_name}</p>
+                  <div>
+                    <p className="font-medium">{r.first_name} {r.last_name}</p>
+                    {r.customer_number && <p className="font-mono text-xs text-gravida-light-sage">#{r.customer_number}</p>}
+                  </div>
                   <select
                     value={r.status}
                     disabled={updatingRental === r.id}
@@ -281,7 +291,10 @@ export default function DiyScannerPage() {
               <tbody className="divide-y divide-gravida-cream">
                 {rentals.map(r => (
                   <tr key={r.id} className="hover:bg-gravida-off-white transition-colors">
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">{r.first_name} {r.last_name}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="font-medium">{r.first_name} {r.last_name}</div>
+                      {r.customer_number && <div className="font-mono text-xs text-gravida-light-sage">#{r.customer_number}</div>}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap text-gravida-sage">{formatWeek(r.rental_week)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{r.scanner_name ?? '—'}</td>
                     <td className="px-4 py-3">
@@ -325,9 +338,19 @@ export default function DiyScannerPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gravida-cream flex items-start justify-between">
-              <h2 className="text-lg font-bold text-gravida-sage">Reservering details</h2>
-              <button onClick={() => setDetailRental(null)} className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center transition-colors text-gravida-light-sage">✕</button>
+              <div>
+                {detailRental.customer_number ? (
+                  <>
+                    <p className="text-xs text-gravida-light-sage uppercase tracking-wide font-medium mb-0.5">Klantnummer</p>
+                    <p className="text-3xl font-bold font-mono text-gravida-sage">{detailRental.customer_number}</p>
+                  </>
+                ) : (
+                  <h2 className="text-lg font-bold text-gravida-sage">Reservering details</h2>
+                )}
+              </div>
+              <button onClick={() => { setDetailRental(null); setEditMode(false); setEditError('') }} className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center transition-colors text-gravida-light-sage">✕</button>
             </div>
+            {!editMode ? (
             <div className="p-6 space-y-4">
               <div>
                 <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Klantgegevens</p>
@@ -347,8 +370,14 @@ export default function DiyScannerPage() {
               </div>
               {detailRental.notes && (
                 <div>
-                  <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Opmerkingen</p>
+                  <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Opmerkingen klant</p>
                   <p className="text-sm text-gravida-sage italic">{detailRental.notes}</p>
+                </div>
+              )}
+              {detailRental.internal_notes && (
+                <div>
+                  <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Interne opmerkingen</p>
+                  <p className="text-sm text-amber-700 italic whitespace-pre-wrap">{detailRental.internal_notes}</p>
                 </div>
               )}
               <div>
@@ -381,7 +410,128 @@ export default function DiyScannerPage() {
                   >Teruggestort</button>
                 </div>
               </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/diy-rentals')
+                    if (res.ok) setAvailableWeeksForEdit((await res.json()).weeks ?? [])
+                  } catch { /* ignore */ }
+                  setEditForm({
+                    first_name: detailRental.first_name,
+                    last_name: detailRental.last_name,
+                    email: detailRental.email,
+                    phone: detailRental.phone,
+                    address: detailRental.address,
+                    city: detailRental.city,
+                    zip_code: detailRental.zip_code,
+                    rental_week: detailRental.rental_week,
+                    notes: detailRental.notes ?? '',
+                    internal_notes: detailRental.internal_notes ?? '',
+                  })
+                  setEditMode(true)
+                  setEditError('')
+                }}
+                className="w-full py-2 rounded-lg text-sm font-medium border border-gravida-cream text-gravida-sage hover:border-gravida-sage transition-colors"
+              >
+                ✎ Bewerken
+              </button>
             </div>
+            ) : (
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Voornaam</label>
+                  <input className="input-field" value={editForm.first_name ?? ''} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Achternaam</label>
+                  <input className="input-field" value={editForm.last_name ?? ''} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">E-mail</label>
+                  <input type="email" className="input-field" value={editForm.email ?? ''} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Telefoon</label>
+                  <input className="input-field" value={editForm.phone ?? ''} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} />
+                </div>
+                <div className="col-span-2">
+                  <label className="label">Adres</label>
+                  <input className="input-field" value={editForm.address ?? ''} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Postcode</label>
+                  <input className="input-field" value={editForm.zip_code ?? ''} onChange={e => setEditForm(f => ({ ...f, zip_code: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Stad</label>
+                  <input className="input-field" value={editForm.city ?? ''} onChange={e => setEditForm(f => ({ ...f, city: e.target.value }))} />
+                </div>
+                <div className="col-span-2">
+                  <label className="label">Week (do t/m zo)</label>
+                  <select className="input-field" value={editForm.rental_week ?? ''} onChange={e => setEditForm(f => ({ ...f, rental_week: e.target.value }))}>
+                    <option value={detailRental.rental_week}>Huidig: {formatWeek(detailRental.rental_week)}</option>
+                    {availableWeeksForEdit.filter(w => w !== detailRental.rental_week).map(w => (
+                      <option key={w} value={w}>{formatWeek(w)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="label">Opmerkingen klant</label>
+                  <textarea className="input-field" rows={2} value={editForm.notes ?? ''} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} />
+                </div>
+                <div className="col-span-2">
+                  <label className="label">Interne opmerkingen</label>
+                  <textarea className="input-field" rows={3} value={editForm.internal_notes ?? ''} onChange={e => setEditForm(f => ({ ...f, internal_notes: e.target.value }))} />
+                </div>
+              </div>
+
+              {editError && <p className="text-red-600 text-sm">{editError}</p>}
+
+              <div className="flex gap-2">
+                <button onClick={() => { setEditMode(false); setEditError('') }} className="flex-1 py-2 rounded-lg text-sm font-medium border border-gravida-cream text-gravida-light-sage hover:border-gravida-sage transition-colors">Annuleren</button>
+                <button
+                  onClick={async () => {
+                    setEditSaving(true); setEditError('')
+                    try {
+                      const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          first_name: editForm.first_name?.trim(),
+                          last_name: editForm.last_name?.trim(),
+                          email: editForm.email?.trim().toLowerCase(),
+                          phone: editForm.phone?.trim(),
+                          address: editForm.address?.trim(),
+                          city: editForm.city?.trim(),
+                          zip_code: editForm.zip_code?.trim(),
+                          rental_week: editForm.rental_week,
+                          notes: editForm.notes?.trim() || null,
+                          internal_notes: editForm.internal_notes?.trim() || null,
+                        }),
+                      })
+                      if (res.ok) {
+                        setEditMode(false)
+                        await loadData()
+                        setDetailRental(null)
+                      } else {
+                        const data = await res.json().catch(() => ({}))
+                        setEditError(data.error ?? 'Opslaan mislukt')
+                      }
+                    } catch {
+                      setEditError('Verbindingsfout')
+                    } finally {
+                      setEditSaving(false)
+                    }
+                  }}
+                  disabled={editSaving}
+                  className="flex-1 btn-primary"
+                >
+                  {editSaving ? 'Opslaan...' : 'Opslaan'}
+                </button>
+              </div>
+            </div>
+            )}
           </div>
         </div>
       )}

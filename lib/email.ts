@@ -281,6 +281,7 @@ function formatDiyWeek(mondayStr: string): string {
 function diyCustomerEmailHtml(params: {
   first_name: string
   rental_week: string
+  customer_number?: string | null
 }): string {
   const weekFormatted = formatDiyWeek(params.rental_week)
   const p = (text: string) =>
@@ -289,6 +290,7 @@ function diyCustomerEmailHtml(params: {
   return layout(`
     ${p(`Hi ${params.first_name},`)}
     ${p(`Leuk dat je een DIY 3D scan kit hebt gereserveerd! Hierbij bevestigen we je reservering voor <strong>${weekFormatted}</strong>.`)}
+    ${params.customer_number ? p(`Je klantnummer is <strong>${params.customer_number}</strong>. Noteer dit nummer zodat je het later bij de hand hebt.`) : ''}
     ${p('De scanner wordt op <strong>woensdag</strong> naar je verstuurd, zodat je deze uiterlijk <strong>donderdag</strong> in huis hebt. Je kunt de scanner gebruiken van donderdag tot en met zondag.')}
     ${p('Stuur de scanner uiterlijk <strong>maandag</strong> retour, zodat wij deze op dinsdag kunnen verwerken.')}
     ${p('Voor de scanner geldt een borg van <strong>&euro;200</strong>. Deze wordt teruggestort zodra de scanner in goede staat retour is ontvangen.')}
@@ -309,6 +311,7 @@ function diyStaffEmailHtml(params: {
   city: string
   zip_code: string
   rental_week: string
+  customer_number?: string | null
 }): string {
   const weekFormatted = formatDiyWeek(params.rental_week)
   const row = (label: string, value: string) => value ? `
@@ -330,6 +333,7 @@ function diyStaffEmailHtml(params: {
         <p style="margin:0 0 14px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Reservering</p>
         <table width="100%" cellpadding="0" cellspacing="0">
           ${row('📅 Periode', weekFormatted)}
+          ${params.customer_number ? row('🔑 Klantnr.', params.customer_number) : ''}
           ${row('📦 Verzenden op', 'Woensdag')}
           ${row('📬 Retour op', 'Maandag')}
           ${row('💰 Borg', '€200')}
@@ -357,6 +361,7 @@ function diyStaffEmailHtml(params: {
 }
 
 export interface DiyRentalEmailParams {
+  customer_number?: string | null
   first_name: string
   last_name: string
   email: string

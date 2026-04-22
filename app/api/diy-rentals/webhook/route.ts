@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
       const rental = await getDiyRentalById(rentalId)
       if (rental) {
         await sendDiyRentalEmails({
+          customer_number: rental.customer_number,
           first_name: rental.first_name,
           last_name: rental.last_name,
           email: rental.email,

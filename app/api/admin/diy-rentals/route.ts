@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     })
 
     await sendDiyRentalEmails({
+      customer_number: rental.customer_number,
       first_name: rental.first_name,
       last_name: rental.last_name,
       email: rental.email,
