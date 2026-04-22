@@ -709,12 +709,18 @@ export default function BoekingenPage() {
 
                 <button
                   onClick={async () => {
-                    // Load availability list for rescheduling
+                    // Load availability list for rescheduling — include the booking's current
+                    // availability even if it's closed/inactive so the admin can pick its slots
                     try {
                       const res = await fetch('/api/admin/availability')
                       if (res.ok) {
                         const data = await res.json()
-                        setAvailabilityList((data.availability ?? []).filter((a: AvailabilityEntry) => a.is_active && !a.is_closed))
+                        const all: AvailabilityEntry[] = data.availability ?? []
+                        const currentId = detailBooking.availability_id
+                        const visible = all.filter(a =>
+                          (a.is_active && !a.is_closed) || a.id === currentId
+                        )
+                        setAvailabilityList(visible)
                       }
                     } catch { /* ignore */ }
                     setEditForm({
