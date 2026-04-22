@@ -404,8 +404,8 @@ export async function updateBooking(id: number, input: UpdateBookingInput): Prom
   if (!existing) return null
 
   // If availability_id changes, sync date/region from that availability
-  let date = input.date ?? existing.date ?? null
-  let region = input.region ?? existing.region ?? null
+  let date: string | null = input.date ?? existing.date ?? null
+  let region: string | null = input.region ?? existing.region ?? null
   if (input.availability_id && input.availability_id !== existing.availability_id) {
     const avail = await getAvailabilityById(input.availability_id)
     if (avail) {
@@ -414,21 +414,36 @@ export async function updateBooking(id: number, input: UpdateBookingInput): Prom
     }
   }
 
+  // Pre-resolve values to simplify SQL and avoid subtle binding issues
+  const availabilityId  = input.availability_id  ?? existing.availability_id
+  const timeSlot        = input.time_slot        ?? existing.time_slot
+  const firstName       = input.first_name       ?? existing.first_name
+  const lastName        = input.last_name        ?? existing.last_name
+  const email           = input.email            ?? existing.email
+  const phone           = input.phone            ?? existing.phone
+  const address         = input.address          ?? existing.address
+  const city            = input.city             ?? existing.city
+  const zipCode         = input.zip_code         ?? existing.zip_code
+  const pregnancyWeeks  = input.pregnancy_weeks  !== undefined ? input.pregnancy_weeks : existing.pregnancy_weeks
+  const notes           = input.notes            !== undefined ? input.notes           : existing.notes
+  const internalNotes   = input.internal_notes   !== undefined ? input.internal_notes  : existing.internal_notes
+  const status          = input.status           ?? existing.status
+
   const result = await sql<Booking>`
     UPDATE bookings
-    SET availability_id = ${input.availability_id ?? existing.availability_id},
-        time_slot       = ${input.time_slot       ?? existing.time_slot},
-        first_name      = ${input.first_name      ?? existing.first_name},
-        last_name       = ${input.last_name       ?? existing.last_name},
-        email           = ${input.email           ?? existing.email},
-        phone           = ${input.phone           ?? existing.phone},
-        address         = ${input.address         ?? existing.address},
-        city            = ${input.city            ?? existing.city},
-        zip_code        = ${input.zip_code        ?? existing.zip_code},
-        pregnancy_weeks = ${input.pregnancy_weeks !== undefined ? input.pregnancy_weeks : existing.pregnancy_weeks},
-        notes           = ${input.notes           !== undefined ? input.notes           : existing.notes},
-        internal_notes  = ${input.internal_notes  !== undefined ? input.internal_notes  : existing.internal_notes},
-        status          = ${input.status          ?? existing.status},
+    SET availability_id = ${availabilityId},
+        time_slot       = ${timeSlot},
+        first_name      = ${firstName},
+        last_name       = ${lastName},
+        email           = ${email},
+        phone           = ${phone},
+        address         = ${address},
+        city            = ${city},
+        zip_code        = ${zipCode},
+        pregnancy_weeks = ${pregnancyWeeks},
+        notes           = ${notes},
+        internal_notes  = ${internalNotes},
+        status          = ${status},
         date            = ${date}::date,
         region          = ${region}
     WHERE id = ${id}
