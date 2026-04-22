@@ -512,6 +512,17 @@ const DAY_KEYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 // but all bookable (aan-huis) regions use 90 min (60 min scan + 30 min travel).
 const BOOKABLE_SLOT_SPACING_MIN = 90
 
+// Travel buffer (minutes) before the first slot and after the last slot,
+// reserving time to drive from Haarlem (home base) to/from the region.
+const TRAVEL_BUFFER_MIN: Record<string, number> = {
+  'Noord-Holland & Flevoland':       30,
+  'Zuid-Holland':                    60,
+  'Utrecht & Gelderland & Overijssel': 90,
+  'Noord-Brabant':                   90,
+  'Limburg':                         90,
+  'Groningen, Friesland en Drenthe': 90,
+}
+
 interface StaffRow {
   id: number
   regions: string[]
@@ -537,6 +548,18 @@ function buildSlots(start: string, end: string, spacingMin: number): string[] {
     slots.push(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`)
   }
   return slots
+}
+
+/** Apply travel buffer: shift start forward and end backward by the region's buffer. */
+function buildSlotsForRegion(start: string, end: string, region: string, spacingMin: number): string[] {
+  const buffer = TRAVEL_BUFFER_MIN[region] ?? 0
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const startMin = sh * 60 + sm + buffer
+  const endMin = eh * 60 + em - buffer
+  if (endMin <= startMin) return []
+  const toHhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  return buildSlots(toHhmm(startMin), toHhmm(endMin), spacingMin)
 }
 
 /**
@@ -601,7 +624,7 @@ export async function generateStandardAvailability(weeksAhead = 12): Promise<num
       if (!available) continue
 
       const wh = available.working_hours[dayKey]
-      const slots = buildSlots(wh.start, wh.end, BOOKABLE_SLOT_SPACING_MIN)
+      const slots = buildSlotsForRegion(wh.start, wh.end, region, BOOKABLE_SLOT_SPACING_MIN)
       if (slots.length === 0) continue
 
       await sql`

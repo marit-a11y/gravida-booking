@@ -65,6 +65,37 @@ function getSlotSpacing(region: string) {
   return STUDIO_REGIONS.includes(region) ? 120 : 90
 }
 
+// Travel buffer (minutes) added before the first slot and after the last slot.
+// Studio regions have no travel buffer; home-visit regions vary by distance from Haarlem.
+const TRAVEL_BUFFER_MIN: Record<string, number> = {
+  'Noord-Holland & Flevoland':       30,
+  'Zuid-Holland':                    60,
+  'Utrecht & Gelderland & Overijssel': 90,
+  'Noord-Brabant':                   90,
+  'Limburg':                         90,
+  'Groningen, Friesland en Drenthe': 90,
+}
+function getTravelBuffer(region: string) {
+  return TRAVEL_BUFFER_MIN[region] ?? 0
+}
+
+// Add HH:MM + minutes → HH:MM (clamped to 00:00 if it would go negative)
+function addMinutesToTime(hhmm: string, minutes: number): string {
+  const [h, m] = hhmm.split(':').map(Number)
+  const total = Math.max(0, h * 60 + m + minutes)
+  const hh = String(Math.floor(total / 60)).padStart(2, '0')
+  const mm = String(total % 60).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
+// Generate slots for a region, respecting travel buffer
+function generateSlotsForRegion(startTime: string, endTime: string, region: string): string[] {
+  const buffer = getTravelBuffer(region)
+  const effectiveStart = addMinutesToTime(startTime, buffer)
+  const effectiveEnd = addMinutesToTime(endTime, -buffer)
+  return generateTimeSlots(effectiveStart, effectiveEnd, getSlotSpacing(region))
+}
+
 type RecurrenceType = 'none' | 'weekly' | 'biweekly' | 'monthly'
 
 interface ConflictItem { date: string; region: string; overlapping: string[] }
@@ -370,7 +401,7 @@ export default function BeschikbaarheidPage() {
     setError(''); setModalOpen(true)
   }
 
-  const previewSlots  = generateTimeSlots(form.start_time, form.end_time, getSlotSpacing(form.region))
+  const previewSlots  = generateSlotsForRegion(form.start_time, form.end_time, form.region)
   const editingAvail  = editingId ? availability.find(a => a.id === editingId) ?? null : null
 
   // When recurrence changes, update until_date default
@@ -431,7 +462,7 @@ export default function BeschikbaarheidPage() {
         const staffTimes = getStaffTimes(region, dow)
         const startTime = staffTimes?.start ?? '09:00'
         const endTime = staffTimes?.end ?? '17:00'
-        const slots = generateTimeSlots(startTime, endTime, getSlotSpacing(region))
+        const slots = generateSlotsForRegion(startTime, endTime, region)
         if (slots.length === 0) continue
         await fetch('/api/admin/availability', {
           method: 'POST',
@@ -516,7 +547,7 @@ export default function BeschikbaarheidPage() {
   const bulkDates  = bulkMode === 'week'
     ? getDatesInRange(bulkStartDate, bulkEndDate, bulkWeekdays)
     : getDatesInRange(monthStart, monthEnd, bulkWeekdays)
-  const bulkPreviewSlots = generateTimeSlots(bulkForm.start_time, bulkForm.end_time, getSlotSpacing(bulkForm.region))
+  const bulkPreviewSlots = generateSlotsForRegion(bulkForm.start_time, bulkForm.end_time, bulkForm.region)
 
   // Actually perform the bulk save
   const doBulkActualSave = async (save: PendingSave) => {
