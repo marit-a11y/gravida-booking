@@ -33,6 +33,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json(rental)
   } catch (err) {
     console.error('PUT /api/admin/diy-rentals/[id] error:', err)
-    return NextResponse.json({ error: 'Bijwerken mislukt' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: 'Bijwerken mislukt: ' + msg }, { status: 500 })
   }
 }
