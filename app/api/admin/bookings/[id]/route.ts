@@ -47,9 +47,15 @@ export async function PUT(
     for (const k of EDITABLE_FIELDS) if (k in body) input[k] = body[k]
     if ('status' in body) input.status = body.status
 
+    console.log('PUT /api/admin/bookings/[id]', { id, input, body })
+
     const booking = await updateBooking(id, input)
     if (!booking) return NextResponse.json({ error: 'Boeking niet gevonden' }, { status: 404 })
-    return NextResponse.json({ booking })
+
+    console.log('PUT /api/admin/bookings/[id] saved', { id, time_slot: booking.time_slot, availability_id: booking.availability_id })
+
+    // Include debug info in response (temporary) so we can see what actually happened
+    return NextResponse.json({ booking, debug: { received: body, applied: input, result_time_slot: booking.time_slot, result_availability_id: booking.availability_id } })
   } catch (err) {
     console.error('PUT /api/admin/bookings/[id] error:', err)
     const msg = err instanceof Error ? err.message : String(err)

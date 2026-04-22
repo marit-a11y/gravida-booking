@@ -857,17 +857,19 @@ export default function BoekingenPage() {
                           availability_id: editForm.availability_id,
                           time_slot: editForm.time_slot,
                         }
+                        console.log('[edit save] payload', payload)
                         const res = await fetch(`/api/admin/bookings/${detailBooking.id}`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(payload),
                         })
+                        const data = await res.json().catch(() => ({}))
+                        console.log('[edit save] response', res.status, data)
                         if (res.ok) {
                           setEditMode(false)
                           await loadBookings()
                           setDetailBooking(null)
                         } else {
-                          const data = await res.json().catch(() => ({}))
                           setEditError(data.error ?? 'Opslaan mislukt')
                         }
                       } catch {
