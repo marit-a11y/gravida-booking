@@ -410,6 +410,17 @@ export default function DiyScannerPage() {
                   >Teruggestort</button>
                 </div>
               </div>
+              {detailRental.status !== 'geannuleerd' && (
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Reservering van ${detailRental.first_name} ${detailRental.last_name} annuleren?\n\nDe reservering blijft zichtbaar maar krijgt status 'geannuleerd'.`)) return
+                    await updateRentalStatus(detailRental.id, 'geannuleerd')
+                  }}
+                  className="w-full py-2 rounded-lg text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  × Reservering annuleren
+                </button>
+              )}
               <button
                 onClick={async () => {
                   try {
