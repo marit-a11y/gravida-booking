@@ -20,8 +20,13 @@ function formatWeekLong(mondayStr: string): string {
   return `${fmt(thu)} t/m ${fmt(sun)}`
 }
 
+interface WeekStatus {
+  monday: string
+  status: 'available' | 'last_one' | 'sold_out'
+}
+
 export default function DiyScanPage() {
-  const [weeks, setWeeks] = useState<string[]>([])
+  const [weekStatuses, setWeekStatuses] = useState<WeekStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedWeek, setSelectedWeek] = useState('')
   const [step, setStep] = useState<'landing' | 'form'>('landing')
@@ -34,8 +39,15 @@ export default function DiyScanPage() {
 
   useEffect(() => {
     fetch('/api/diy-rentals')
-      .then(r => r.ok ? r.json() : { weeks: [] })
-      .then(d => setWeeks(d.weeks ?? []))
+      .then(r => r.ok ? r.json() : { weekStatuses: [] })
+      .then(d => {
+        if (Array.isArray(d.weekStatuses)) {
+          setWeekStatuses(d.weekStatuses)
+        } else if (Array.isArray(d.weeks)) {
+          // Fallback for old API shape
+          setWeekStatuses(d.weeks.map((monday: string) => ({ monday, status: 'available' as const })))
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
@@ -190,39 +202,91 @@ export default function DiyScanPage() {
 
                   {loading ? (
                     <p className="text-center py-20" style={{ color: '#737971' }}>Beschikbaarheid laden...</p>
-                  ) : weeks.length === 0 ? (
+                  ) : weekStatuses.length === 0 ? (
                     <p className="text-center py-20" style={{ color: '#737971' }}>Momenteel geen scanners beschikbaar. Probeer het later opnieuw.</p>
                   ) : (
                     <div className="flex gap-6 overflow-x-auto pb-10" style={{ scrollbarWidth: 'none' }}>
-                      {weeks.map((w, i) => (
-                        <button key={w} onClick={() => { setSelectedWeek(w); setStep('form'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                          className="min-w-[300px] p-8 rounded-[2rem] text-left transition-all cursor-pointer group"
-                          style={{ background: i === 0 ? '#3b533d' : '#f5f3ef', border: i === 0 ? '2px solid #253c27' : '1px solid transparent' }}
-                          onMouseEnter={e => { if (i !== 0) (e.currentTarget as HTMLElement).style.borderColor = '#c3c8bf' }}
-                          onMouseLeave={e => { if (i !== 0) (e.currentTarget as HTMLElement).style.borderColor = 'transparent' }}
-                        >
-                          <div className="flex justify-between items-start mb-12">
-                            <span className="text-[10px] uppercase tracking-widest px-3 py-1 rounded-full font-medium"
-                              style={i === 0 ? { background: '#253c27', color: '#aac6aa' } : { background: '#e4e2de', color: '#434842' }}>
-                              {i === 0 ? 'Eerstvolgende' : 'Beschikbaar'}
-                            </span>
-                            <span className="material-symbols-outlined" style={{ color: i === 0 ? '#aac6aa' : '#434842' }}>
-                              {i === 0 ? 'event_available' : 'event'}
-                            </span>
-                          </div>
-                          <h4 className="text-2xl mb-2" style={{ fontFamily: 'Noto Serif', color: i === 0 ? '#fff' : '#253c27' }}>{formatWeekShort(w)}</h4>
-                          <p className="text-sm mb-8" style={{ color: i === 0 ? '#aac6aa' : '#434842' }}>Scanner beschikbaar</p>
-                          <div className="h-[1px] w-full mb-8" style={{ background: i === 0 ? 'rgba(170,198,170,0.2)' : 'rgba(195,200,191,0.3)' }}></div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-xl" style={{ fontFamily: 'Noto Serif', color: i === 0 ? '#fff' : '#253c27' }}>Gratis</span>
-                            {i === 0 ? (
-                              <span className="material-symbols-outlined" style={{ color: '#aac6aa' }}>check_circle</span>
-                            ) : (
+                      {weekStatuses.map(({ monday: w, status }) => {
+                        const isSoldOut = status === 'sold_out'
+                        const isLastOne = status === 'last_one'
+
+                        // Sold out card: red, not clickable
+                        if (isSoldOut) {
+                          return (
+                            <div key={w}
+                              className="min-w-[300px] p-8 rounded-[2rem] text-left cursor-not-allowed select-none"
+                              style={{ background: '#fff5f5', border: '1px solid #fecaca', opacity: 0.85 }}
+                            >
+                              <div className="flex justify-between items-start mb-12">
+                                <span className="text-[10px] uppercase tracking-widest px-3 py-1 rounded-full font-bold"
+                                  style={{ background: '#dc2626', color: '#fff' }}>
+                                  Uitverkocht
+                                </span>
+                                <span className="material-symbols-outlined" style={{ color: '#dc2626' }}>event_busy</span>
+                              </div>
+                              <h4 className="text-2xl mb-2" style={{ fontFamily: 'Noto Serif', color: '#7f1d1d', textDecoration: 'line-through' }}>{formatWeekShort(w)}</h4>
+                              <p className="text-sm mb-8" style={{ color: '#991b1b' }}>Geen scanner meer beschikbaar</p>
+                              <div className="h-[1px] w-full mb-8" style={{ background: '#fecaca' }}></div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-xl" style={{ fontFamily: 'Noto Serif', color: '#7f1d1d', textDecoration: 'line-through' }}>Gratis</span>
+                                <span className="text-xs uppercase tracking-widest font-bold" style={{ color: '#7f1d1d' }}>Vol</span>
+                              </div>
+                            </div>
+                          )
+                        }
+
+                        // Last-one card: orange urgency
+                        if (isLastOne) {
+                          return (
+                            <button key={w} onClick={() => { setSelectedWeek(w); setStep('form'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                              className="min-w-[300px] p-8 rounded-[2rem] text-left transition-all cursor-pointer"
+                              style={{ background: '#fff7ed', border: '2px solid #f97316' }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#ffedd5' }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#fff7ed' }}
+                            >
+                              <div className="flex justify-between items-start mb-12">
+                                <span className="text-[10px] uppercase tracking-widest px-3 py-1 rounded-full font-bold"
+                                  style={{ background: '#f97316', color: '#fff' }}>
+                                  Laatste scanner!
+                                </span>
+                                <span className="material-symbols-outlined" style={{ color: '#ea580c' }}>priority_high</span>
+                              </div>
+                              <h4 className="text-2xl mb-2" style={{ fontFamily: 'Noto Serif', color: '#7c2d12' }}>{formatWeekShort(w)}</h4>
+                              <p className="text-sm mb-8 font-medium" style={{ color: '#c2410c' }}>Nog 1 scanner beschikbaar</p>
+                              <div className="h-[1px] w-full mb-8" style={{ background: '#fed7aa' }}></div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-xl" style={{ fontFamily: 'Noto Serif', color: '#7c2d12' }}>Gratis</span>
+                                <span className="text-xs uppercase tracking-widest font-bold" style={{ color: '#c2410c' }}>Selecteer nu</span>
+                              </div>
+                            </button>
+                          )
+                        }
+
+                        // Available card: green accent
+                        return (
+                          <button key={w} onClick={() => { setSelectedWeek(w); setStep('form'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                            className="min-w-[300px] p-8 rounded-[2rem] text-left transition-all cursor-pointer group"
+                            style={{ background: '#f5f3ef', border: '1px solid #c3c8bf' }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#253c27'; (e.currentTarget as HTMLElement).style.background = '#eaf0ea' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#c3c8bf'; (e.currentTarget as HTMLElement).style.background = '#f5f3ef' }}
+                          >
+                            <div className="flex justify-between items-start mb-12">
+                              <span className="text-[10px] uppercase tracking-widest px-3 py-1 rounded-full font-bold"
+                                style={{ background: '#dbe6d7', color: '#253c27' }}>
+                                Beschikbaar
+                              </span>
+                              <span className="material-symbols-outlined" style={{ color: '#253c27' }}>event_available</span>
+                            </div>
+                            <h4 className="text-2xl mb-2" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>{formatWeekShort(w)}</h4>
+                            <p className="text-sm mb-8" style={{ color: '#434842' }}>Scanner direct beschikbaar</p>
+                            <div className="h-[1px] w-full mb-8" style={{ background: 'rgba(195,200,191,0.5)' }}></div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xl" style={{ fontFamily: 'Noto Serif', color: '#253c27' }}>Gratis</span>
                               <span className="text-xs uppercase tracking-widest font-bold" style={{ color: '#253c27' }}>Selecteer</span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   )}
                 </div>

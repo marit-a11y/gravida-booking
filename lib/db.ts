@@ -871,3 +871,78 @@ export async function getAvailableDiyWeeks(): Promise<string[]> {
   }
   return available
 }
+
+export interface DiyWeekStatus {
+  monday: string
+  status: 'available' | 'last_one' | 'sold_out'
+}
+
+/**
+ * Richer weekly availability: real booking counts + artificial scarcity overlay.
+ * Returns all 12 upcoming Mondays with a display status.
+ *
+ * Real logic:
+ * - count ACTIVE bookings (wacht_op_betaling, gereserveerd, verzonden) per week
+ * - total_scanners = count of diy_scanners with is_available = true
+ * - status = sold_out if bookings >= total, last_one if bookings == total-1, else available
+ *
+ * Artificial overlay:
+ * - For weeks with real status 'available', add scarcity based on a deterministic
+ *   hash of the Monday date. This creates mild urgency but stays consistent per
+ *   visitor session. Real bookings take precedence.
+ */
+export async function getDiyWeekStatuses(): Promise<DiyWeekStatus[]> {
+  // Count active scanners
+  const scannerResult = await sql<{ count: string }>`
+    SELECT COUNT(*) as count FROM diy_scanners WHERE is_available = true
+  `
+  const totalScanners = parseInt(scannerResult.rows[0]?.count ?? '0', 10)
+
+  // Generate next 12 Mondays
+  const weeks: string[] = []
+  const now = new Date()
+  const d = new Date(now)
+  d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7))
+  for (let i = 0; i < 12; i++) {
+    weeks.push(d.toISOString().split('T')[0])
+    d.setDate(d.getDate() + 7)
+  }
+
+  // Fetch active bookings per week (single query)
+  const bookingsResult = await sql<{ rental_week: string; n: string }>`
+    SELECT rental_week::text AS rental_week, COUNT(*) AS n
+    FROM diy_rentals
+    WHERE status IN ('wacht_op_betaling', 'gereserveerd', 'verzonden')
+      AND rental_week >= ${weeks[0]}::date
+      AND rental_week <= ${weeks[weeks.length - 1]}::date
+    GROUP BY rental_week
+  `
+  const bookedByWeek = new Map<string, number>()
+  for (const row of bookingsResult.rows) {
+    bookedByWeek.set(row.rental_week, parseInt(row.n, 10))
+  }
+
+  // Determine real status per week
+  const realStatuses: DiyWeekStatus[] = weeks.map(monday => {
+    const booked = bookedByWeek.get(monday) ?? 0
+    let status: DiyWeekStatus['status'] = 'available'
+    if (totalScanners === 0 || booked >= totalScanners) status = 'sold_out'
+    else if (booked === totalScanners - 1) status = 'last_one'
+    return { monday, status }
+  })
+
+  // Apply artificial scarcity for weeks that are really 'available'
+  // hash % 6: 0 → sold_out, 1,2 → last_one, else available
+  const hash = (s: string) => {
+    let h = 0
+    for (const ch of s) h = ((h * 31) + ch.charCodeAt(0)) >>> 0
+    return h
+  }
+  return realStatuses.map(w => {
+    if (w.status !== 'available') return w
+    const h = hash(w.monday) % 6
+    if (h === 0) return { ...w, status: 'sold_out' }
+    if (h === 1 || h === 2) return { ...w, status: 'last_one' }
+    return w
+  })
+}

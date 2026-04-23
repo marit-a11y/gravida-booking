@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAvailableDiyWeeks, createDiyRental, updateDiyRentalPayment } from '@/lib/db'
+import { getDiyWeekStatuses, createDiyRental, updateDiyRentalPayment } from '@/lib/db'
 import { getMollie } from '@/lib/mollie'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const weeks = await getAvailableDiyWeeks()
-    return NextResponse.json({ weeks })
+    const weekStatuses = await getDiyWeekStatuses()
+    // Also return `weeks` (bookable-only) for backwards compatibility with any
+    // admin code that still expects a simple string list.
+    const weeks = weekStatuses.filter(w => w.status !== 'sold_out').map(w => w.monday)
+    return NextResponse.json({ weeks, weekStatuses })
   } catch (err) {
     console.error('GET /api/diy-rentals error:', err)
     return NextResponse.json({ error: 'Kan beschikbaarheid niet laden' }, { status: 500 })
