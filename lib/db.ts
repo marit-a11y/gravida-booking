@@ -931,8 +931,9 @@ export async function getDiyWeekStatuses(): Promise<DiyWeekStatus[]> {
     return { monday, status }
   })
 
-  // Apply artificial scarcity for weeks that are really 'available'
-  // hash % 6: 0 → sold_out, 1,2 → last_one, else available
+  // Apply mild artificial scarcity for weeks that are really 'available'.
+  // Most weeks stay green — we only mark a few to create subtle urgency:
+  // ~8% sold_out, ~17% last_one, ~75% available.
   const hash = (s: string) => {
     let h = 0
     for (const ch of s) h = ((h * 31) + ch.charCodeAt(0)) >>> 0
@@ -940,7 +941,7 @@ export async function getDiyWeekStatuses(): Promise<DiyWeekStatus[]> {
   }
   return realStatuses.map(w => {
     if (w.status !== 'available') return w
-    const h = hash(w.monday) % 6
+    const h = hash(w.monday) % 12
     if (h === 0) return { ...w, status: 'sold_out' }
     if (h === 1 || h === 2) return { ...w, status: 'last_one' }
     return w
