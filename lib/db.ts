@@ -923,11 +923,14 @@ export async function getDiyWeekStatuses(): Promise<DiyWeekStatus[]> {
   }
 
   // Determine real status per week
+  // Note: `last_one` only makes sense with 2+ scanners. If there's only 1
+  // scanner in the inventory, 0 bookings still means 'available' for the
+  // customer — not "last one" — otherwise every week would look urgent.
   const realStatuses: DiyWeekStatus[] = weeks.map(monday => {
     const booked = bookedByWeek.get(monday) ?? 0
     let status: DiyWeekStatus['status'] = 'available'
     if (totalScanners === 0 || booked >= totalScanners) status = 'sold_out'
-    else if (booked === totalScanners - 1) status = 'last_one'
+    else if (totalScanners >= 2 && booked === totalScanners - 1) status = 'last_one'
     return { monday, status }
   })
 
