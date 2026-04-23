@@ -25,9 +25,25 @@ interface WeekStatus {
   status: 'available' | 'last_one' | 'sold_out'
 }
 
+const DUTCH_MONTHS = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december']
+
+function monthKey(mondayStr: string): string {
+  // Use the Thursday as the representative day (handles weeks spanning month boundaries)
+  const mon = new Date(mondayStr + 'T00:00:00')
+  const thu = new Date(mon); thu.setDate(mon.getDate() + 3)
+  return `${thu.getFullYear()}-${String(thu.getMonth() + 1).padStart(2, '0')}`
+}
+
+function monthLabel(key: string): string {
+  const [y, m] = key.split('-').map(Number)
+  const thisYear = new Date().getFullYear()
+  return y === thisYear ? DUTCH_MONTHS[m - 1] : `${DUTCH_MONTHS[m - 1]} ${y}`
+}
+
 export default function DiyScanPage() {
   const [weekStatuses, setWeekStatuses] = useState<WeekStatus[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedMonth, setSelectedMonth] = useState<string>('')
   const [selectedWeek, setSelectedWeek] = useState('')
   const [step, setStep] = useState<'landing' | 'form'>('landing')
   const [form, setForm] = useState({
@@ -204,9 +220,40 @@ export default function DiyScanPage() {
                     <p className="text-center py-20" style={{ color: '#737971' }}>Beschikbaarheid laden...</p>
                   ) : weekStatuses.length === 0 ? (
                     <p className="text-center py-20" style={{ color: '#737971' }}>Momenteel geen scanners beschikbaar. Probeer het later opnieuw.</p>
-                  ) : (
-                    <div className="flex gap-6 overflow-x-auto pb-10" style={{ scrollbarWidth: 'none' }}>
-                      {weekStatuses.map(({ monday: w, status }) => {
+                  ) : (() => {
+                    // Build month tabs from unique months in weekStatuses
+                    const monthKeys = Array.from(new Set(weekStatuses.map(w => monthKey(w.monday))))
+                    const activeMonth = selectedMonth || monthKeys[0]
+                    const visibleWeeks = weekStatuses.filter(w => monthKey(w.monday) === activeMonth)
+
+                    return (
+                    <div>
+                      {/* Month tabs */}
+                      <div className="flex gap-2 overflow-x-auto pb-4 mb-6" style={{ scrollbarWidth: 'none' }}>
+                        {monthKeys.map(key => {
+                          const isActive = key === activeMonth
+                          const hasAvailable = weekStatuses.some(w => monthKey(w.monday) === key && w.status !== 'sold_out')
+                          return (
+                            <button key={key} onClick={() => setSelectedMonth(key)}
+                              className="whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-medium transition-all capitalize"
+                              style={{
+                                background: isActive ? '#253c27' : '#f5f3ef',
+                                color: isActive ? '#fff' : hasAvailable ? '#253c27' : '#c3c8bf',
+                                border: isActive ? '2px solid #253c27' : '2px solid transparent',
+                                fontFamily: 'Manrope',
+                              }}
+                              onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.borderColor = '#c3c8bf' }}
+                              onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.borderColor = 'transparent' }}
+                            >
+                              {monthLabel(key)}
+                              {!hasAvailable && <span className="ml-1.5 text-[10px] opacity-60">(vol)</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      <div className="flex gap-6 overflow-x-auto pb-10" style={{ scrollbarWidth: 'none' }}>
+                      {visibleWeeks.map(({ monday: w, status }) => {
                         const isSoldOut = status === 'sold_out'
                         const isLastOne = status === 'last_one'
 
@@ -287,8 +334,13 @@ export default function DiyScanPage() {
                           </button>
                         )
                       })}
+                      </div>
+                      {visibleWeeks.length === 0 && (
+                        <p className="text-center py-12" style={{ color: '#737971' }}>Geen weken in deze maand.</p>
+                      )}
                     </div>
-                  )}
+                    )
+                  })()}
                 </div>
               </section>
             </>

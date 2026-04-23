@@ -891,19 +891,19 @@ export interface DiyWeekStatus {
  *   hash of the Monday date. This creates mild urgency but stays consistent per
  *   visitor session. Real bookings take precedence.
  */
-export async function getDiyWeekStatuses(): Promise<DiyWeekStatus[]> {
+export async function getDiyWeekStatuses(weeksAhead = 52): Promise<DiyWeekStatus[]> {
   // Count active scanners
   const scannerResult = await sql<{ count: string }>`
     SELECT COUNT(*) as count FROM diy_scanners WHERE is_available = true
   `
   const totalScanners = parseInt(scannerResult.rows[0]?.count ?? '0', 10)
 
-  // Generate next 12 Mondays
+  // Generate Mondays for the next `weeksAhead` weeks (default: a full year)
   const weeks: string[] = []
   const now = new Date()
   const d = new Date(now)
   d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7))
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < weeksAhead; i++) {
     weeks.push(d.toISOString().split('T')[0])
     d.setDate(d.getDate() + 7)
   }
