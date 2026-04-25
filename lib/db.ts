@@ -950,3 +950,162 @@ export async function getDiyWeekStatuses(weeksAhead = 52): Promise<DiyWeekStatus
     return w
   })
 }
+
+// ─── Gift Cards ───────────────────────────────────────────────────────────────
+
+export interface GiftCard {
+  id: number
+  code: string
+  type: string
+  value_euros: number
+  status: string
+  purchaser_name: string
+  purchaser_email: string
+  recipient_name: string
+  recipient_email: string
+  personal_message: string | null
+  mollie_payment_id: string | null
+  redeemed_at: string | null
+  redeemed_by_booking_id: number | null
+  expires_at: string
+  created_at: string
+}
+
+export interface CreateGiftCardInput {
+  type: string
+  value_euros: number
+  purchaser_name: string
+  purchaser_email: string
+  recipient_name: string
+  recipient_email: string
+  personal_message?: string
+  status?: string
+}
+
+const GIFT_CARD_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+function generateGiftCardCode(): string {
+  const rand = (n: number) => Array.from({ length: n }, () => GIFT_CARD_CHARS[Math.floor(Math.random() * GIFT_CARD_CHARS.length)]).join('')
+  return `GRAVI-${rand(4)}-${rand(4)}`
+}
+
+export async function createGiftCard(input: CreateGiftCardInput): Promise<GiftCard> {
+  const code = generateGiftCardCode()
+  const status = input.status ?? 'wacht_op_betaling'
+  const result = await sql<GiftCard>`
+    INSERT INTO gift_cards (
+      code, type, value_euros, status,
+      purchaser_name, purchaser_email,
+      recipient_name, recipient_email,
+      personal_message
+    ) VALUES (
+      ${code},
+      ${input.type},
+      ${input.value_euros},
+      ${status},
+      ${input.purchaser_name},
+      ${input.purchaser_email},
+      ${input.recipient_name},
+      ${input.recipient_email},
+      ${input.personal_message ?? null}
+    )
+    RETURNING
+      id, code, type, value_euros::float as value_euros, status,
+      purchaser_name, purchaser_email, recipient_name, recipient_email,
+      personal_message, mollie_payment_id,
+      redeemed_at::text, redeemed_by_booking_id,
+      expires_at::text, created_at::text
+  `
+  return result.rows[0]
+}
+
+export async function getGiftCardByCode(code: string): Promise<GiftCard | null> {
+  const result = await sql<GiftCard>`
+    SELECT
+      id, code, type, value_euros::float as value_euros, status,
+      purchaser_name, purchaser_email, recipient_name, recipient_email,
+      personal_message, mollie_payment_id,
+      redeemed_at::text, redeemed_by_booking_id,
+      expires_at::text, created_at::text
+    FROM gift_cards
+    WHERE code = ${code}
+  `
+  return result.rows[0] ?? null
+}
+
+export async function getGiftCardById(id: number): Promise<GiftCard | null> {
+  const result = await sql<GiftCard>`
+    SELECT
+      id, code, type, value_euros::float as value_euros, status,
+      purchaser_name, purchaser_email, recipient_name, recipient_email,
+      personal_message, mollie_payment_id,
+      redeemed_at::text, redeemed_by_booking_id,
+      expires_at::text, created_at::text
+    FROM gift_cards
+    WHERE id = ${id}
+  `
+  return result.rows[0] ?? null
+}
+
+export async function getAllGiftCards(): Promise<GiftCard[]> {
+  const result = await sql<GiftCard>`
+    SELECT
+      id, code, type, value_euros::float as value_euros, status,
+      purchaser_name, purchaser_email, recipient_name, recipient_email,
+      personal_message, mollie_payment_id,
+      redeemed_at::text, redeemed_by_booking_id,
+      expires_at::text, created_at::text
+    FROM gift_cards
+    ORDER BY created_at DESC
+  `
+  return result.rows
+}
+
+export async function updateGiftCardMollieId(id: number, molliePaymentId: string): Promise<void> {
+  await sql`
+    UPDATE gift_cards SET mollie_payment_id = ${molliePaymentId} WHERE id = ${id}
+  `
+}
+
+export async function activateGiftCard(id: number): Promise<GiftCard | null> {
+  const result = await sql<GiftCard>`
+    UPDATE gift_cards SET status = 'actief' WHERE id = ${id}
+    RETURNING
+      id, code, type, value_euros::float as value_euros, status,
+      purchaser_name, purchaser_email, recipient_name, recipient_email,
+      personal_message, mollie_payment_id,
+      redeemed_at::text, redeemed_by_booking_id,
+      expires_at::text, created_at::text
+  `
+  return result.rows[0] ?? null
+}
+
+export async function cancelGiftCard(id: number): Promise<void> {
+  await sql`UPDATE gift_cards SET status = 'geannuleerd' WHERE id = ${id}`
+}
+
+export async function redeemGiftCard(code: string, bookingId?: number): Promise<GiftCard | null> {
+  const result = await sql<GiftCard>`
+    UPDATE gift_cards
+    SET status = 'ingewisseld',
+        redeemed_at = NOW(),
+        redeemed_by_booking_id = ${bookingId ?? null}
+    WHERE code = ${code}
+    RETURNING
+      id, code, type, value_euros::float as value_euros, status,
+      purchaser_name, purchaser_email, recipient_name, recipient_email,
+      personal_message, mollie_payment_id,
+      redeemed_at::text, redeemed_by_booking_id,
+      expires_at::text, created_at::text
+  `
+  return result.rows[0] ?? null
+}
+
+export async function markExpiredGiftCards(): Promise<number> {
+  const result = await sql`
+    UPDATE gift_cards
+    SET status = 'verlopen'
+    WHERE expires_at < NOW() AND status = 'actief'
+  `
+  return result.rowCount ?? 0
+}

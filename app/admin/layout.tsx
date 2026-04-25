@@ -11,6 +11,7 @@ const navItems = [
   { href: '/admin/medewerkers', label: 'Medewerkers', icon: '◎' },
   { href: '/admin/afwezigheid', label: 'Afwezigheid', icon: '◌' },
   { href: '/admin/diy-scanners', label: 'DIY Scanners', icon: '◆' },
+  { href: '/admin/cadeaubonnen', label: 'Cadeaubonnen', icon: '🎁' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

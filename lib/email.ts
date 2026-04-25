@@ -406,3 +406,157 @@ export async function sendDiyRentalEmails(params: DiyRentalEmailParams): Promise
 
   await Promise.all(sends)
 }
+
+// ─── Gift Card emails ─────────────────────────────────────────────────────────
+
+const GIFT_CARD_TYPE_LABELS: Record<string, string> = {
+  digitaal: 'Digitale cadeaubon',
+  gedrukt: 'Gedrukte cadeaubon',
+  usb_box: 'USB Cadeaubox',
+}
+
+function giftCardPurchaserEmailHtml(params: {
+  purchaser_name: string
+  code: string
+  type: string
+  value_euros: number
+  recipient_name: string
+  recipient_email: string
+  personal_message?: string | null
+  expires_at: string
+}): string {
+  const typeLabel = GIFT_CARD_TYPE_LABELS[params.type] ?? params.type
+  const expiresFormatted = new Date(params.expires_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  return layout(`
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:600;color:#1e2d1f;letter-spacing:-0.5px;">
+      Bedankt voor je bestelling!
+    </h1>
+    ${p(`Hi ${params.purchaser_name},`)}
+    ${p(`Je hebt een <strong>${typeLabel}</strong> ter waarde van <strong>&euro;${params.value_euros.toFixed(2)}</strong> besteld voor <strong>${params.recipient_name}</strong>.`)}
+    ${p(`${params.recipient_name} ontvangt binnenkort een e-mail op <strong>${params.recipient_email}</strong> met de cadeaubon en de persoonlijke code.`)}
+
+    <!-- Code box -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:24px 0;">
+      <tr><td style="padding:24px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Cadeauboncode</p>
+        <p style="margin:0;font-size:28px;font-weight:700;color:${BRAND_GREEN};letter-spacing:4px;font-family:monospace;">${params.code}</p>
+        <p style="margin:8px 0 0;font-size:12px;color:#8a9e8c;">Geldig tot ${expiresFormatted}</p>
+      </td></tr>
+    </table>
+
+    ${params.personal_message ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:20px 24px;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Jouw persoonlijk bericht</p>
+        <p style="margin:0;font-size:14px;color:#3d4d3e;font-style:italic;line-height:1.7;">${params.personal_message}</p>
+      </td></tr>
+    </table>` : ''}
+
+    ${p('Bewaar deze e-mail als bevestiging van jouw aankoop. Heb je vragen? Neem gerust contact met ons op.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Met vriendelijke groet,<br/>
+      <strong style="color:#1e2d1f;">Team Gravida</strong>
+    </p>
+  `)
+}
+
+function giftCardRecipientEmailHtml(params: {
+  recipient_name: string
+  code: string
+  type: string
+  value_euros: number
+  purchaser_name: string
+  personal_message?: string | null
+  expires_at: string
+  redeem_url: string
+}): string {
+  const typeLabel = GIFT_CARD_TYPE_LABELS[params.type] ?? params.type
+  const expiresFormatted = new Date(params.expires_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  return layout(`
+    <h1 style="margin:0 0 20px;font-size:22px;font-weight:600;color:#1e2d1f;letter-spacing:-0.5px;">
+      Je hebt een cadeaubon ontvangen! 🎁
+    </h1>
+    ${p(`Hi ${params.recipient_name},`)}
+    ${p(`<strong>${params.purchaser_name}</strong> heeft je een <strong>${typeLabel}</strong> ter waarde van <strong>&euro;${params.value_euros.toFixed(2)}</strong> cadeau gedaan.`)}
+
+    ${params.personal_message ? `
+    <!-- Personal message -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:20px 0;">
+      <tr><td style="padding:24px;">
+        <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Persoonlijk bericht van ${params.purchaser_name}</p>
+        <p style="margin:0;font-size:15px;color:#3d4d3e;font-style:italic;line-height:1.75;">${params.personal_message}</p>
+      </td></tr>
+    </table>` : ''}
+
+    <!-- Code box -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:2px solid ${BRAND_GREEN};border-radius:12px;margin:20px 0;">
+      <tr><td style="padding:28px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Jouw cadeauboncode</p>
+        <p style="margin:0;font-size:32px;font-weight:700;color:${BRAND_GREEN};letter-spacing:4px;font-family:monospace;">${params.code}</p>
+        <p style="margin:10px 0 0;font-size:12px;color:#8a9e8c;">Geldig tot ${expiresFormatted}</p>
+      </td></tr>
+    </table>
+
+    ${p('Gebruik deze code bij het boeken om je cadeaubon in te wisselen. Je kunt ook op de onderstaande knop klikken.')}
+
+    <a href="${params.redeem_url}"
+       style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;margin-bottom:20px;">
+      Cadeaubon inwisselen &rarr;
+    </a>
+
+    ${p('Of kopieer de code en voer deze in tijdens het boeken op <a href="https://www.gravida.nl" style="color:' + BRAND_GREEN + ';">www.gravida.nl</a>.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Met vriendelijke groet,<br/>
+      <strong style="color:#1e2d1f;">Team Gravida</strong>
+    </p>
+  `)
+}
+
+export async function sendGiftCardEmails(params: {
+  purchaser_name: string
+  purchaser_email: string
+  recipient_name: string
+  recipient_email: string
+  code: string
+  type: string
+  value_euros: number
+  personal_message?: string | null
+  expires_at: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — skipping gift card email')
+    return
+  }
+
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gravida-booking.vercel.app').replace(/\/$/, '')
+  const redeem_url = `${siteUrl}/`
+  const valueStr = params.value_euros % 1 === 0 ? String(params.value_euros) : params.value_euros.toFixed(2)
+
+  const sends: Promise<unknown>[] = []
+
+  sends.push(
+    getResend().emails.send({
+      from: FROM,
+      to: params.purchaser_email,
+      subject: `Bevestiging: jouw cadeaubon van \u20AC${valueStr} is besteld`,
+      html: giftCardPurchaserEmailHtml(params),
+    }).catch(err => console.error('Gift card purchaser email failed:', err))
+  )
+
+  sends.push(
+    getResend().emails.send({
+      from: FROM,
+      to: params.recipient_email,
+      subject: `${params.purchaser_name} heeft je een Gravida cadeaubon gestuurd 🎁`,
+      html: giftCardRecipientEmailHtml({ ...params, redeem_url }),
+    }).catch(err => console.error('Gift card recipient email failed:', err))
+  )
+
+  await Promise.all(sends)
+}
