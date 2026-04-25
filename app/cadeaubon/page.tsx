@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 /* eslint-disable @next/next/no-page-custom-font */
 
@@ -38,6 +39,7 @@ const TYPES: { key: GiftCardType; label: string; description: string; icon: stri
   },
 ]
 
+const VALID_TYPES: GiftCardType[] = ['digitaal', 'gedrukt', 'usb_box']
 const PRESET_AMOUNTS = [25, 50, 75, 100, 150, 200]
 
 const STEP_LABELS: Record<Step, string> = {
@@ -49,10 +51,16 @@ const STEP_LABELS: Record<Step, string> = {
 
 const STEPS: Step[] = ['type', 'bedrag', 'details', 'overzicht']
 
-export default function CadeaubonPage() {
-  const [step, setStep] = useState<Step>('type')
+function CadeaubonInner() {
+  const searchParams = useSearchParams()
+  const urlType = searchParams.get('type') as GiftCardType | null
+  const embed = searchParams.get('embed') === '1'
+
+  const preselectedType = urlType && VALID_TYPES.includes(urlType) ? urlType : null
+
+  const [step, setStep] = useState<Step>(preselectedType ? 'bedrag' : 'type')
   const [form, setForm] = useState<FormData>({
-    type: null,
+    type: preselectedType,
     value_euros: null,
     van_naam: '',
     van_email: '',
@@ -64,11 +72,23 @@ export default function CadeaubonPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  // If URL type changes (e.g. navigating), re-sync
+  useEffect(() => {
+    if (preselectedType && form.type !== preselectedType) {
+      setForm(f => ({ ...f, type: preselectedType }))
+      setStep('bedrag')
+    }
+  }, [preselectedType]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedType = TYPES.find(t => t.key === form.type)
   const currentStepIndex = STEPS.indexOf(step)
 
   const goBack = () => {
-    if (currentStepIndex > 0) setStep(STEPS[currentStepIndex - 1])
+    if (currentStepIndex > 0) {
+      // If type was pre-selected via URL, don't go back past 'bedrag'
+      const minStep = preselectedType ? 1 : 0
+      if (currentStepIndex > minStep) setStep(STEPS[currentStepIndex - 1])
+    }
   }
 
   const handleTypeSelect = (type: GiftCardType) => {
@@ -141,6 +161,9 @@ export default function CadeaubonPage() {
     }
   }
 
+  // In embed mode: tighter padding, no outer header/footer
+  const outerPadding = embed ? '16px 12px' : '32px 16px'
+
   return (
     <>
       <style>{`
@@ -149,47 +172,56 @@ export default function CadeaubonPage() {
         @media (max-width: 400px) { .step-label { display: none !important; } }
       `}</style>
 
-      <div style={{ minHeight: '100vh', background: '#f5f4f0', padding: '32px 16px' }}>
+      <div style={{ minHeight: embed ? 'unset' : '100vh', background: '#f5f4f0', padding: outerPadding }}>
         <div style={{ maxWidth: 560, margin: '0 auto' }}>
 
-          {/* Header */}
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <a href="https://www.gravida.nl" style={{ textDecoration: 'none' }}>
-              <span style={{ fontSize: 22, fontWeight: 700, color: '#3d5c41', letterSpacing: '-0.5px' }}>Gravida</span>
-            </a>
-            <h1 style={{ margin: '12px 0 6px', fontSize: 28, fontWeight: 700, color: '#1e2d1f', letterSpacing: '-0.5px' }}>
-              Cadeaubon bestellen
-            </h1>
-            <p style={{ margin: 0, color: '#6b7e6d', fontSize: 15 }}>
-              Geef een zwangerschapsscan of herinneringssieraad cadeau
-            </p>
-          </div>
+          {/* Header — hidden in embed mode */}
+          {!embed && (
+            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+              <a href="https://www.gravida.nl" style={{ textDecoration: 'none' }}>
+                <span style={{ fontSize: 22, fontWeight: 700, color: '#3d5c41', letterSpacing: '-0.5px' }}>Gravida</span>
+              </a>
+              <h1 style={{ margin: '12px 0 6px', fontSize: 28, fontWeight: 700, color: '#1e2d1f', letterSpacing: '-0.5px' }}>
+                Cadeaubon bestellen
+              </h1>
+              <p style={{ margin: 0, color: '#6b7e6d', fontSize: 15 }}>
+                Geef een zwangerschapsscan of herinneringssieraad cadeau
+              </p>
+            </div>
+          )}
 
           {/* Progress indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: 32 }}>
-            {STEPS.map((s, i) => (
-              <div key={s} style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: '50%',
-                  background: i <= currentStepIndex ? '#3d5c41' : '#e8e6e0',
-                  color: i <= currentStepIndex ? '#fff' : '#9aab9c',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
-                }}>
-                  {i < currentStepIndex ? '✓' : i + 1}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, marginBottom: embed ? 20 : 32 }}>
+            {STEPS.map((s, i) => {
+              // Hide 'type' step in progress bar when pre-selected via URL
+              if (preselectedType && s === 'type') return null
+              const adjustedIndex = preselectedType ? i - 1 : i
+              const adjustedCurrentIndex = preselectedType ? currentStepIndex - 1 : currentStepIndex
+              const isLast = preselectedType ? i === STEPS.length - 1 : i === STEPS.length - 1
+              return (
+                <div key={s} style={{ display: 'flex', alignItems: 'center' }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%',
+                    background: adjustedIndex <= adjustedCurrentIndex ? '#3d5c41' : '#e8e6e0',
+                    color: adjustedIndex <= adjustedCurrentIndex ? '#fff' : '#9aab9c',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
+                  }}>
+                    {adjustedIndex < adjustedCurrentIndex ? '✓' : adjustedIndex + 1}
+                  </div>
+                  <span className="step-label" style={{
+                    fontSize: 12, marginLeft: 4,
+                    color: i === currentStepIndex ? '#3d5c41' : '#9aab9c',
+                    fontWeight: i === currentStepIndex ? 600 : 400,
+                  }}>
+                    {STEP_LABELS[s]}
+                  </span>
+                  {!isLast && (
+                    <div style={{ width: 24, height: 2, background: adjustedIndex < adjustedCurrentIndex ? '#3d5c41' : '#e8e6e0', margin: '0 6px', transition: 'all 0.2s' }} />
+                  )}
                 </div>
-                <span className="step-label" style={{
-                  fontSize: 12, marginLeft: 4, marginRight: i < STEPS.length - 1 ? 0 : 0,
-                  color: i === currentStepIndex ? '#3d5c41' : '#9aab9c',
-                  fontWeight: i === currentStepIndex ? 600 : 400,
-                }}>
-                  {STEP_LABELS[s]}
-                </span>
-                {i < STEPS.length - 1 && (
-                  <div style={{ width: 24, height: 2, background: i < currentStepIndex ? '#3d5c41' : '#e8e6e0', margin: '0 6px', transition: 'all 0.2s' }} />
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Card container */}
@@ -228,9 +260,11 @@ export default function CadeaubonPage() {
             {/* Step: bedrag */}
             {step === 'bedrag' && (
               <div style={{ padding: 28 }}>
-                <button onClick={goBack} style={{ background: 'none', border: 'none', color: '#3d5c41', cursor: 'pointer', fontSize: 13, padding: '0 0 16px', fontFamily: 'inherit' }}>
-                  &#8592; Terug
-                </button>
+                {!preselectedType && (
+                  <button onClick={goBack} style={{ background: 'none', border: 'none', color: '#3d5c41', cursor: 'pointer', fontSize: 13, padding: '0 0 16px', fontFamily: 'inherit' }}>
+                    &#8592; Terug
+                  </button>
+                )}
                 <h2 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 600, color: '#1e2d1f' }}>
                   Kies het bedrag
                 </h2>
@@ -393,18 +427,33 @@ export default function CadeaubonPage() {
                     cursor: submitting ? 'default' : 'pointer', fontFamily: 'inherit', transition: 'background 0.15s',
                   }}
                 >
-                  {submitting ? 'Bezig met doorsturen...' : `Betalen — \u20AC${form.value_euros}`}
+                  {submitting ? 'Bezig met doorsturen...' : `Betalen \u2014 \u20AC${form.value_euros}`}
                 </button>
               </div>
             )}
           </div>
 
-          <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: '#9aab9c' }}>
-            &copy; {new Date().getFullYear()} Gravida &middot; <a href="https://www.gravida.nl" style={{ color: '#9aab9c' }}>www.gravida.nl</a>
-          </p>
+          {/* Footer — hidden in embed mode */}
+          {!embed && (
+            <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: '#9aab9c' }}>
+              &copy; {new Date().getFullYear()} Gravida &middot; <a href="https://www.gravida.nl" style={{ color: '#9aab9c' }}>www.gravida.nl</a>
+            </p>
+          )}
         </div>
       </div>
     </>
+  )
+}
+
+export default function CadeaubonPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: '#f5f4f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#6b7e6d', fontFamily: 'system-ui, sans-serif' }}>Laden…</p>
+      </div>
+    }>
+      <CadeaubonInner />
+    </Suspense>
   )
 }
 
