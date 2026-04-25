@@ -535,7 +535,7 @@ export async function sendGiftCardEmails(params: {
   }
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gravida-booking.vercel.app').replace(/\/$/, '')
-  const redeem_url = `${siteUrl}/`
+  const redeem_url = 'https://www.gravida.nl/boeken/'
   const valueStr = params.value_euros % 1 === 0 ? String(params.value_euros) : params.value_euros.toFixed(2)
 
   const sends: Promise<unknown>[] = []
@@ -559,4 +559,12 @@ export async function sendGiftCardEmails(params: {
   )
 
   await Promise.all(sends)
+}
+
+// Preview exports (used by /api/admin/preview/gift-card-email)
+export function giftCardPurchaserEmailHtmlPreview(params: Parameters<typeof giftCardPurchaserEmailHtml>[0]): string {
+  return giftCardPurchaserEmailHtml(params)
+}
+export function giftCardRecipientEmailHtmlPreview(params: Parameters<typeof giftCardRecipientEmailHtml>[0]): string {
+  return giftCardRecipientEmailHtml(params)
 }
