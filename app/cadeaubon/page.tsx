@@ -146,6 +146,7 @@ export default function CadeaubonPage() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
         body { font-family: 'Inter Tight', system-ui, -apple-system, sans-serif; background: #f5f4f0; }
+        @media (max-width: 400px) { .step-label { display: none !important; } }
       `}</style>
 
       <div style={{ minHeight: '100vh', background: '#f5f4f0', padding: '32px 16px' }}>
@@ -177,11 +178,10 @@ export default function CadeaubonPage() {
                 }}>
                   {i < currentStepIndex ? '✓' : i + 1}
                 </div>
-                <span style={{
+                <span className="step-label" style={{
                   fontSize: 12, marginLeft: 4, marginRight: i < STEPS.length - 1 ? 0 : 0,
                   color: i === currentStepIndex ? '#3d5c41' : '#9aab9c',
                   fontWeight: i === currentStepIndex ? 600 : 400,
-                  display: window.innerWidth < 400 ? 'none' : 'inline',
                 }}>
                   {STEP_LABELS[s]}
                 </span>
