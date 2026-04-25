@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@mollie/api-client": "^4.5.0",
+    "@react-pdf/renderer": "^4.5.1",
     "@vercel/postgres": "^0.10.0",
     "date-fns": "^3.6.0",
     "jose": "^5.2.4",

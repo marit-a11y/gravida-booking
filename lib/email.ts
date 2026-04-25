@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { generateGiftCardPdf } from './gift-card-pdf'
 
 // Lazily initialized so the module can be imported at build time without an API key
 function getResend() { return new Resend(process.env.RESEND_API_KEY) }
@@ -534,27 +535,43 @@ export async function sendGiftCardEmails(params: {
     return
   }
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gravida-booking.vercel.app').replace(/\/$/, '')
-  const redeem_url = 'https://www.gravida.nl/boeken/'
+  const redeem_url = 'https://www.gravida.nl/maak-je-zwangerschapsbeeld/'
   const valueStr = params.value_euros % 1 === 0 ? String(params.value_euros) : params.value_euros.toFixed(2)
+  const pdfFilename = `Gravida-cadeaubon-${params.code}.pdf`
+
+  // Generate PDF gift card (don't let this block the emails if it fails)
+  let pdfBuffer: Buffer | null = null
+  try {
+    pdfBuffer = await generateGiftCardPdf(params)
+  } catch (err) {
+    console.error('Gift card PDF generation failed:', err)
+  }
+
+  const pdfAttachment = pdfBuffer
+    ? [{ filename: pdfFilename, content: pdfBuffer }]
+    : []
 
   const sends: Promise<unknown>[] = []
 
+  // Mail to purchaser (confirmation, with PDF)
   sends.push(
     getResend().emails.send({
       from: FROM,
       to: params.purchaser_email,
       subject: `Bevestiging: jouw cadeaubon van \u20AC${valueStr} is besteld`,
       html: giftCardPurchaserEmailHtml(params),
+      attachments: pdfAttachment,
     }).catch(err => console.error('Gift card purchaser email failed:', err))
   )
 
+  // Mail to recipient (with code + PDF)
   sends.push(
     getResend().emails.send({
       from: FROM,
       to: params.recipient_email,
       subject: `${params.purchaser_name} heeft je een Gravida cadeaubon gestuurd 🎁`,
       html: giftCardRecipientEmailHtml({ ...params, redeem_url }),
+      attachments: pdfAttachment,
     }).catch(err => console.error('Gift card recipient email failed:', err))
   )
 
