@@ -146,7 +146,10 @@ function CadeaubonInner() {
       if (res.ok) {
         const data = await res.json()
         if (data.checkoutUrl) {
-          window.location.href = data.checkoutUrl
+          // When embedded in an iframe, navigate the top-level page to Mollie
+          // so it doesn't try to load inside the iframe (which Mollie blocks)
+          const target = window !== window.top ? window.top! : window
+          target.location.href = data.checkoutUrl
         } else {
           setError('Geen checkout-URL ontvangen. Probeer het opnieuw.')
         }
