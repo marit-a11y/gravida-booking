@@ -585,3 +585,135 @@ export function giftCardPurchaserEmailHtmlPreview(params: Parameters<typeof gift
 export function giftCardRecipientEmailHtmlPreview(params: Parameters<typeof giftCardRecipientEmailHtml>[0]): string {
   return giftCardRecipientEmailHtml(params)
 }
+
+// ─── DIY Scanner scan review email ───────────────────────────────────────────
+
+export type DiyBijzonderheid = 'moedervlek' | 'tattoo' | 'sieraden' | 'anders'
+
+export type DiyReviewEmailParams = {
+  klant_naam: string
+  klant_email: string
+  bijzonderheden: DiyBijzonderheid[]
+  anders_tekst?: string
+  bruikbaar: boolean
+  extra_wensen?: string
+  images: Array<{ filename: string; content: Buffer }>
+}
+
+function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
+  const heeftBijzonderheden = p.bijzonderheden.length > 0 && !p.bijzonderheden.every(b => b === 'geen' as DiyBijzonderheid)
+  const voornaam = p.klant_naam.split(' ')[0]
+
+  // Per-bijzonderheid blokken
+  const bijzonderheidBlokken: string[] = []
+
+  if (p.bijzonderheden.includes('moedervlek')) {
+    bijzonderheidBlokken.push(`
+      <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+        Op jouw scan zagen we één of meerdere moedervlekken. Standaard worden moedervlekken weggewerkt tijdens de bewerking.
+        Wil je dat jouw moedervlek(ken) zichtbaar blijven? Geef het ons dan even aan — we verdikken deze digitaal
+        zodat de kans groter is dat ze alle bewerkingsstappen intact blijven.
+      </p>`)
+  }
+
+  if (p.bijzonderheden.includes('tattoo')) {
+    bijzonderheidBlokken.push(`
+      <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+        Op jouw scan zagen we één of meerdere tattoo's. Standaard worden tattoos weggewerkt tijdens de bewerking.
+        Wil je dat jouw tattoo('s) zichtbaar blijven? Geef het ons dan even aan — we versterken de contouren digitaal
+        zodat de kans groter is dat ze alle bewerkingsstappen intact blijven.
+      </p>`)
+  }
+
+  if (p.bijzonderheden.includes('sieraden')) {
+    bijzonderheidBlokken.push(`
+      <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+        Op jouw scan zagen we sieraden of piercings. Standaard worden deze weggewerkt tijdens de bewerking.
+        Wil je dat jouw sieraden of piercings zichtbaar blijven? Geef het ons dan even aan — we versterken
+        deze digitaal zodat de kans groter is dat ze alle bewerkingsstappen intact blijven.
+      </p>`)
+  }
+
+  if (p.bijzonderheden.includes('anders') && p.anders_tekst) {
+    bijzonderheidBlokken.push(`
+      <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+        Op jouw scan viel het volgende op: ${p.anders_tekst}
+      </p>`)
+  }
+
+  const disclaimer = heeftBijzonderheden ? `
+    <p style="margin:16px 0 0;font-size:13px;color:#7a8e7c;line-height:1.7;font-style:italic;
+       border-left:3px solid #c5d0c6;padding-left:12px;">
+      We geven vanwege de hoge mate van handwerk geen garantie dat moedervlekken, sieraden, tattoos en piercings
+      zichtbaar blijven, maar doen ons best in het atelier rekening te houden met je voorkeur.
+    </p>` : ''
+
+  const geenBijzonderheden = !heeftBijzonderheden
+    ? `<p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">Op jouw scan vielen geen bijzonderheden op.</p>`
+    : ''
+
+  return layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
+      Je scans zijn goedgekeurd! 🎉
+    </p>
+
+    <p style="margin:0 0 16px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Hi ${voornaam},
+    </p>
+
+    <p style="margin:0 0 16px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Goed nieuws — je scans zijn uitgezocht en goedgekeurd! Complimenten voor de scanner en uiteraard voor het model. 😊
+    </p>
+
+    <p style="margin:0 0 24px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Hierbij ontvang je de screenshots van de door jou gekozen scan. We horen graag of je nog aanvullende wensen hebt.
+    </p>
+
+    <hr style="border:none;border-top:1px solid #e8e6e0;margin:0 0 24px;"/>
+
+    <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Standaard verzachten we het gebied onder je buik zodat er geen details zichtbaar zijn in het schaamgebied,
+      de overgang van je buik naar schaamgebied mooi glooiend wordt en eventueel zichtbaar cellulitis
+      geminimaliseerd of weggewerkt wordt. Wil je dit niet? Laat het ons dan even weten.
+    </p>
+
+    ${geenBijzonderheden}
+    ${bijzonderheidBlokken.join('\n')}
+    ${disclaimer}
+
+    ${p.extra_wensen ? `
+    <hr style="border:none;border-top:1px solid #e8e6e0;margin:20px 0;"/>
+    <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#7a8e7c;text-transform:uppercase;letter-spacing:1px;">
+      Notitie van ons
+    </p>
+    <p style="margin:0;font-size:15px;color:#3d4d3e;line-height:1.75;">${p.extra_wensen}</p>
+    ` : ''}
+
+    <hr style="border:none;border-top:1px solid #e8e6e0;margin:24px 0;"/>
+
+    <p style="margin:0 0 16px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Zodra je akkoord geeft — eventueel met je aanvullende wensen — gaan we voor je aan de slag
+      met de bewerking en productie van je beeldje.
+    </p>
+
+    <p style="margin:0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Met vriendelijke groeten,<br/>
+      <strong>Team Gravida</strong>
+    </p>
+  `)
+}
+
+export async function sendDiyReviewEmail(params: DiyReviewEmailParams): Promise<void> {
+  const voornaam = params.klant_naam.split(' ')[0]
+  await getResend().emails.send({
+    from: FROM,
+    to: params.klant_email,
+    subject: `Je scans zijn goedgekeurd — Gravida`,
+    html: diyReviewEmailHtml(params),
+    attachments: params.images.map(img => ({
+      filename: img.filename,
+      content: img.content,
+    })),
+    replyTo: 'marit@gravida.nl',
+  })
+}
