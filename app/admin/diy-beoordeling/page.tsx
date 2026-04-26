@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 type Bijzonderheid = 'moedervlek' | 'tattoo' | 'sieraden' | 'anders'
 
@@ -10,6 +10,15 @@ type ImageSlot = {
   preview: string
 } | null
 
+type PendingRental = {
+  id: number
+  first_name: string
+  last_name: string
+  email: string
+  rental_week: string
+  scanner_name?: string
+}
+
 const BIJZONDERHEDEN_OPTIES: { value: Bijzonderheid; label: string }[] = [
   { value: 'moedervlek', label: 'Moedervlek(ken)' },
   { value: 'tattoo',    label: "Tattoo('s)" },
@@ -18,6 +27,11 @@ const BIJZONDERHEDEN_OPTIES: { value: Bijzonderheid; label: string }[] = [
 ]
 
 export default function DiyBeoordelingPage() {
+  // Pending rentals
+  const [pendingRentals,  setPendingRentals]  = useState<PendingRental[]>([])
+  const [selectedRentalId, setSelectedRentalId] = useState<number | null>(null)
+
+  // Form state
   const [klantNaam,       setKlantNaam]       = useState('')
   const [klantEmail,      setKlantEmail]      = useState('')
   const [bijzonderheden,  setBijzonderheden]  = useState<Bijzonderheid[]>([])
@@ -27,10 +41,37 @@ export default function DiyBeoordelingPage() {
   const [images,          setImages]          = useState<ImageSlot[]>([null, null, null, null])
   const [sending,         setSending]         = useState(false)
   const [sent,            setSent]            = useState(false)
+  const [sentNaam,        setSentNaam]        = useState('')
   const [error,           setError]           = useState<string | null>(null)
 
   const fileRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
                     useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
+
+  // ── Fetch pending rentals ───────────────────────────────────────────────────
+  const fetchPending = async () => {
+    try {
+      const res = await fetch('/api/admin/diy-rentals?status=uitzoeken', { credentials: 'include' })
+      if (res.ok) setPendingRentals(await res.json())
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => { fetchPending() }, [])
+
+  // ── Select a pending rental → pre-fill ─────────────────────────────────────
+  function selectRental(id: number) {
+    const r = pendingRentals.find(r => r.id === id)
+    if (!r) return
+    setSelectedRentalId(id)
+    setKlantNaam(`${r.first_name} ${r.last_name}`)
+    setKlantEmail(r.email)
+    setSent(false)
+    setError(null)
+  }
+
+  function clearSelection() {
+    setSelectedRentalId(null)
+    setKlantNaam(''); setKlantEmail('')
+  }
 
   // ── Image handling ──────────────────────────────────────────────────────────
   function handleFileChange(index: number, file: File | null) {
@@ -38,7 +79,6 @@ export default function DiyBeoordelingPage() {
     const reader = new FileReader()
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string
-      // dataUrl = "data:image/jpeg;base64,XXXXX"
       const base64 = dataUrl.split(',')[1]
       const newImages = [...images]
       newImages[index] = { filename: file.name, base64, preview: dataUrl }
@@ -52,6 +92,12 @@ export default function DiyBeoordelingPage() {
     newImages[index] = null
     setImages(newImages)
     if (fileRefs[index].current) fileRefs[index].current!.value = ''
+  }
+
+  function handleDrop(index: number, e: React.DragEvent) {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file && file.type.startsWith('image/')) handleFileChange(index, file)
   }
 
   // ── Bijzonderheden toggle ───────────────────────────────────────────────────
@@ -75,7 +121,7 @@ export default function DiyBeoordelingPage() {
       return
     }
     if (!bruikbaar) {
-      setError('De scan is gemarkeerd als niet bruikbaar. Neem telefonisch of per e-mail contact op met de klant.')
+      setError('De scan is gemarkeerd als niet bruikbaar. Neem zelf contact op met de klant.')
       return
     }
 
@@ -95,14 +141,22 @@ export default function DiyBeoordelingPage() {
           bruikbaar,
           extra_wensen: extraWensen.trim() || undefined,
           images: filledImages.map(img => ({ filename: img.filename, base64: img.base64 })),
+          rental_id: selectedRentalId ?? undefined,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Verzenden mislukt')
+
+      setSentNaam(klantNaam.trim())
       setSent(true)
+
       // Reset form
       setKlantNaam(''); setKlantEmail(''); setBijzonderheden([]); setAndersTekst('')
       setBruikbaar(null); setExtraWensen(''); setImages([null, null, null, null])
+      setSelectedRentalId(null)
+
+      // Refresh pending list (rental should now be gone)
+      fetchPending()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Er is iets misgegaan')
     } finally {
@@ -110,35 +164,88 @@ export default function DiyBeoordelingPage() {
     }
   }
 
-  // ── Drag & drop ─────────────────────────────────────────────────────────────
-  function handleDrop(index: number, e: React.DragEvent) {
-    e.preventDefault()
-    const file = e.dataTransfer.files[0]
-    if (file && file.type.startsWith('image/')) handleFileChange(index, file)
-  }
-
   return (
     <div>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="page-title">Scan beoordeling</h1>
-        <p className="text-sm text-gravida-sage mt-1">
-          Beoordeel de DIY-scan en verstuur de goedkeuringsmail met screenshots naar de klant.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="page-title">Scan beoordeling</h1>
+          <p className="text-sm text-gravida-sage mt-1">
+            Beoordeel de DIY-scan en verstuur de goedkeuringsmail met screenshots.
+          </p>
+        </div>
+        {pendingRentals.length > 0 && (
+          <span className="shrink-0 bg-red-100 text-red-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+            {pendingRentals.length} in afwachting
+          </span>
+        )}
       </div>
 
-      {sent && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm font-medium">
-          ✓ E-mail succesvol verzonden naar {klantEmail || 'de klant'}.
-          <button className="ml-3 underline" onClick={() => setSent(false)}>Nieuwe beoordeling</button>
+      {/* ── Pending rentals dropdown ── */}
+      {pendingRentals.length > 0 && (
+        <div className="card p-5 mb-6 border-l-4 border-l-pink-400">
+          <p className="text-sm font-semibold text-gravida-green mb-3">
+            Klanten in afwachting van beoordeling
+          </p>
+          <div className="space-y-2">
+            {pendingRentals.map(r => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => selectedRentalId === r.id ? clearSelection() : selectRental(r.id)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 text-left transition-colors text-sm ${
+                  selectedRentalId === r.id
+                    ? 'border-gravida-green bg-gravida-green/5'
+                    : 'border-gravida-cream hover:border-gravida-sage'
+                }`}
+              >
+                <div>
+                  <span className="font-medium text-gravida-green">
+                    {r.first_name} {r.last_name}
+                  </span>
+                  <span className="text-gravida-sage ml-2 text-xs">{r.email}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {r.scanner_name && (
+                    <span className="text-xs text-gravida-light-sage">{r.scanner_name}</span>
+                  )}
+                  <span className="text-xs text-gravida-light-sage">
+                    week {new Date(r.rental_week).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                  </span>
+                  {selectedRentalId === r.id && (
+                    <span className="text-[10px] bg-gravida-green text-white px-2 py-0.5 rounded-full">Geselecteerd</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+          {selectedRentalId && (
+            <p className="text-xs text-gravida-sage mt-3">
+              ✓ Naam en e-mail zijn ingevuld. Na verzenden wordt de status automatisch bijgewerkt naar <strong>scans uitgezocht</strong>.
+            </p>
+          )}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
+      {sent && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm font-medium">
+          ✓ Goedkeuringsmail verzonden naar {sentNaam}.
+          <button className="ml-3 underline text-green-700" onClick={() => setSent(false)}>Nieuwe beoordeling</button>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
 
         {/* ── Klantgegevens ── */}
         <div className="card p-6 space-y-4">
-          <h2 className="section-title">Klantgegevens</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="section-title">Klantgegevens</h2>
+            {selectedRentalId && (
+              <button type="button" onClick={clearSelection} className="text-xs text-gravida-sage hover:text-red-500 transition-colors">
+                Selectie wissen
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label block mb-1">Naam klant *</label>
@@ -202,26 +309,20 @@ export default function DiyBeoordelingPage() {
         {/* ── Screenshots ── */}
         <div className="card p-6">
           <h2 className="section-title mb-1">Screenshots</h2>
-          <p className="text-xs text-gravida-sage mb-4">Voeg maximaal 4 afbeeldingen toe. Deze worden als bijlage meegestuurd.</p>
+          <p className="text-xs text-gravida-sage mb-4">Voeg maximaal 4 afbeeldingen toe — worden als bijlage meegestuurd.</p>
           <div className="grid grid-cols-2 gap-3">
             {images.map((slot, i) => (
               <div key={i}>
                 {slot ? (
                   <div className="relative rounded-xl overflow-hidden border-2 border-gravida-cream group">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={slot.preview}
-                      alt={`Scan ${i + 1}`}
-                      className="w-full h-32 object-cover"
-                    />
+                    <img src={slot.preview} alt={`Scan ${i + 1}`} className="w-full h-32 object-cover" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                     <button
                       type="button"
                       onClick={() => removeImage(i)}
                       className="absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full text-xs font-bold text-red-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                    >
-                      ×
-                    </button>
+                    >×</button>
                     <p className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1 truncate">
                       {slot.filename}
                     </p>
@@ -237,13 +338,8 @@ export default function DiyBeoordelingPage() {
                     <span className="text-xs text-gravida-light-sage mt-1">Scan {i + 1}</span>
                   </div>
                 )}
-                <input
-                  ref={fileRefs[i]}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={e => handleFileChange(i, e.target.files?.[0] ?? null)}
-                />
+                <input ref={fileRefs[i]} type="file" accept="image/*" className="hidden"
+                  onChange={e => handleFileChange(i, e.target.files?.[0] ?? null)} />
               </div>
             ))}
           </div>
@@ -273,25 +369,22 @@ export default function DiyBeoordelingPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <span
-                    className="text-sm font-medium text-gravida-green cursor-pointer"
-                    onClick={() => toggleBijzonderheid(opt.value)}
-                  >
+                  <span className="text-sm font-medium text-gravida-green cursor-pointer" onClick={() => toggleBijzonderheid(opt.value)}>
                     {opt.label}
                   </span>
                   {opt.value === 'moedervlek' && bijzonderheden.includes('moedervlek') && (
                     <p className="text-xs text-gravida-sage mt-1 leading-relaxed">
-                      Mail vermeldt: standaard weggewerkt, of digitaal verdikt als klant wil behouden.
+                      Mail: standaard weggewerkt — klant kan aangeven dat ze zichtbaar moeten blijven (worden digitaal verdikt).
                     </p>
                   )}
                   {opt.value === 'tattoo' && bijzonderheden.includes('tattoo') && (
                     <p className="text-xs text-gravida-sage mt-1 leading-relaxed">
-                      Mail vermeldt: standaard weggewerkt, of contouren versterkt als klant wil behouden.
+                      Mail: standaard weggewerkt — klant kan aangeven dat ze zichtbaar moeten blijven (contouren versterkt).
                     </p>
                   )}
                   {opt.value === 'sieraden' && bijzonderheden.includes('sieraden') && (
                     <p className="text-xs text-gravida-sage mt-1 leading-relaxed">
-                      Mail vermeldt: standaard weggewerkt, of digitaal versterkt als klant wil behouden.
+                      Mail: standaard weggewerkt — klant kan aangeven dat ze zichtbaar moeten blijven (digitaal versterkt).
                     </p>
                   )}
                   {opt.value === 'anders' && bijzonderheden.includes('anders') && (
@@ -317,12 +410,12 @@ export default function DiyBeoordelingPage() {
           )}
         </div>
 
-        {/* ── Extra wensen / notitie ── */}
+        {/* ── Extra notitie ── */}
         <div className="card p-6">
-          <h2 className="section-title mb-1">Aanvullende notitie <span className="text-gravida-light-sage font-normal text-sm">(optioneel)</span></h2>
-          <p className="text-xs text-gravida-sage mb-3">
-            Wordt zichtbaar in de mail als aparte opmerking van ons team.
-          </p>
+          <h2 className="section-title mb-1">
+            Aanvullende notitie <span className="text-gravida-light-sage font-normal text-sm">(optioneel)</span>
+          </h2>
+          <p className="text-xs text-gravida-sage mb-3">Wordt als apart blok in de mail gezet.</p>
           <textarea
             value={extraWensen}
             onChange={e => setExtraWensen(e.target.value)}
@@ -334,12 +427,10 @@ export default function DiyBeoordelingPage() {
 
         {/* ── Error & Submit ── */}
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-            {error}
-          </div>
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">{error}</div>
         )}
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 pb-4">
           <button
             type="submit"
             disabled={sending || bruikbaar !== true}

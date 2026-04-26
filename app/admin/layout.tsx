@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
@@ -11,7 +11,7 @@ const navItems = [
   { href: '/admin/medewerkers', label: 'Medewerkers', icon: '◎' },
   { href: '/admin/afwezigheid', label: 'Afwezigheid', icon: '◌' },
   { href: '/admin/diy-scanners',    label: 'DIY Scanners',   icon: '◆' },
-  { href: '/admin/diy-beoordeling', label: 'Scan beoordeling', icon: '✓' },
+  { href: '/admin/diy-beoordeling', label: 'Scan beoordeling', icon: '✓', badge: true },
   { href: '/admin/cadeaubonnen',    label: 'Cadeaubonnen',   icon: '🎁' },
 ]
 
@@ -19,6 +19,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [uitzoekCount, setUitzoekCount] = useState(0)
+
+  // Poll for pending scan reviews
+  useEffect(() => {
+    if (pathname === '/admin/login') return
+    const fetchCount = async () => {
+      try {
+        const res = await fetch('/api/admin/diy-rentals?status=uitzoeken', { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          setUitzoekCount(Array.isArray(data) ? data.length : 0)
+        }
+      } catch { /* ignore */ }
+    }
+    fetchCount()
+    const interval = setInterval(fetchCount, 30_000)
+    return () => clearInterval(interval)
+  }, [pathname])
 
   // Don't show layout on login page
   if (pathname === '/admin/login') {
@@ -47,7 +65,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1">
           {navItems.map((item) => {
-            const active = pathname === item.href
+            const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+            const count = item.badge ? uitzoekCount : 0
             return (
               <Link
                 key={item.href}
@@ -61,7 +80,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 `}
               >
                 <span className="text-base">{item.icon}</span>
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {count > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none">
+                    {count > 9 ? '9+' : count}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -121,7 +145,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />
           <nav className="absolute top-[60px] left-0 right-0 bg-gravida-green px-3 py-3 space-y-1 shadow-xl">
             {navItems.map((item) => {
-              const active = pathname === item.href
+              const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+              const count = item.badge ? uitzoekCount : 0
               return (
                 <Link
                   key={item.href}
@@ -136,7 +161,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   `}
                 >
                   <span className="text-base">{item.icon}</span>
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {count > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none">
+                      {count > 9 ? '9+' : count}
+                    </span>
+                  )}
                 </Link>
               )
             })}

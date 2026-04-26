@@ -32,13 +32,14 @@ interface Rental {
   created_at: string
 }
 
-const RENTAL_STATUSES = ['alle', 'wacht_op_betaling', 'gereserveerd', 'verzonden', 'retour', 'scans_uitgezocht', 'geannuleerd']
+const RENTAL_STATUSES = ['alle', 'wacht_op_betaling', 'gereserveerd', 'verzonden', 'retour', 'uitzoeken', 'scans_uitgezocht', 'geannuleerd']
 
 const STATUS_COLORS: Record<string, string> = {
   wacht_op_betaling: 'bg-orange-100 text-orange-700',
   gereserveerd: 'bg-yellow-100 text-yellow-700',
   verzonden: 'bg-blue-100 text-blue-700',
   retour: 'bg-purple-100 text-purple-700',
+  uitzoeken: 'bg-pink-100 text-pink-700',
   scans_uitgezocht: 'bg-green-100 text-green-700',
   geannuleerd: 'bg-red-100 text-red-700',
 }

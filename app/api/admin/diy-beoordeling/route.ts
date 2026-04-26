@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth'
 import { sendDiyReviewEmail, DiyBijzonderheid } from '@/lib/email'
+import { sql } from '@vercel/postgres'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +29,7 @@ export async function POST(request: NextRequest) {
       bruikbaar,
       extra_wensen,
       images, // Array<{ filename: string; base64: string }>
+      rental_id,
     } = body
 
     if (!klant_naam?.trim() || !klant_email?.trim()) {
@@ -58,6 +60,16 @@ export async function POST(request: NextRequest) {
       extra_wensen: extra_wensen?.trim() || undefined,
       images: imageAttachments,
     })
+
+    // If linked to a rental, update its status to 'scans_uitgezocht'
+    if (rental_id && typeof rental_id === 'number') {
+      try {
+        await sql`UPDATE diy_rentals SET status = 'scans_uitgezocht' WHERE id = ${rental_id}`
+      } catch (err) {
+        console.error('Failed to update rental status after review:', err)
+        // Don't fail the request — email was already sent
+      }
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {
