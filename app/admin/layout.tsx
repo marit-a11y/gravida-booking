@@ -29,7 +29,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         const res = await fetch('/api/admin/diy-rentals?status=uitzoeken', { credentials: 'include' })
         if (res.ok) {
           const data = await res.json()
-          setUitzoekCount(Array.isArray(data) ? data.length : 0)
+          const list = data.rentals ?? data
+          setUitzoekCount(Array.isArray(list) ? list.length : 0)
         }
       } catch { /* ignore */ }
     }

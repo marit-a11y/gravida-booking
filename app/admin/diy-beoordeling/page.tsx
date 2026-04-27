@@ -51,7 +51,10 @@ export default function DiyBeoordelingPage() {
   const fetchPending = async () => {
     try {
       const res = await fetch('/api/admin/diy-rentals?status=uitzoeken', { credentials: 'include' })
-      if (res.ok) setPendingRentals(await res.json())
+      if (res.ok) {
+        const data = await res.json()
+        setPendingRentals(data.rentals ?? data ?? [])
+      }
     } catch { /* ignore */ }
   }
 
