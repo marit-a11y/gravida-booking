@@ -890,6 +890,28 @@ export default function BoekingenPage() {
                     {editSaving ? 'Opslaan...' : 'Opslaan'}
                   </button>
                 </div>
+
+                <button
+                  onClick={async () => {
+                    if (!detailBooking) return
+                    if (!confirm(`Update-mail sturen naar ${detailBooking.first_name} ${detailBooking.last_name} (${detailBooking.email})?\n\nDe huidige opgeslagen gegevens worden verstuurd.`)) return
+                    try {
+                      const res = await fetch(`/api/admin/bookings/${detailBooking.id}/send-update-email`, { method: 'POST' })
+                      const data = await res.json().catch(() => ({}))
+                      if (res.ok) {
+                        alert('Update-mail verstuurd!')
+                      } else {
+                        alert(data.error ?? 'Versturen mislukt.')
+                      }
+                    } catch {
+                      alert('Verbindingsfout.')
+                    }
+                  }}
+                  className="w-full mt-2 py-2 rounded-lg text-sm font-medium border border-gravida-cream text-gravida-sage hover:border-gravida-sage transition-colors"
+                  type="button"
+                >
+                  📧 Stuur update-mail naar klant
+                </button>
               </div>
             )}
           </div>

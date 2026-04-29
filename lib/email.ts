@@ -270,6 +270,78 @@ export async function sendBookingEmails(params: BookingEmailParams): Promise<voi
   await Promise.all(sends)
 }
 
+// ─── Booking update email (admin-triggered) ──────────────────────────────────
+
+function bookingUpdateEmailHtml(params: {
+  first_name: string
+  customer_number: string
+  date: string
+  time_slot: string
+  region: string
+}): string {
+  const dateFormatted = formatDutchDate(params.date)
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  return layout(`
+    ${p(`Hi ${params.first_name},`)}
+    ${p('Hierbij een update over jouw afspraak. Hieronder vind je de meest recente gegevens.')}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 14px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Bijgewerkte afspraak</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding:5px 0;font-size:13px;color:#8a9e8c;width:140px;">📅 Datum</td>
+            <td style="padding:5px 0;font-size:14px;color:#1e2d1f;font-weight:500;">${dateFormatted}</td>
+          </tr>
+          <tr>
+            <td style="padding:5px 0;font-size:13px;color:#8a9e8c;">⏰ Tijdslot</td>
+            <td style="padding:5px 0;font-size:14px;color:#1e2d1f;font-weight:500;">${params.time_slot}</td>
+          </tr>
+          <tr>
+            <td style="padding:5px 0;font-size:13px;color:#8a9e8c;">📍 Regio</td>
+            <td style="padding:5px 0;font-size:14px;color:#1e2d1f;font-weight:500;">${params.region}</td>
+          </tr>
+          <tr>
+            <td style="padding:5px 0;font-size:13px;color:#8a9e8c;">🔑 Klantnr.</td>
+            <td style="padding:5px 0;font-size:14px;color:#1e2d1f;font-weight:500;">${params.customer_number}</td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+
+    ${p('Heb je vragen of klopt er iets niet? Stuur me gerust een berichtje.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Tot snel,<br/>
+      <strong style="color:#1e2d1f;">Laila</strong>
+    </p>
+  `)
+}
+
+export interface BookingUpdateEmailParams {
+  first_name: string
+  email: string
+  customer_number: string
+  date: string
+  time_slot: string
+  region: string
+}
+
+export async function sendBookingUpdateEmail(params: BookingUpdateEmailParams): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — skipping email')
+    return
+  }
+  const dateFormatted = formatDutchDate(params.date)
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject: `Update afspraak: ${dateFormatted} om ${params.time_slot}`,
+    html: bookingUpdateEmailHtml(params),
+  })
+}
+
 // ─── DIY Scanner Rental emails ───────────────────────────────────────────────
 
 function formatDiyWeek(mondayStr: string): string {
@@ -406,6 +478,49 @@ export async function sendDiyRentalEmails(params: DiyRentalEmailParams): Promise
   }
 
   await Promise.all(sends)
+}
+
+// DIY rental update email (admin-triggered after edit)
+function diyRentalUpdateEmailHtml(params: {
+  first_name: string
+  rental_week: string
+  customer_number?: string | null
+}): string {
+  const weekFormatted = formatDiyWeek(params.rental_week)
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  return layout(`
+    ${p(`Hi ${params.first_name},`)}
+    ${p('Hierbij een update over jouw DIY 3D scan kit reservering.')}
+    ${p(`Je nieuwe reservering staat ingepland voor <strong>${weekFormatted}</strong>.`)}
+    ${params.customer_number ? p(`Je klantnummer blijft <strong>${params.customer_number}</strong>.`) : ''}
+    ${p('De scanner wordt op <strong>woensdag</strong> verstuurd, je ontvangt hem op <strong>donderdag</strong>. Stuur hem uiterlijk <strong>maandag</strong> retour.')}
+    ${p('Heb je vragen of klopt er iets niet? Stuur me gerust een berichtje.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Groetjes,<br/>
+      <strong style="color:#1e2d1f;">Team Gravida</strong>
+    </p>
+  `)
+}
+
+export async function sendDiyRentalUpdateEmail(params: {
+  first_name: string
+  email: string
+  rental_week: string
+  customer_number?: string | null
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — skipping email')
+    return
+  }
+  const weekFormatted = formatDiyWeek(params.rental_week)
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject: `Update DIY scan kit reservering: ${weekFormatted}`,
+    html: diyRentalUpdateEmailHtml(params),
+  })
 }
 
 // ─── Gift Card emails ─────────────────────────────────────────────────────────

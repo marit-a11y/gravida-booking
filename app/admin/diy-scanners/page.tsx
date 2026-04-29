@@ -542,6 +542,28 @@ export default function DiyScannerPage() {
                   {editSaving ? 'Opslaan...' : 'Opslaan'}
                 </button>
               </div>
+
+              <button
+                onClick={async () => {
+                  if (!detailRental) return
+                  if (!confirm(`Update-mail sturen naar ${detailRental.first_name} ${detailRental.last_name} (${detailRental.email})?\n\nDe huidige opgeslagen gegevens worden verstuurd.`)) return
+                  try {
+                    const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}/send-update-email`, { method: 'POST' })
+                    const data = await res.json().catch(() => ({}))
+                    if (res.ok) {
+                      alert('Update-mail verstuurd!')
+                    } else {
+                      alert(data.error ?? 'Versturen mislukt.')
+                    }
+                  } catch {
+                    alert('Verbindingsfout.')
+                  }
+                }}
+                className="w-full mt-2 py-2 rounded-lg text-sm font-medium border border-gravida-cream text-gravida-sage hover:border-gravida-sage transition-colors"
+                type="button"
+              >
+                📧 Stuur update-mail naar klant
+              </button>
             </div>
             )}
           </div>
