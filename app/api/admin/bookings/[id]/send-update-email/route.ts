@@ -25,6 +25,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
       date: booking.date,
       time_slot: booking.time_slot,
       region: booking.region,
+      notes: booking.notes,
     })
 
     // Staff mail (parallel — zelfde data, andere ontvangers)
@@ -47,6 +48,8 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
       address: booking.address,
       zip_code: booking.zip_code,
       city: booking.city,
+      notes: booking.notes,
+      internal_notes: booking.internal_notes,
       staff_emails: staffEmails,
     }).catch(err => console.error('Staff update mail error:', err))
 

@@ -18,6 +18,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
       email: rental.email,
       rental_week: rental.rental_week,
       customer_number: rental.customer_number,
+      notes: rental.notes,
     })
 
     // Staff mail
@@ -31,6 +32,8 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
       address: rental.address,
       city: rental.city,
       zip_code: rental.zip_code,
+      notes: rental.notes,
+      internal_notes: rental.internal_notes,
     }).catch(err => console.error('DIY staff update mail error:', err))
 
     return NextResponse.json({ ok: true })

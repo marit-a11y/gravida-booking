@@ -278,10 +278,18 @@ function bookingUpdateEmailHtml(params: {
   date: string
   time_slot: string
   region: string
+  notes?: string | null
 }): string {
   const dateFormatted = formatDutchDate(params.date)
   const p = (text: string) =>
     `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  // Notes worden line-by-line getoond, plain text — escape HTML risk
+  const notesHtml = params.notes
+    ? params.notes
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br/>')
+    : ''
 
   return layout(`
     ${p(`Hi ${params.first_name},`)}
@@ -311,6 +319,14 @@ function bookingUpdateEmailHtml(params: {
       </td></tr>
     </table>
 
+    ${notesHtml ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">💬 Opmerkingen</p>
+        <p style="margin:0;font-size:14px;color:#3d4d3e;line-height:1.6;">${notesHtml}</p>
+      </td></tr>
+    </table>` : ''}
+
     ${p('Heb je vragen of klopt er iets niet? Stuur me gerust een berichtje.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Tot snel,<br/>
@@ -326,6 +342,7 @@ export interface BookingUpdateEmailParams {
   date: string
   time_slot: string
   region: string
+  notes?: string | null
 }
 
 export async function sendBookingUpdateEmail(params: BookingUpdateEmailParams): Promise<void> {
@@ -355,6 +372,8 @@ function bookingUpdateStaffEmailHtml(params: {
   address: string
   zip_code: string
   city: string
+  notes?: string | null
+  internal_notes?: string | null
 }): string {
   const dateFormatted = formatDutchDate(params.date)
   const row = (label: string, value: string) => value ? `
@@ -362,6 +381,10 @@ function bookingUpdateStaffEmailHtml(params: {
       <td style="padding:5px 0;font-size:13px;color:#8a9e8c;width:140px;vertical-align:top;">${label}</td>
       <td style="padding:5px 0;font-size:14px;color:#1e2d1f;">${value}</td>
     </tr>` : ''
+
+  const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')
+  const notesHtml = params.notes ? escape(params.notes) : ''
+  const internalNotesHtml = params.internal_notes ? escape(params.internal_notes) : ''
 
   return layout(`
     <h1 style="margin:0 0 6px;font-size:22px;font-weight:600;color:#1e2d1f;letter-spacing:-0.5px;">
@@ -395,6 +418,22 @@ function bookingUpdateStaffEmailHtml(params: {
       </td></tr>
     </table>
 
+    ${notesHtml ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">💬 Opmerking klant</p>
+        <p style="margin:0;font-size:14px;color:#3d4d3e;line-height:1.6;">${notesHtml}</p>
+      </td></tr>
+    </table>` : ''}
+
+    ${internalNotesHtml ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#9a3412;text-transform:uppercase;letter-spacing:1px;">🔒 Interne opmerking (alleen team)</p>
+        <p style="margin:0;font-size:14px;color:#7c2d12;line-height:1.6;">${internalNotesHtml}</p>
+      </td></tr>
+    </table>` : ''}
+
     <a href="https://dashboard.gravida.nl/admin/boekingen"
        style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;">
       Bekijk in het beheerpaneel →
@@ -414,6 +453,8 @@ export async function sendBookingUpdateStaffEmail(params: {
   address: string
   zip_code: string
   city: string
+  notes?: string | null
+  internal_notes?: string | null
   staff_emails?: string[]
 }): Promise<void> {
   if (!process.env.RESEND_API_KEY) return
@@ -576,10 +617,16 @@ function diyRentalUpdateEmailHtml(params: {
   first_name: string
   rental_week: string
   customer_number?: string | null
+  notes?: string | null
 }): string {
   const weekFormatted = formatDiyWeek(params.rental_week)
   const p = (text: string) =>
     `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+  const notesHtml = params.notes
+    ? params.notes
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br/>')
+    : ''
 
   return layout(`
     ${p(`Hi ${params.first_name},`)}
@@ -587,6 +634,13 @@ function diyRentalUpdateEmailHtml(params: {
     ${p(`Je nieuwe reservering staat ingepland voor <strong>${weekFormatted}</strong>.`)}
     ${params.customer_number ? p(`Je klantnummer blijft <strong>${params.customer_number}</strong>.`) : ''}
     ${p('De scanner wordt op <strong>woensdag</strong> verstuurd, je ontvangt hem op <strong>donderdag</strong>. Stuur hem uiterlijk <strong>maandag</strong> retour.')}
+    ${notesHtml ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin:0 0 20px;">
+      <tr><td style="padding:18px 22px;">
+        <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">💬 Opmerkingen</p>
+        <p style="margin:0;font-size:14px;color:#3d4d3e;line-height:1.7;">${notesHtml}</p>
+      </td></tr>
+    </table>` : ''}
     ${p('Heb je vragen of klopt er iets niet? Stuur me gerust een berichtje.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Groetjes,<br/>
@@ -600,6 +654,7 @@ export async function sendDiyRentalUpdateEmail(params: {
   email: string
   rental_week: string
   customer_number?: string | null
+  notes?: string | null
 }): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
     console.warn('RESEND_API_KEY not set — skipping email')
@@ -624,6 +679,8 @@ export async function sendDiyRentalUpdateStaffEmail(params: {
   address: string
   city: string
   zip_code: string
+  notes?: string | null
+  internal_notes?: string | null
 }): Promise<void> {
   if (!process.env.RESEND_API_KEY) return
   const staffEmail = (process.env.STAFF_EMAIL ?? '').trim()
@@ -635,6 +692,9 @@ export async function sendDiyRentalUpdateStaffEmail(params: {
       <td style="padding:5px 0;font-size:13px;color:#8a9e8c;width:140px;vertical-align:top;">${label}</td>
       <td style="padding:5px 0;font-size:14px;color:#1e2d1f;">${value}</td>
     </tr>` : ''
+  const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')
+  const notesHtml = params.notes ? escape(params.notes) : ''
+  const internalNotesHtml = params.internal_notes ? escape(params.internal_notes) : ''
 
   const html = layout(`
     <h1 style="margin:0 0 6px;font-size:22px;font-weight:600;color:#1e2d1f;letter-spacing:-0.5px;">
@@ -663,6 +723,20 @@ export async function sendDiyRentalUpdateStaffEmail(params: {
         </table>
       </td></tr>
     </table>
+    ${notesHtml ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:18px 22px;">
+        <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">💬 Opmerking klant</p>
+        <p style="margin:0;font-size:14px;color:#3d4d3e;line-height:1.7;">${notesHtml}</p>
+      </td></tr>
+    </table>` : ''}
+    ${internalNotesHtml ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:18px 22px;">
+        <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#9a3412;text-transform:uppercase;letter-spacing:1px;">🔒 Interne opmerking</p>
+        <p style="margin:0;font-size:14px;color:#9a3412;line-height:1.7;">${internalNotesHtml}</p>
+      </td></tr>
+    </table>` : ''}
     <a href="https://dashboard.gravida.nl/admin/diy-scanners"
        style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;">
       Bekijk in het beheerpaneel →
