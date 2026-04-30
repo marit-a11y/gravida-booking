@@ -342,6 +342,97 @@ export async function sendBookingUpdateEmail(params: BookingUpdateEmailParams): 
   })
 }
 
+// Staff-side notification of an update — sent in parallel with the customer mail.
+function bookingUpdateStaffEmailHtml(params: {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  customer_number: string
+  date: string
+  time_slot: string
+  region: string
+  address: string
+  zip_code: string
+  city: string
+}): string {
+  const dateFormatted = formatDutchDate(params.date)
+  const row = (label: string, value: string) => value ? `
+    <tr>
+      <td style="padding:5px 0;font-size:13px;color:#8a9e8c;width:140px;vertical-align:top;">${label}</td>
+      <td style="padding:5px 0;font-size:14px;color:#1e2d1f;">${value}</td>
+    </tr>` : ''
+
+  return layout(`
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:600;color:#1e2d1f;letter-spacing:-0.5px;">
+      Boeking bijgewerkt
+    </h1>
+    <p style="margin:0 0 28px;font-size:15px;color:#5a6e5c;">
+      ${params.first_name} ${params.last_name} heeft een update-mail gehad met de actuele afspraakgegevens.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 14px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Bijgewerkte afspraak</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('📅 Datum', dateFormatted)}
+          ${row('⏰ Tijdslot', params.time_slot)}
+          ${row('📍 Regio', params.region)}
+          ${row('🔑 Klantnr.', params.customer_number)}
+        </table>
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 14px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Klantgegevens</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('👤 Naam', `${params.first_name} ${params.last_name}`)}
+          ${row('📧 E-mail', `<a href="mailto:${params.email}" style="color:${BRAND_GREEN};">${params.email}</a>`)}
+          ${row('📞 Telefoon', `<a href="tel:${params.phone}" style="color:${BRAND_GREEN};">${params.phone}</a>`)}
+          ${row('🏠 Adres', `${params.address}, ${params.zip_code} ${params.city}`)}
+        </table>
+      </td></tr>
+    </table>
+
+    <a href="https://dashboard.gravida.nl/admin/boekingen"
+       style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;">
+      Bekijk in het beheerpaneel →
+    </a>
+  `)
+}
+
+export async function sendBookingUpdateStaffEmail(params: {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  customer_number: string
+  date: string
+  time_slot: string
+  region: string
+  address: string
+  zip_code: string
+  city: string
+  staff_emails?: string[]
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const dateFormatted = formatDutchDate(params.date)
+  const recipients = [
+    ...(process.env.STAFF_EMAIL ? [process.env.STAFF_EMAIL.trim()] : []),
+    ...(params.staff_emails ?? []),
+  ].filter((e, i, arr) => e && arr.indexOf(e) === i)
+  if (recipients.length === 0) return
+
+  await getResend().emails.send({
+    from: FROM,
+    to: recipients,
+    replyTo: params.email,
+    subject: `Boeking bijgewerkt: ${params.first_name} ${params.last_name} (${params.email}) · ${dateFormatted} ${params.time_slot} · ${params.region}`,
+    html: bookingUpdateStaffEmailHtml(params),
+  })
+}
+
 // ─── DIY Scanner Rental emails ───────────────────────────────────────────────
 
 function formatDiyWeek(mondayStr: string): string {
@@ -520,6 +611,70 @@ export async function sendDiyRentalUpdateEmail(params: {
     to: params.email,
     subject: `Update DIY scan kit reservering: ${weekFormatted}`,
     html: diyRentalUpdateEmailHtml(params),
+  })
+}
+
+export async function sendDiyRentalUpdateStaffEmail(params: {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  rental_week: string
+  customer_number?: string | null
+  address: string
+  city: string
+  zip_code: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const staffEmail = (process.env.STAFF_EMAIL ?? '').trim()
+  if (!staffEmail) return
+
+  const weekFormatted = formatDiyWeek(params.rental_week)
+  const row = (label: string, value: string) => value ? `
+    <tr>
+      <td style="padding:5px 0;font-size:13px;color:#8a9e8c;width:140px;vertical-align:top;">${label}</td>
+      <td style="padding:5px 0;font-size:14px;color:#1e2d1f;">${value}</td>
+    </tr>` : ''
+
+  const html = layout(`
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:600;color:#1e2d1f;letter-spacing:-0.5px;">
+      DIY reservering bijgewerkt
+    </h1>
+    <p style="margin:0 0 28px;font-size:15px;color:#5a6e5c;">
+      ${params.first_name} ${params.last_name} heeft een update-mail gehad met de actuele reserveringsgegevens.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 14px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Bijgewerkte reservering</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('📅 Periode', weekFormatted)}
+          ${params.customer_number ? row('🔑 Klantnr.', params.customer_number) : ''}
+        </table>
+      </td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 14px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Klantgegevens</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${row('👤 Naam', `${params.first_name} ${params.last_name}`)}
+          ${row('📧 E-mail', `<a href="mailto:${params.email}" style="color:${BRAND_GREEN};">${params.email}</a>`)}
+          ${row('📞 Telefoon', `<a href="tel:${params.phone}" style="color:${BRAND_GREEN};">${params.phone}</a>`)}
+          ${row('🏠 Adres', `${params.address}, ${params.zip_code} ${params.city}`)}
+        </table>
+      </td></tr>
+    </table>
+    <a href="https://dashboard.gravida.nl/admin/diy-scanners"
+       style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;">
+      Bekijk in het beheerpaneel →
+    </a>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: staffEmail,
+    replyTo: params.email,
+    subject: `DIY reservering bijgewerkt: ${params.first_name} ${params.last_name} (${params.email}) · ${weekFormatted}`,
+    html,
   })
 }
 

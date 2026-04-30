@@ -131,6 +131,55 @@ export default function BoekingenPage() {
     ? [...filteredBookings].sort((a, b) => b.created_at.localeCompare(a.created_at))
     : filteredBookings
 
+  // Save the edit modal form, optionally also sending an update-email afterwards
+  const saveEdit = async (alsoSendMail: boolean) => {
+    if (!detailBooking) return
+    setEditSaving(true); setEditError('')
+    try {
+      const payload = {
+        first_name: editForm.first_name?.trim(),
+        last_name: editForm.last_name?.trim(),
+        email: editForm.email?.trim().toLowerCase(),
+        phone: editForm.phone?.trim(),
+        address: editForm.address?.trim(),
+        city: editForm.city?.trim(),
+        zip_code: editForm.zip_code?.trim(),
+        pregnancy_weeks: editForm.pregnancy_weeks_str ? parseInt(editForm.pregnancy_weeks_str, 10) : null,
+        notes: editForm.notes?.trim() || null,
+        internal_notes: editForm.internal_notes?.trim() || null,
+        availability_id: editForm.availability_id,
+        time_slot: editForm.time_slot,
+      }
+      const res = await fetch(`/api/admin/bookings/${detailBooking.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setEditError(data.error ?? 'Opslaan mislukt')
+        return
+      }
+      // Save succeeded — optional follow-up mail
+      if (alsoSendMail) {
+        const mailRes = await fetch(`/api/admin/bookings/${detailBooking.id}/send-update-email`, { method: 'POST' })
+        if (!mailRes.ok) {
+          const md = await mailRes.json().catch(() => ({}))
+          alert('Wijzigingen opgeslagen, maar mail versturen mislukte: ' + (md.error ?? 'onbekend'))
+        } else {
+          alert('Opgeslagen + update-mail verstuurd naar klant en medewerker.')
+        }
+      }
+      setEditMode(false)
+      await loadBookings()
+      setDetailBooking(null)
+    } catch {
+      setEditError('Verbindingsfout')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   const handleStatusChange = async (id: number, status: string) => {
     setUpdatingId(id)
     try {
@@ -846,71 +895,22 @@ export default function BoekingenPage() {
                     Annuleren
                   </button>
                   <button
-                    onClick={async () => {
-                      setEditSaving(true); setEditError('')
-                      try {
-                        const payload = {
-                          first_name: editForm.first_name?.trim(),
-                          last_name: editForm.last_name?.trim(),
-                          email: editForm.email?.trim().toLowerCase(),
-                          phone: editForm.phone?.trim(),
-                          address: editForm.address?.trim(),
-                          city: editForm.city?.trim(),
-                          zip_code: editForm.zip_code?.trim(),
-                          pregnancy_weeks: editForm.pregnancy_weeks_str ? parseInt(editForm.pregnancy_weeks_str, 10) : null,
-                          notes: editForm.notes?.trim() || null,
-                          internal_notes: editForm.internal_notes?.trim() || null,
-                          availability_id: editForm.availability_id,
-                          time_slot: editForm.time_slot,
-                        }
-                        console.log('[edit save] payload', payload)
-                        const res = await fetch(`/api/admin/bookings/${detailBooking.id}`, {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(payload),
-                        })
-                        const data = await res.json().catch(() => ({}))
-                        console.log('[edit save] response', res.status, data)
-                        if (res.ok) {
-                          setEditMode(false)
-                          await loadBookings()
-                          setDetailBooking(null)
-                        } else {
-                          setEditError(data.error ?? 'Opslaan mislukt')
-                        }
-                      } catch {
-                        setEditError('Verbindingsfout')
-                      } finally {
-                        setEditSaving(false)
-                      }
-                    }}
+                    onClick={() => saveEdit(false)}
                     disabled={editSaving}
-                    className="flex-1 btn-primary"
+                    className="flex-1 btn-secondary"
                   >
-                    {editSaving ? 'Opslaan...' : 'Opslaan'}
+                    {editSaving ? 'Opslaan...' : '💾 Opslaan'}
                   </button>
                 </div>
 
                 <button
-                  onClick={async () => {
-                    if (!detailBooking) return
-                    if (!confirm(`Update-mail sturen naar ${detailBooking.first_name} ${detailBooking.last_name} (${detailBooking.email})?\n\nDe huidige opgeslagen gegevens worden verstuurd.`)) return
-                    try {
-                      const res = await fetch(`/api/admin/bookings/${detailBooking.id}/send-update-email`, { method: 'POST' })
-                      const data = await res.json().catch(() => ({}))
-                      if (res.ok) {
-                        alert('Update-mail verstuurd!')
-                      } else {
-                        alert(data.error ?? 'Versturen mislukt.')
-                      }
-                    } catch {
-                      alert('Verbindingsfout.')
-                    }
-                  }}
-                  className="w-full mt-2 py-2 rounded-lg text-sm font-medium border border-gravida-cream text-gravida-sage hover:border-gravida-sage transition-colors"
+                  onClick={() => saveEdit(true)}
+                  disabled={editSaving}
+                  className="w-full mt-2 py-2 rounded-lg text-sm font-medium bg-gravida-sage text-white hover:bg-gravida-green transition-colors disabled:opacity-50"
                   type="button"
+                  title="Slaat eerst op en stuurt daarna direct de update-mail naar de klant + medewerker met de net opgeslagen gegevens"
                 >
-                  📧 Stuur update-mail naar klant
+                  {editSaving ? 'Bezig...' : '💾 Opslaan + 📧 stuur update-mail'}
                 </button>
               </div>
             )}

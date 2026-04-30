@@ -112,6 +112,51 @@ export default function DiyScannerPage() {
     } finally { setUpdatingScanner(null) }
   }
 
+  // Save the DIY edit form, optionally also sending an update-email afterwards
+  const saveDiyEdit = async (alsoSendMail: boolean) => {
+    if (!detailRental) return
+    setEditSaving(true); setEditError('')
+    try {
+      const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: editForm.first_name?.trim(),
+          last_name: editForm.last_name?.trim(),
+          email: editForm.email?.trim().toLowerCase(),
+          phone: editForm.phone?.trim(),
+          address: editForm.address?.trim(),
+          city: editForm.city?.trim(),
+          zip_code: editForm.zip_code?.trim(),
+          rental_week: editForm.rental_week,
+          notes: editForm.notes?.trim() || null,
+          internal_notes: editForm.internal_notes?.trim() || null,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setEditError(data.error ?? 'Opslaan mislukt')
+        return
+      }
+      if (alsoSendMail) {
+        const mailRes = await fetch(`/api/admin/diy-rentals/${detailRental.id}/send-update-email`, { method: 'POST' })
+        if (!mailRes.ok) {
+          const md = await mailRes.json().catch(() => ({}))
+          alert('Wijzigingen opgeslagen, maar mail versturen mislukte: ' + (md.error ?? 'onbekend'))
+        } else {
+          alert('Opgeslagen + update-mail verstuurd naar klant en medewerker.')
+        }
+      }
+      setEditMode(false)
+      await loadData()
+      setDetailRental(null)
+    } catch {
+      setEditError('Verbindingsfout')
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   const updateRentalStatus = async (id: number, status: string) => {
     setUpdatingRental(id)
     try {
@@ -503,66 +548,22 @@ export default function DiyScannerPage() {
               <div className="flex gap-2">
                 <button onClick={() => { setEditMode(false); setEditError('') }} className="flex-1 py-2 rounded-lg text-sm font-medium border border-gravida-cream text-gravida-light-sage hover:border-gravida-sage transition-colors">Annuleren</button>
                 <button
-                  onClick={async () => {
-                    setEditSaving(true); setEditError('')
-                    try {
-                      const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          first_name: editForm.first_name?.trim(),
-                          last_name: editForm.last_name?.trim(),
-                          email: editForm.email?.trim().toLowerCase(),
-                          phone: editForm.phone?.trim(),
-                          address: editForm.address?.trim(),
-                          city: editForm.city?.trim(),
-                          zip_code: editForm.zip_code?.trim(),
-                          rental_week: editForm.rental_week,
-                          notes: editForm.notes?.trim() || null,
-                          internal_notes: editForm.internal_notes?.trim() || null,
-                        }),
-                      })
-                      if (res.ok) {
-                        setEditMode(false)
-                        await loadData()
-                        setDetailRental(null)
-                      } else {
-                        const data = await res.json().catch(() => ({}))
-                        setEditError(data.error ?? 'Opslaan mislukt')
-                      }
-                    } catch {
-                      setEditError('Verbindingsfout')
-                    } finally {
-                      setEditSaving(false)
-                    }
-                  }}
+                  onClick={() => saveDiyEdit(false)}
                   disabled={editSaving}
-                  className="flex-1 btn-primary"
+                  className="flex-1 btn-secondary"
                 >
-                  {editSaving ? 'Opslaan...' : 'Opslaan'}
+                  {editSaving ? 'Opslaan...' : '💾 Opslaan'}
                 </button>
               </div>
 
               <button
-                onClick={async () => {
-                  if (!detailRental) return
-                  if (!confirm(`Update-mail sturen naar ${detailRental.first_name} ${detailRental.last_name} (${detailRental.email})?\n\nDe huidige opgeslagen gegevens worden verstuurd.`)) return
-                  try {
-                    const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}/send-update-email`, { method: 'POST' })
-                    const data = await res.json().catch(() => ({}))
-                    if (res.ok) {
-                      alert('Update-mail verstuurd!')
-                    } else {
-                      alert(data.error ?? 'Versturen mislukt.')
-                    }
-                  } catch {
-                    alert('Verbindingsfout.')
-                  }
-                }}
-                className="w-full mt-2 py-2 rounded-lg text-sm font-medium border border-gravida-cream text-gravida-sage hover:border-gravida-sage transition-colors"
+                onClick={() => saveDiyEdit(true)}
+                disabled={editSaving}
+                className="w-full mt-2 py-2 rounded-lg text-sm font-medium bg-gravida-sage text-white hover:bg-gravida-green transition-colors disabled:opacity-50"
                 type="button"
+                title="Slaat eerst op en stuurt daarna direct de update-mail naar klant en medewerker met de net opgeslagen gegevens"
               >
-                📧 Stuur update-mail naar klant
+                {editSaving ? 'Bezig...' : '💾 Opslaan + 📧 stuur update-mail'}
               </button>
             </div>
             )}
