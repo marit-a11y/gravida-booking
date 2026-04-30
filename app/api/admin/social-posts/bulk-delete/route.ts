@@ -19,7 +19,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'from en to (ISO datums) zijn verplicht' }, { status: 400 })
     }
 
-    // Bouw query op basis van filters
+    // "Leeg" = geen caption EN geen media. Titel telt NIET mee, want
+    // de generate-template zet placeholder-titels (bv. "Reel: beeldjes
+    // proces") en die wil je juist mee opruimen.
     let result
     if (status && status !== 'all' && only_empty) {
       result = await sql`
@@ -27,9 +29,8 @@ export async function POST(request: NextRequest) {
         WHERE scheduled_for >= ${from}
           AND scheduled_for <= ${to}
           AND status = ${status}
-          AND (title IS NULL OR title = '')
           AND (caption IS NULL OR caption = '')
-          AND (image_urls IS NULL OR image_urls::text = '[]' OR image_urls::text = 'null')
+          AND (image_urls IS NULL OR image_urls::text = '[]' OR image_urls::text = 'null' OR jsonb_array_length(image_urls) = 0)
       `
     } else if (status && status !== 'all') {
       result = await sql`
@@ -43,9 +44,8 @@ export async function POST(request: NextRequest) {
         DELETE FROM social_posts
         WHERE scheduled_for >= ${from}
           AND scheduled_for <= ${to}
-          AND (title IS NULL OR title = '')
           AND (caption IS NULL OR caption = '')
-          AND (image_urls IS NULL OR image_urls::text = '[]' OR image_urls::text = 'null')
+          AND (image_urls IS NULL OR image_urls::text = '[]' OR image_urls::text = 'null' OR jsonb_array_length(image_urls) = 0)
       `
     } else {
       result = await sql`

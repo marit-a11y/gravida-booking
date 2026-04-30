@@ -1217,7 +1217,7 @@ export default function SocialPlannerPage() {
                 <span className="text-sm">
                   <strong>Alleen lege posts</strong>
                   <span className="block text-[11px] text-gravida-light-sage">
-                    Verwijdert alleen posts zonder titel, caption of media. Veiligst voor het opruimen van een gegenereerde template.
+                    Verwijdert posts zonder caption én zonder media. Posts met alleen een placeholder-titel (zoals &quot;Reel: beeldjes proces&quot; uit de template) worden ook meegenomen.
                   </span>
                 </span>
               </label>
