@@ -30,23 +30,27 @@ const PLATFORMS = [
   { value: 'facebook',  label: 'Facebook',  emoji: '👥' },
 ]
 
+// Post types — per type een eigen kleur zodat in 1 oogopslag duidelijk is
+// wat voor type post er moet komen op een dag
 const POST_TYPES = [
-  { value: 'feed',     label: 'Feedpost' },
-  { value: 'story',    label: 'Story' },
-  { value: 'reel',     label: 'Reel' },
-  { value: 'carousel', label: 'Carousel' },
+  { value: 'feed',     label: 'Feedpost', emoji: '🟦', rowBg: 'bg-blue-50/60',    badge: 'bg-blue-100 text-blue-800' },
+  { value: 'story',    label: 'Story',    emoji: '🟪', rowBg: 'bg-purple-50/60',  badge: 'bg-purple-100 text-purple-800' },
+  { value: 'reel',     label: 'Reel',     emoji: '🟧', rowBg: 'bg-orange-50/60',  badge: 'bg-orange-100 text-orange-800' },
+  { value: 'carousel', label: 'Carousel', emoji: '🟩', rowBg: 'bg-emerald-50/60', badge: 'bg-emerald-100 text-emerald-800' },
 ]
 
 // Categories from the previous content planner — drives the rotation/theme of the feed
+// Elke categorie heeft een eigen icoon zodat je in de kalender / lijst direct ziet
+// wat voor inhoud er staat zonder de tekst te lezen.
 const CATEGORIES = [
-  { value: 'Beeldjes',     color: 'bg-amber-50 border-amber-200 text-amber-800' },
-  { value: 'FAQ',          color: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
-  { value: 'This or that', color: 'bg-blue-50 border-blue-200 text-blue-800' },
-  { value: 'Atelier', color: 'bg-rose-50 border-rose-200 text-rose-800' },
-  { value: 'Bedels',       color: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
-  { value: 'Review',       color: 'bg-purple-50 border-purple-200 text-purple-800' },
-  { value: 'Algemeen',     color: 'bg-orange-50 border-orange-200 text-orange-800' },
-  { value: 'Promotie',     color: 'bg-pink-50 border-pink-200 text-pink-800' },
+  { value: 'Beeldjes',     icon: '🤰', color: 'bg-amber-50 border-amber-200 text-amber-800' },
+  { value: 'FAQ',          icon: '❓', color: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  { value: 'This or that', icon: '↔️', color: 'bg-sky-50 border-sky-200 text-sky-800' },
+  { value: 'Atelier',      icon: '🎨', color: 'bg-rose-50 border-rose-200 text-rose-800' },
+  { value: 'Bedels',       icon: '✨', color: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
+  { value: 'Review',       icon: '💬', color: 'bg-purple-50 border-purple-200 text-purple-800' },
+  { value: 'Algemeen',     icon: '📣', color: 'bg-orange-50 border-orange-200 text-orange-800' },
+  { value: 'Promotie',     icon: '🎁', color: 'bg-pink-50 border-pink-200 text-pink-800' },
 ]
 
 const STATUSES = [
@@ -261,6 +265,7 @@ export default function SocialPlannerPage() {
   const platformInfo = (p: string) => PLATFORMS.find(x => x.value === p) ?? PLATFORMS[0]
   const statusInfo = (s: string) => STATUSES.find(x => x.value === s) ?? STATUSES[0]
   const categoryInfo = (c: string | null) => CATEGORIES.find(x => x.value === c) ?? null
+  const typeInfo = (t: string) => POST_TYPES.find(x => x.value === t) ?? POST_TYPES[0]
 
   const todayKey = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`
 
@@ -335,17 +340,19 @@ export default function SocialPlannerPage() {
                       const t = new Date(p.scheduled_for)
                       const time = `${pad(t.getHours())}:${pad(t.getMinutes())}`
                       const thumb = p.image_urls?.[0]
+                      const ti = typeInfo(p.post_type)
+                      const ci = categoryInfo(p.category)
                       return (
                         <button key={p.id} onClick={(e) => { e.stopPropagation(); openEditModal(p) }}
-                          className={`flex items-center gap-1 sm:gap-1.5 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-[10px] hover:opacity-80 transition-opacity overflow-hidden ${statusInfo(p.status).color}`}
-                          title={`${time} · ${platformInfo(p.platform).label} · ${p.title ?? p.caption?.slice(0, 40) ?? ''}`}
+                          className={`flex items-center gap-1 sm:gap-1.5 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-[10px] hover:opacity-80 transition-opacity overflow-hidden ${ti.badge}`}
+                          title={`${time} · ${ti.label} · ${p.category ?? ''} · ${p.title ?? p.caption?.slice(0, 40) ?? ''}`}
                         >
                           {thumb ? (
                             <img src={thumb} alt="" className="w-4 h-4 sm:w-5 sm:h-5 rounded object-cover shrink-0" />
                           ) : (
-                            <span className="text-[10px] sm:text-xs">{platformInfo(p.platform).emoji}</span>
+                            <span className="text-[10px] sm:text-xs">{ci?.icon ?? ti.emoji}</span>
                           )}
-                          <span className="truncate">{time}{p.title ? ` · ${p.title.slice(0,15)}` : ''}</span>
+                          <span className="truncate">{time}{p.title ? ` · ${p.title.slice(0,15)}` : p.category ? ` · ${p.category.slice(0,12)}` : ''}</span>
                         </button>
                       )
                     })}
@@ -391,26 +398,31 @@ export default function SocialPlannerPage() {
                   const dayLabel = `${DUTCH_DAYS_FULL[dow].slice(0, 2)} - ${d.getDate()}`
                   return dayPosts.map((p, postIdx) => {
                     const cat = categoryInfo(p.category)
+                    const ti = typeInfo(p.post_type)
                     const time = `${pad(new Date(p.scheduled_for).getHours())}:${pad(new Date(p.scheduled_for).getMinutes())}`
                     const isFirstOfDay = postIdx === 0
                     return (
-                      <tr key={p.id} className={`border-t border-gravida-cream hover:bg-gravida-off-white transition-colors ${dayIdx % 2 === 0 ? '' : 'bg-gravida-cream/10'}`}>
+                      <tr key={p.id} className={`border-t border-gravida-cream hover:opacity-80 transition-opacity ${ti.rowBg}`}>
                         <td className="px-3 py-2 align-top whitespace-nowrap text-gravida-sage">
                           {isFirstOfDay && <div className="font-medium">{dayLabel}</div>}
                           <div className="text-xs text-gravida-light-sage">{time}</div>
                         </td>
                         <td className="px-3 py-2 align-top">
                           {p.category ? (
-                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${cat?.color ?? 'bg-gray-50 border-gray-200 text-gray-700'}`}>
-                              {p.category}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${cat?.color ?? 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+                              {cat?.icon && <span>{cat.icon}</span>}
+                              <span>{p.category}</span>
                             </span>
                           ) : (
                             <span className="text-xs text-gravida-light-sage italic">geen</span>
                           )}
                         </td>
                         <td className="px-3 py-2 align-top whitespace-nowrap text-xs">
-                          <div className="font-medium text-gravida-sage">{POST_TYPES.find(t => t.value === p.post_type)?.label ?? p.post_type}</div>
-                          <div className="text-[10px] text-gravida-light-sage">{platformInfo(p.platform).emoji} {platformInfo(p.platform).label}</div>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded font-medium ${ti.badge}`}>
+                            <span>{ti.emoji}</span>
+                            <span>{ti.label}</span>
+                          </span>
+                          <div className="text-[10px] text-gravida-light-sage mt-0.5">{platformInfo(p.platform).emoji} {platformInfo(p.platform).label}</div>
                         </td>
                         <td className="px-3 py-2 align-top">
                           <button onClick={() => openEditModal(p)} className="text-left hover:underline">
