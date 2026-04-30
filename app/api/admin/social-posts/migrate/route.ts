@@ -23,6 +23,10 @@ export async function GET() {
     `
     await sql`CREATE INDEX IF NOT EXISTS idx_social_posts_scheduled ON social_posts(scheduled_for)`
     await sql`CREATE INDEX IF NOT EXISTS idx_social_posts_status ON social_posts(status)`
+
+    // v2: category + short title (for content rotation theming)
+    await sql`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS category VARCHAR(50)`
+    await sql`ALTER TABLE social_posts ADD COLUMN IF NOT EXISTS title VARCHAR(200)`
     return NextResponse.json({ ok: true, message: 'social_posts tabel aangemaakt' })
   } catch (err) {
     console.error('social-posts migrate error:', err)

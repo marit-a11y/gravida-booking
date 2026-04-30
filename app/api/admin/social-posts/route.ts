@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
       scheduled_for: body.scheduled_for,
       platform: body.platform,
       post_type: body.post_type,
+      category: body.category,
+      title: body.title,
       image_urls: body.image_urls,
       caption: body.caption,
       hashtags: body.hashtags,

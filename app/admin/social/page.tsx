@@ -7,6 +7,8 @@ interface SocialPost {
   scheduled_for: string
   platform: string
   post_type: string
+  category: string | null
+  title: string | null
   image_urls: string[]
   caption: string | null
   hashtags: string | null
@@ -19,6 +21,7 @@ interface SocialPost {
 
 const DUTCH_MONTHS = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December']
 const DUTCH_DAYS_SHORT = ['Ma','Di','Wo','Do','Vr','Za','Zo']
+const DUTCH_DAYS_FULL = ['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag']
 
 const PLATFORMS = [
   { value: 'instagram', label: 'Instagram', emoji: '📷' },
@@ -28,17 +31,33 @@ const PLATFORMS = [
 ]
 
 const POST_TYPES = [
-  { value: 'feed',     label: 'Feed post' },
+  { value: 'feed',     label: 'Feedpost' },
   { value: 'story',    label: 'Story' },
-  { value: 'reel',     label: 'Reel / Video' },
+  { value: 'reel',     label: 'Reel' },
   { value: 'carousel', label: 'Carousel' },
 ]
 
+// Categories from the previous content planner — drives the rotation/theme of the feed
+const CATEGORIES = [
+  { value: 'Beeldjes',     color: 'bg-amber-50 border-amber-200 text-amber-800' },
+  { value: 'FAQ',          color: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+  { value: 'This or that', color: 'bg-blue-50 border-blue-200 text-blue-800' },
+  { value: 'Meet jessica', color: 'bg-rose-50 border-rose-200 text-rose-800' },
+  { value: 'Bedels',       color: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
+  { value: 'Review',       color: 'bg-purple-50 border-purple-200 text-purple-800' },
+  { value: 'Algemeen',     color: 'bg-orange-50 border-orange-200 text-orange-800' },
+  { value: 'Promotie',     color: 'bg-pink-50 border-pink-200 text-pink-800' },
+]
+
 const STATUSES = [
-  { value: 'draft',     label: 'Concept',     color: 'bg-gray-100 text-gray-600' },
-  { value: 'scheduled', label: 'Ingepland',   color: 'bg-blue-100 text-blue-700' },
-  { value: 'posted',    label: 'Geplaatst',   color: 'bg-green-100 text-green-700' },
-  { value: 'missed',    label: 'Gemist',      color: 'bg-red-100 text-red-700' },
+  { value: 'draft',      label: 'Concept',     color: 'bg-gray-100 text-gray-600' },
+  { value: 'klaargezet', label: 'Klaargezet',  color: 'bg-blue-100 text-blue-700' },
+  { value: 'geplaatst',  label: 'Geplaatst',   color: 'bg-green-100 text-green-700' },
+  { value: 'gemist',     label: 'Gemist',      color: 'bg-red-100 text-red-700' },
+  // Backwards compatibility for existing rows with the old 'scheduled' status
+  { value: 'scheduled',  label: 'Klaargezet',  color: 'bg-blue-100 text-blue-700' },
+  { value: 'posted',     label: 'Geplaatst',   color: 'bg-green-100 text-green-700' },
+  { value: 'missed',     label: 'Gemist',      color: 'bg-red-100 text-red-700' },
 ]
 
 function pad(n: number) { return String(n).padStart(2, '0') }
@@ -49,9 +68,11 @@ function isoLocalDateTime(d: Date) {
 const EMPTY_FORM: Partial<SocialPost> & { scheduled_for_local?: string; image_urls_text?: string } = {
   platform: 'instagram',
   post_type: 'feed',
+  category: '',
+  title: '',
   caption: '',
   hashtags: '',
-  status: 'scheduled',
+  status: 'draft',
   canva_url: '',
   internal_notes: '',
   image_urls: [],
@@ -60,6 +81,7 @@ const EMPTY_FORM: Partial<SocialPost> & { scheduled_for_local?: string; image_ur
 
 export default function SocialPlannerPage() {
   const today = new Date()
+  const [view, setView] = useState<'calendar' | 'list'>('calendar')
   const [calYear, setCalYear] = useState(today.getFullYear())
   const [calMonth, setCalMonth] = useState(today.getMonth())
   const [posts, setPosts] = useState<SocialPost[]>([])
@@ -69,6 +91,7 @@ export default function SocialPlannerPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [filterCategory, setFilterCategory] = useState('alle')
 
   const monthStart = new Date(calYear, calMonth, 1)
   const monthEnd = new Date(calYear, calMonth + 1, 0, 23, 59, 59)
@@ -76,7 +99,6 @@ export default function SocialPlannerPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      // Fetch posts for the visible month + a buffer of 7 days on each side
       const fromD = new Date(monthStart); fromD.setDate(fromD.getDate() - 7)
       const toD = new Date(monthEnd); toD.setDate(toD.getDate() + 7)
       const res = await fetch(`/api/admin/social-posts?from=${fromD.toISOString()}&to=${toD.toISOString()}`)
@@ -93,8 +115,13 @@ export default function SocialPlannerPage() {
   const prevMonth = () => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }
   const nextMonth = () => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }
 
-  // Build calendar grid: 6 weeks worth of days, starting at Monday before/on month start
-  const firstDow = (monthStart.getDay() + 6) % 7 // 0=Mon … 6=Sun
+  // Filter posts by selected category
+  const filteredPosts = filterCategory === 'alle'
+    ? posts
+    : posts.filter(p => p.category === filterCategory)
+
+  // Build calendar grid
+  const firstDow = (monthStart.getDay() + 6) % 7
   const gridStart = new Date(monthStart); gridStart.setDate(gridStart.getDate() - firstDow)
   const gridDays: Date[] = []
   for (let i = 0; i < 42; i++) {
@@ -102,9 +129,9 @@ export default function SocialPlannerPage() {
     gridDays.push(d)
   }
 
-  // Group posts by ISO date
+  // Group posts by date for calendar
   const postsByDate = new Map<string, SocialPost[]>()
-  for (const p of posts) {
+  for (const p of filteredPosts) {
     const d = new Date(p.scheduled_for)
     const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
     const arr = postsByDate.get(key) ?? []
@@ -112,11 +139,34 @@ export default function SocialPlannerPage() {
     postsByDate.set(key, arr)
   }
 
-  const openNewModal = (date?: Date) => {
+  // Group posts by date for list view (only posts in the current month)
+  const monthPosts = filteredPosts
+    .filter(p => {
+      const d = new Date(p.scheduled_for)
+      return d.getFullYear() === calYear && d.getMonth() === calMonth
+    })
+    .sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))
+
+  const monthPostsByDate = new Map<string, SocialPost[]>()
+  for (const p of monthPosts) {
+    const d = new Date(p.scheduled_for)
+    const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    const arr = monthPostsByDate.get(key) ?? []
+    arr.push(p)
+    monthPostsByDate.set(key, arr)
+  }
+
+  const openNewModal = (date?: Date, presetCategory?: string) => {
     const d = date ?? new Date()
-    if (!date) { d.setHours(10, 0, 0, 0) } else { d.setHours(10, 0, 0, 0) }
+    d.setHours(10, 0, 0, 0)
     setEditingPost(null)
-    setForm({ ...EMPTY_FORM, scheduled_for_local: isoLocalDateTime(d), image_urls: [], image_urls_text: '' })
+    setForm({
+      ...EMPTY_FORM,
+      scheduled_for_local: isoLocalDateTime(d),
+      image_urls: [],
+      image_urls_text: '',
+      category: presetCategory ?? '',
+    })
     setError('')
     setModalOpen(true)
   }
@@ -141,6 +191,8 @@ export default function SocialPlannerPage() {
         scheduled_for: new Date(form.scheduled_for_local).toISOString(),
         platform: form.platform,
         post_type: form.post_type,
+        category: form.category || null,
+        title: form.title || null,
         image_urls,
         caption: form.caption || null,
         hashtags: form.hashtags || null,
@@ -168,81 +220,207 @@ export default function SocialPlannerPage() {
     if (res.ok) { setModalOpen(false); await load() }
   }
 
+  // Quick toggle status (klaargezet ↔ geplaatst, with cycle)
+  const cycleStatus = async (post: SocialPost) => {
+    const order = ['draft', 'klaargezet', 'geplaatst', 'gemist']
+    const current = order.includes(post.status) ? post.status : 'draft'
+    const next = order[(order.indexOf(current) + 1) % order.length]
+    const res = await fetch(`/api/admin/social-posts/${post.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next }),
+    })
+    if (res.ok) {
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: next } : p))
+    }
+  }
+
   const platformInfo = (p: string) => PLATFORMS.find(x => x.value === p) ?? PLATFORMS[0]
   const statusInfo = (s: string) => STATUSES.find(x => x.value === s) ?? STATUSES[0]
+  const categoryInfo = (c: string | null) => CATEGORIES.find(x => x.value === c) ?? null
 
   const todayKey = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="page-title">Social media planner</h1>
-          <p className="text-gravida-sage mt-1 text-sm">Plan posts in voor Instagram, TikTok en meer. Klik op een dag om toe te voegen.</p>
+          <p className="text-gravida-sage mt-1 text-sm">Plan je posts per categorie en houd het overzicht. Klik op een dag om toe te voegen.</p>
         </div>
         <button onClick={() => openNewModal()} className="btn-primary shrink-0">+ Nieuwe post</button>
       </div>
 
-      {/* Calendar */}
-      <div className="card overflow-x-auto">
-        <div className="flex items-center justify-between mb-6">
+      {/* Toolbar: month nav + view toggle + category filter */}
+      <div className="card mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2">
           <button onClick={prevMonth} className="w-9 h-9 rounded-full hover:bg-gravida-cream flex items-center justify-center text-lg">‹</button>
-          <h2 className="section-title">{DUTCH_MONTHS[calMonth]} {calYear}</h2>
+          <h2 className="section-title min-w-[140px] text-center">{DUTCH_MONTHS[calMonth]} {calYear}</h2>
           <button onClick={nextMonth} className="w-9 h-9 rounded-full hover:bg-gravida-cream flex items-center justify-center text-lg">›</button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {DUTCH_DAYS_SHORT.map(d => <div key={d} className="text-center text-xs text-gravida-light-sage font-medium py-1">{d}</div>)}
-        </div>
+        <div className="sm:ml-auto flex flex-wrap items-center gap-2">
+          <select className="input-field text-sm py-1.5" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+            <option value="alle">Alle categorieën</option>
+            {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
+          </select>
 
-        <div className="grid grid-cols-7 gap-1">
-          {gridDays.map(d => {
-            const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
-            const inMonth = d.getMonth() === calMonth
-            const isToday = key === todayKey
-            const dayPosts = (postsByDate.get(key) ?? []).sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))
-            return (
-              <div key={key}
-                onClick={() => openNewModal(d)}
-                className={`relative min-h-[90px] sm:min-h-[110px] rounded-xl p-1.5 sm:p-2 cursor-pointer transition-all border-2 ${
-                  isToday ? 'border-gravida-sage' : 'border-transparent'
-                } ${inMonth ? 'bg-white hover:bg-gravida-off-white' : 'bg-gravida-cream/30 opacity-60'}`}
-              >
-                <div className={`text-xs sm:text-sm font-semibold mb-1 ${isToday ? 'text-gravida-sage' : inMonth ? 'text-gravida-green' : 'text-gravida-light-sage'}`}>
-                  {d.getDate()}
-                </div>
-                <div className="flex flex-col gap-1">
-                  {dayPosts.slice(0, 3).map(p => {
-                    const t = new Date(p.scheduled_for)
-                    const time = `${pad(t.getHours())}:${pad(t.getMinutes())}`
-                    const thumb = p.image_urls?.[0]
-                    return (
-                      <button key={p.id} onClick={(e) => { e.stopPropagation(); openEditModal(p) }}
-                        className={`flex items-center gap-1 sm:gap-1.5 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-[10px] hover:opacity-80 transition-opacity overflow-hidden ${statusInfo(p.status).color}`}
-                        title={`${time} · ${platformInfo(p.platform).label} · ${p.caption?.slice(0, 40) ?? ''}`}
-                      >
-                        {thumb ? (
-                          <img src={thumb} alt="" className="w-4 h-4 sm:w-5 sm:h-5 rounded object-cover shrink-0" />
-                        ) : (
-                          <span className="text-[10px] sm:text-xs">{platformInfo(p.platform).emoji}</span>
-                        )}
-                        <span className="truncate">{time}</span>
+          <div className="inline-flex rounded-lg border border-gravida-cream overflow-hidden">
+            <button onClick={() => setView('calendar')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${view === 'calendar' ? 'bg-gravida-sage text-white' : 'bg-white text-gravida-sage hover:bg-gravida-cream'}`}>
+              📅 Kalender
+            </button>
+            <button onClick={() => setView('list')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${view === 'list' ? 'bg-gravida-sage text-white' : 'bg-white text-gravida-sage hover:bg-gravida-cream'}`}>
+              ☰ Lijst
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Calendar view */}
+      {view === 'calendar' && (
+        <div className="card overflow-x-auto">
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {DUTCH_DAYS_SHORT.map(d => <div key={d} className="text-center text-xs text-gravida-light-sage font-medium py-1">{d}</div>)}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {gridDays.map(d => {
+              const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+              const inMonth = d.getMonth() === calMonth
+              const isToday = key === todayKey
+              const dayPosts = (postsByDate.get(key) ?? []).sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))
+              return (
+                <div key={key}
+                  onClick={() => openNewModal(d)}
+                  className={`relative min-h-[90px] sm:min-h-[110px] rounded-xl p-1.5 sm:p-2 cursor-pointer transition-all border-2 ${
+                    isToday ? 'border-gravida-sage' : 'border-transparent'
+                  } ${inMonth ? 'bg-white hover:bg-gravida-off-white' : 'bg-gravida-cream/30 opacity-60'}`}
+                >
+                  <div className={`text-xs sm:text-sm font-semibold mb-1 ${isToday ? 'text-gravida-sage' : inMonth ? 'text-gravida-green' : 'text-gravida-light-sage'}`}>
+                    {d.getDate()}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {dayPosts.slice(0, 3).map(p => {
+                      const t = new Date(p.scheduled_for)
+                      const time = `${pad(t.getHours())}:${pad(t.getMinutes())}`
+                      const thumb = p.image_urls?.[0]
+                      return (
+                        <button key={p.id} onClick={(e) => { e.stopPropagation(); openEditModal(p) }}
+                          className={`flex items-center gap-1 sm:gap-1.5 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-[10px] hover:opacity-80 transition-opacity overflow-hidden ${statusInfo(p.status).color}`}
+                          title={`${time} · ${platformInfo(p.platform).label} · ${p.title ?? p.caption?.slice(0, 40) ?? ''}`}
+                        >
+                          {thumb ? (
+                            <img src={thumb} alt="" className="w-4 h-4 sm:w-5 sm:h-5 rounded object-cover shrink-0" />
+                          ) : (
+                            <span className="text-[10px] sm:text-xs">{platformInfo(p.platform).emoji}</span>
+                          )}
+                          <span className="truncate">{time}{p.title ? ` · ${p.title.slice(0,15)}` : ''}</span>
+                        </button>
+                      )
+                    })}
+                    {dayPosts.length > 3 && (
+                      <button onClick={(e) => { e.stopPropagation(); openEditModal(dayPosts[3]) }}
+                        className="text-[9px] sm:text-[10px] text-gravida-sage hover:text-gravida-green">
+                        + {dayPosts.length - 3} meer
                       </button>
-                    )
-                  })}
-                  {dayPosts.length > 3 && (
-                    <button onClick={(e) => { e.stopPropagation(); openEditModal(dayPosts[3]) }}
-                      className="text-[9px] sm:text-[10px] text-gravida-sage hover:text-gravida-green">
-                      + {dayPosts.length - 3} meer
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
 
-        {loading && <p className="text-center text-gravida-light-sage text-sm mt-4">Laden...</p>}
+          {loading && <p className="text-center text-gravida-light-sage text-sm mt-4">Laden...</p>}
+        </div>
+      )}
+
+      {/* List view (à la spreadsheet) */}
+      {view === 'list' && (
+        <div className="card overflow-x-auto p-0">
+          {loading ? (
+            <div className="p-12 text-center text-gravida-light-sage text-sm">Laden...</div>
+          ) : monthPosts.length === 0 ? (
+            <div className="p-12 text-center text-gravida-light-sage text-sm">Geen posts ingepland in deze maand. Klik &quot;+ Nieuwe post&quot;.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-gravida-cream/50">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium text-gravida-light-sage whitespace-nowrap w-24">Dag</th>
+                  <th className="text-left px-3 py-2 font-medium text-gravida-light-sage whitespace-nowrap w-32">Categorie</th>
+                  <th className="text-left px-3 py-2 font-medium text-gravida-light-sage whitespace-nowrap w-24">Type</th>
+                  <th className="text-left px-3 py-2 font-medium text-gravida-light-sage">Titel / omschrijving</th>
+                  <th className="text-left px-3 py-2 font-medium text-gravida-light-sage whitespace-nowrap w-28">Status</th>
+                  <th className="text-left px-3 py-2 font-medium text-gravida-light-sage whitespace-nowrap w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from(monthPostsByDate.entries()).map(([dateKey, dayPosts], dayIdx) => {
+                  const d = new Date(dateKey + 'T00:00:00')
+                  const dow = (d.getDay() + 6) % 7
+                  const dayLabel = `${DUTCH_DAYS_FULL[dow].slice(0, 2)} - ${d.getDate()}`
+                  return dayPosts.map((p, postIdx) => {
+                    const cat = categoryInfo(p.category)
+                    const time = `${pad(new Date(p.scheduled_for).getHours())}:${pad(new Date(p.scheduled_for).getMinutes())}`
+                    const isFirstOfDay = postIdx === 0
+                    return (
+                      <tr key={p.id} className={`border-t border-gravida-cream hover:bg-gravida-off-white transition-colors ${dayIdx % 2 === 0 ? '' : 'bg-gravida-cream/10'}`}>
+                        <td className="px-3 py-2 align-top whitespace-nowrap text-gravida-sage">
+                          {isFirstOfDay && <div className="font-medium">{dayLabel}</div>}
+                          <div className="text-xs text-gravida-light-sage">{time}</div>
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          {p.category ? (
+                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium border ${cat?.color ?? 'bg-gray-50 border-gray-200 text-gray-700'}`}>
+                              {p.category}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gravida-light-sage italic">geen</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 align-top whitespace-nowrap text-xs">
+                          <div className="font-medium text-gravida-sage">{POST_TYPES.find(t => t.value === p.post_type)?.label ?? p.post_type}</div>
+                          <div className="text-[10px] text-gravida-light-sage">{platformInfo(p.platform).emoji} {platformInfo(p.platform).label}</div>
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          <button onClick={() => openEditModal(p)} className="text-left hover:underline">
+                            <div className="font-medium">{p.title || <span className="italic text-gravida-light-sage">geen titel</span>}</div>
+                            {p.caption && <div className="text-xs text-gravida-light-sage line-clamp-1">{p.caption}</div>}
+                          </button>
+                          {p.canva_url && (
+                            <a href={p.canva_url} target="_blank" rel="noopener noreferrer"
+                              className="text-[10px] text-gravida-sage hover:text-gravida-green inline-block mt-0.5"
+                              onClick={e => e.stopPropagation()}>
+                              🎨 Canva →
+                            </a>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          <button
+                            onClick={() => cycleStatus(p)}
+                            className={`text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer outline-none whitespace-nowrap hover:opacity-80 ${statusInfo(p.status).color}`}
+                            title="Klik om status te wijzigen"
+                          >
+                            {statusInfo(p.status).label}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          <button onClick={() => openEditModal(p)} className="text-gravida-sage hover:text-gravida-green text-xs underline">Bewerk</button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Note about insights */}
+      <div className="mt-6 text-xs text-gravida-light-sage italic">
+        💡 Statistieken over wanneer je volgers het meest actief zijn komen via Instagram Insights — dat vereist Instagram Graph API koppeling (fase 2).
       </div>
 
       {/* Modal */}
@@ -265,6 +443,16 @@ export default function SocialPlannerPage() {
                     onChange={e => setForm(f => ({ ...f, scheduled_for_local: e.target.value }))}
                   />
                 </div>
+
+                <div>
+                  <label className="label">Categorie</label>
+                  <select className="input-field" value={form.category ?? ''}
+                    onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                    <option value="">— geen —</option>
+                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
+                  </select>
+                </div>
+
                 <div>
                   <label className="label">Platform</label>
                   <select className="input-field" value={form.platform ?? 'instagram'}
@@ -272,6 +460,7 @@ export default function SocialPlannerPage() {
                     {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.emoji} {p.label}</option>)}
                   </select>
                 </div>
+
                 <div>
                   <label className="label">Type</label>
                   <select className="input-field" value={form.post_type ?? 'feed'}
@@ -279,6 +468,26 @@ export default function SocialPlannerPage() {
                     {POST_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
+
+                <div>
+                  <label className="label">Status</label>
+                  <select className="input-field" value={form.status ?? 'draft'}
+                    onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                    <option value="draft">Concept</option>
+                    <option value="klaargezet">Klaargezet</option>
+                    <option value="geplaatst">Geplaatst</option>
+                    <option value="gemist">Gemist</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="label">Titel / omschrijving</label>
+                  <input className="input-field" placeholder="bijv. MB9 - zwart, of: Wat is een 3D scan"
+                    value={form.title ?? ''}
+                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  />
+                </div>
+
                 <div className="sm:col-span-2">
                   <label className="label">Afbeelding URL(s) — 1 per regel</label>
                   <textarea rows={2} className="input-field font-mono text-xs"
@@ -319,13 +528,6 @@ export default function SocialPlannerPage() {
                     value={form.hashtags ?? ''}
                     onChange={e => setForm(f => ({ ...f, hashtags: e.target.value }))}
                   />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="label">Status</label>
-                  <select className="input-field" value={form.status ?? 'scheduled'}
-                    onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                    {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
                 </div>
                 <div className="sm:col-span-2">
                   <label className="label">Interne notities</label>

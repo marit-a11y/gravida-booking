@@ -1133,6 +1133,8 @@ export interface SocialPost {
   scheduled_for: string
   platform: string
   post_type: string
+  category: string | null
+  title: string | null
   image_urls: string[]
   caption: string | null
   hashtags: string | null
@@ -1147,6 +1149,8 @@ export interface CreateSocialPostInput {
   scheduled_for: string
   platform?: string
   post_type?: string
+  category?: string | null
+  title?: string | null
   image_urls?: string[]
   caption?: string
   hashtags?: string
@@ -1158,7 +1162,7 @@ export interface CreateSocialPostInput {
 export async function getSocialPosts(filters?: { from?: string; to?: string }): Promise<SocialPost[]> {
   if (filters?.from && filters?.to) {
     const r = await sql<SocialPost>`
-      SELECT id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+      SELECT id, scheduled_for::text, platform, post_type, category, title, image_urls, caption, hashtags,
              status, canva_url, internal_notes, reminder_sent, created_at::text
       FROM social_posts
       WHERE scheduled_for >= ${filters.from}::timestamptz
@@ -1168,7 +1172,7 @@ export async function getSocialPosts(filters?: { from?: string; to?: string }): 
     return r.rows
   }
   const r = await sql<SocialPost>`
-    SELECT id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+    SELECT id, scheduled_for::text, platform, post_type, category, title, image_urls, caption, hashtags,
            status, canva_url, internal_notes, reminder_sent, created_at::text
     FROM social_posts
     ORDER BY scheduled_for ASC
@@ -1178,7 +1182,7 @@ export async function getSocialPosts(filters?: { from?: string; to?: string }): 
 
 export async function getSocialPostById(id: number): Promise<SocialPost | null> {
   const r = await sql<SocialPost>`
-    SELECT id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+    SELECT id, scheduled_for::text, platform, post_type, category, title, image_urls, caption, hashtags,
            status, canva_url, internal_notes, reminder_sent, created_at::text
     FROM social_posts WHERE id = ${id}
   `
@@ -1188,20 +1192,22 @@ export async function getSocialPostById(id: number): Promise<SocialPost | null> 
 export async function createSocialPost(input: CreateSocialPostInput): Promise<SocialPost> {
   const r = await sql<SocialPost>`
     INSERT INTO social_posts (
-      scheduled_for, platform, post_type, image_urls, caption, hashtags, status,
+      scheduled_for, platform, post_type, category, title, image_urls, caption, hashtags, status,
       canva_url, internal_notes
     ) VALUES (
       ${input.scheduled_for}::timestamptz,
       ${input.platform ?? 'instagram'},
       ${input.post_type ?? 'feed'},
+      ${input.category ?? null},
+      ${input.title ?? null},
       ${JSON.stringify(input.image_urls ?? [])}::jsonb,
       ${input.caption ?? null},
       ${input.hashtags ?? null},
-      ${input.status ?? 'scheduled'},
+      ${input.status ?? 'draft'},
       ${input.canva_url ?? null},
       ${input.internal_notes ?? null}
     )
-    RETURNING id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+    RETURNING id, scheduled_for::text, platform, post_type, category, title, image_urls, caption, hashtags,
               status, canva_url, internal_notes, reminder_sent, created_at::text
   `
   return r.rows[0]
@@ -1218,6 +1224,8 @@ export async function updateSocialPost(
     SET scheduled_for  = ${input.scheduled_for ?? existing.scheduled_for}::timestamptz,
         platform       = ${input.platform ?? existing.platform},
         post_type      = ${input.post_type ?? existing.post_type},
+        category       = ${input.category !== undefined ? input.category : existing.category},
+        title          = ${input.title !== undefined ? input.title : existing.title},
         image_urls     = ${JSON.stringify(input.image_urls ?? existing.image_urls)}::jsonb,
         caption        = ${input.caption !== undefined ? input.caption : existing.caption},
         hashtags       = ${input.hashtags !== undefined ? input.hashtags : existing.hashtags},
@@ -1226,7 +1234,7 @@ export async function updateSocialPost(
         internal_notes = ${input.internal_notes !== undefined ? input.internal_notes : existing.internal_notes},
         reminder_sent  = ${input.reminder_sent !== undefined ? input.reminder_sent : existing.reminder_sent}
     WHERE id = ${id}
-    RETURNING id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+    RETURNING id, scheduled_for::text, platform, post_type, category, title, image_urls, caption, hashtags,
               status, canva_url, internal_notes, reminder_sent, created_at::text
   `
   return r.rows[0] ?? null
