@@ -92,6 +92,8 @@ export default function SocialPlannerPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [filterCategory, setFilterCategory] = useState('alle')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
   const monthStart = new Date(calYear, calMonth, 1)
   const monthEnd = new Date(calYear, calMonth + 1, 0, 23, 59, 59)
@@ -167,7 +169,7 @@ export default function SocialPlannerPage() {
       image_urls_text: '',
       category: presetCategory ?? '',
     })
-    setError('')
+    setError(''); setUploadError('')
     setModalOpen(true)
   }
 
@@ -178,7 +180,7 @@ export default function SocialPlannerPage() {
       scheduled_for_local: isoLocalDateTime(new Date(post.scheduled_for)),
       image_urls_text: (post.image_urls ?? []).join('\n'),
     })
-    setError('')
+    setError(''); setUploadError('')
     setModalOpen(true)
   }
 
@@ -516,20 +518,74 @@ export default function SocialPlannerPage() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="label">Afbeelding URL(s) — 1 per regel</label>
+                  <label className="label flex items-center justify-between">
+                    <span>Media — afbeeldingen of video&apos;s</span>
+                    <span className="text-[10px] font-normal text-gravida-light-sage">
+                      {uploading ? 'Uploaden...' : 'Upload of plak URL'}
+                    </span>
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    <label className={`flex-1 cursor-pointer text-center py-2 px-4 rounded-lg border-2 border-dashed border-gravida-cream hover:border-gravida-sage transition-colors text-xs ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                      📎 Bestand kiezen (jpg/png/mp4)
+                      <input type="file" className="hidden"
+                        accept="image/*,video/*"
+                        multiple
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files ?? [])
+                          if (files.length === 0) return
+                          setUploading(true); setUploadError('')
+                          const newUrls: string[] = []
+                          for (const file of files) {
+                            const fd = new FormData()
+                            fd.append('file', file)
+                            try {
+                              const res = await fetch('/api/admin/social-posts/upload', {
+                                method: 'POST',
+                                body: fd,
+                              })
+                              const data = await res.json()
+                              if (res.ok && data.url) {
+                                newUrls.push(data.url)
+                              } else {
+                                setUploadError(data.error ?? `Upload mislukt: ${file.name}`)
+                              }
+                            } catch {
+                              setUploadError(`Verbindingsfout bij ${file.name}`)
+                            }
+                          }
+                          if (newUrls.length > 0) {
+                            const existing = form.image_urls_text ?? ''
+                            const combined = (existing.trim() + '\n' + newUrls.join('\n')).trim()
+                            setForm(f => ({ ...f, image_urls_text: combined }))
+                          }
+                          setUploading(false)
+                          // reset input so same file can be picked again
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {uploadError && <p className="text-red-600 text-[11px] mb-2">{uploadError}</p>}
                   <textarea rows={2} className="input-field font-mono text-xs"
-                    placeholder="https://..."
+                    placeholder="https://... (één URL per regel)"
                     value={form.image_urls_text ?? ''}
                     onChange={e => setForm(f => ({ ...f, image_urls_text: e.target.value }))}
                   />
                   {form.image_urls_text && form.image_urls_text.trim() && (
                     <div className="flex gap-2 mt-2 overflow-x-auto">
-                      {form.image_urls_text.split('\n').map(s => s.trim()).filter(Boolean).map((url, i) => (
-                        <img key={i} src={url} alt={`preview ${i+1}`}
-                          className="w-16 h-16 rounded-lg object-cover border border-gravida-cream shrink-0"
-                          onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.3' }}
-                        />
-                      ))}
+                      {form.image_urls_text.split('\n').map(s => s.trim()).filter(Boolean).map((url, i) => {
+                        const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(url)
+                        return isVideo ? (
+                          <video key={i} src={url} muted playsInline
+                            className="w-16 h-16 rounded-lg object-cover border border-gravida-cream shrink-0 bg-black"
+                          />
+                        ) : (
+                          <img key={i} src={url} alt={`preview ${i+1}`}
+                            className="w-16 h-16 rounded-lg object-cover border border-gravida-cream shrink-0"
+                            onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.3' }}
+                          />
+                        )
+                      })}
                     </div>
                   )}
                 </div>

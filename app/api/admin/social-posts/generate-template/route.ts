@@ -5,81 +5,103 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 /**
- * Generate a default content rotation for an entire month.
- * Pattern is based on the previous content planner spreadsheet:
+ * Generate an algorithm-optimised content rotation for the entire month.
  *
- * Weekly rhythm (week n in the month):
- * - Maandag       Beeldje story (10:00)
- * - Woensdag      FAQ (3 stories: 10:00, 12:00, 16:00) op week 1, 3
- *                 Review (op week 3)
- *                 Algemeen op week 4
- * - Donderdag     Beeldje story op week 1, 3, 4
- *                 Meet jessica (5 stories) op week 2
- * - Vrijdag       Beeldje story op week 1
- *                 Algemeen op week 3
- * - Zondag        Feedpost (categorie roteert per week) +
- *                 ~5 stories (10:00, 12:00, 14:00, 16:00, 18:00)
- *                 Week 1: Beeldjes  · Week 2: This or that
- *                 Week 3: Bedels    · Week 4: Algemeen
+ * Per week (based on 2026 IG algorithm best practices):
+ * - 3 Reels    (recommended 4-7/week — kies 3 om haalbaar te houden)
+ * - 2 Feedposts (recommended 2-3/week wanneer ook Reels)
+ * - 14 Stories (recommended 2/dag gemiddeld)
  *
- * Skips dates that already have a post (prevents duplicates).
+ * Content mix volgt 3:2:1 regel — educatief / entertainment / promotie.
+ * Tijden afgestemd op data-driven IG peak hours (Wed 12:00, Thu 9:00,
+ * Reels 18:00-23:00 weekdagen).
+ *
+ * Categorieën roteren per week zodat de feed niet repetitief is:
+ *   Week 1: Beeldjes-focus      (educatief over producten)
+ *   Week 2: Meet Jessica        (entertainment / persoonlijk)
+ *   Week 3: Bedels + Review     (variatie + social proof)
+ *   Week 4: Algemeen / promo    (boekingen, scannen, info)
  */
 
 interface TemplateItem {
-  dow: number               // 0=Mon … 6=Sun
+  dow: number              // 0=Mon … 6=Sun
   hour: number
   minute: number
   category: string
-  post_type: 'feed' | 'story'
-  weekIndex?: number[]      // 1-based weeks within month; undefined = every week
-  title?: string            // optional placeholder
+  post_type: 'feed' | 'story' | 'reel'
+  weekIndex?: number[]     // 1-based weeks within month
+  title?: string
 }
 
 const TEMPLATE: TemplateItem[] = [
-  // Maandag — Beeldje story (every week)
-  { dow: 0, hour: 10, minute: 0, category: 'Beeldjes', post_type: 'story', title: 'Beeldje story' },
+  // ──────────────────────── MAANDAG ────────────────────────
+  // Reel om 19:00 (peak time) — categorie roteert per week
+  { dow: 0, hour: 19, minute: 0, category: 'Beeldjes',     post_type: 'reel',  weekIndex: [1], title: 'Reel: beeldjes proces' },
+  { dow: 0, hour: 19, minute: 0, category: 'Meet jessica', post_type: 'reel',  weekIndex: [2], title: 'Reel: Meet Jessica' },
+  { dow: 0, hour: 19, minute: 0, category: 'Bedels',       post_type: 'reel',  weekIndex: [3], title: 'Reel: bedels' },
+  { dow: 0, hour: 19, minute: 0, category: 'Algemeen',     post_type: 'reel',  weekIndex: [4], title: 'Reel: scan ervaring' },
+  // Stories
+  { dow: 0, hour: 10, minute: 0, category: 'Beeldjes',     post_type: 'story' },
+  { dow: 0, hour: 17, minute: 0, category: 'Beeldjes',     post_type: 'story' },
 
-  // Woensdag — varies per week
-  { dow: 2, hour: 10, minute: 0, category: 'FAQ',      post_type: 'story', weekIndex: [1, 3], title: 'FAQ vraag 1' },
-  { dow: 2, hour: 12, minute: 0, category: 'FAQ',      post_type: 'story', weekIndex: [1, 3], title: 'FAQ vraag 2' },
-  { dow: 2, hour: 16, minute: 0, category: 'FAQ',      post_type: 'story', weekIndex: [1, 3], title: 'FAQ vraag 3' },
-  { dow: 2, hour: 11, minute: 0, category: 'Beeldjes', post_type: 'story', weekIndex: [2],    title: 'Beeldje story' },
-  { dow: 2, hour: 11, minute: 0, category: 'Review',   post_type: 'story', weekIndex: [3],    title: 'Review story' },
-  { dow: 2, hour: 11, minute: 0, category: 'Algemeen', post_type: 'feed',  weekIndex: [4],    title: 'Algemeen feedpost' },
+  // ──────────────────────── DINSDAG ────────────────────────
+  { dow: 1, hour: 10, minute: 0, category: 'This or that', post_type: 'story', weekIndex: [1, 3], title: 'This or that' },
+  { dow: 1, hour: 10, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2], title: 'Achter de schermen' },
+  { dow: 1, hour: 10, minute: 0, category: 'Review',       post_type: 'story', weekIndex: [4], title: 'Review highlight' },
+  { dow: 1, hour: 17, minute: 0, category: 'Beeldjes',     post_type: 'story' },
 
-  // Donderdag
-  { dow: 3, hour: 10, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1, 3, 4], title: 'Beeldje story' },
-  { dow: 3, hour: 10, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2], title: 'Meet Jessica - intro' },
-  { dow: 3, hour: 12, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2], title: 'Meet Jessica - achtergrond' },
-  { dow: 3, hour: 14, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2], title: 'Meet Jessica - werk' },
-  { dow: 3, hour: 16, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2], title: 'Meet Jessica - prive' },
-  { dow: 3, hour: 18, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2], title: 'Meet Jessica - ambities' },
+  // ──────────────────────── WOENSDAG ────────────────────────
+  // Feedpost om 12:00 (peak time)
+  { dow: 2, hour: 12, minute: 0, category: 'FAQ',      post_type: 'feed',  weekIndex: [1], title: 'FAQ carousel: 3D scan basics' },
+  { dow: 2, hour: 12, minute: 0, category: 'Beeldjes', post_type: 'feed',  weekIndex: [2], title: 'Beeldje feedpost' },
+  { dow: 2, hour: 12, minute: 0, category: 'Bedels',   post_type: 'feed',  weekIndex: [3], title: 'Bedels feedpost' },
+  { dow: 2, hour: 12, minute: 0, category: 'Algemeen', post_type: 'feed',  weekIndex: [4], title: 'Boek nu / aanbieding' },
+  // Stories ondersteunend
+  { dow: 2, hour: 10, minute: 0, category: 'FAQ',      post_type: 'story', weekIndex: [1] },
+  { dow: 2, hour: 10, minute: 0, category: 'Beeldjes', post_type: 'story', weekIndex: [2, 3, 4] },
+  { dow: 2, hour: 18, minute: 0, category: 'Beeldjes', post_type: 'story' },
 
-  // Vrijdag
-  { dow: 4, hour: 11, minute: 0, category: 'Beeldjes', post_type: 'story', weekIndex: [1], title: 'Beeldje story' },
-  { dow: 4, hour: 11, minute: 0, category: 'Algemeen', post_type: 'story', weekIndex: [3], title: 'Algemeen story' },
+  // ──────────────────────── DONDERDAG ────────────────────────
+  // Reel om 19:00 — categorie roteert
+  { dow: 3, hour: 19, minute: 0, category: 'FAQ',          post_type: 'reel', weekIndex: [1], title: 'Reel: veelgestelde vraag' },
+  { dow: 3, hour: 19, minute: 0, category: 'Meet jessica', post_type: 'reel', weekIndex: [2], title: 'Reel: Jessica vertelt' },
+  { dow: 3, hour: 19, minute: 0, category: 'Review',       post_type: 'reel', weekIndex: [3], title: 'Reel: klant ervaring' },
+  { dow: 3, hour: 19, minute: 0, category: 'This or that', post_type: 'reel', weekIndex: [4], title: 'Reel: this or that' },
+  // Stories
+  { dow: 3, hour: 10, minute: 0, category: 'Beeldjes', post_type: 'story' },
+  { dow: 3, hour: 17, minute: 0, category: 'Bedels',   post_type: 'story', weekIndex: [3], title: 'Bedel close-up' },
+  { dow: 3, hour: 17, minute: 0, category: 'Beeldjes', post_type: 'story', weekIndex: [1, 2, 4] },
 
-  // Zondag — feedpost + stories (categorie roteert per week)
-  { dow: 6, hour: 11, minute: 0, category: 'Beeldjes',     post_type: 'feed',  weekIndex: [1], title: 'Beeldje feedpost' },
-  { dow: 6, hour: 12, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
-  { dow: 6, hour: 14, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
+  // ──────────────────────── VRIJDAG ────────────────────────
+  { dow: 4, hour: 10, minute: 0, category: 'Algemeen', post_type: 'story', title: 'Weekend boekingstip' },
+  { dow: 4, hour: 17, minute: 0, category: 'Beeldjes', post_type: 'story' },
+
+  // ──────────────────────── ZATERDAG ────────────────────────
+  // Reel om 19:00 (zaterdagavond peak)
+  { dow: 5, hour: 19, minute: 0, category: 'Beeldjes',     post_type: 'reel',  weekIndex: [1, 4], title: 'Reel: beeldje highlight' },
+  { dow: 5, hour: 19, minute: 0, category: 'This or that', post_type: 'reel',  weekIndex: [2], title: 'Reel: this or that' },
+  { dow: 5, hour: 19, minute: 0, category: 'Bedels',       post_type: 'reel',  weekIndex: [3], title: 'Reel: bedels in het wild' },
+  { dow: 5, hour: 12, minute: 0, category: 'Beeldjes',     post_type: 'story' },
+
+  // ──────────────────────── ZONDAG ────────────────────────
+  // Feedpost om 11:00 — categorie roteert per week
+  { dow: 6, hour: 11, minute: 0, category: 'Beeldjes',     post_type: 'feed', weekIndex: [1], title: 'Beeldje feedpost' },
+  { dow: 6, hour: 11, minute: 0, category: 'Meet jessica', post_type: 'feed', weekIndex: [2], title: 'Meet Jessica feedpost' },
+  { dow: 6, hour: 11, minute: 0, category: 'Review',       post_type: 'feed', weekIndex: [3], title: 'Review feedpost' },
+  { dow: 6, hour: 11, minute: 0, category: 'Algemeen',     post_type: 'feed', weekIndex: [4], title: 'Algemeen feedpost' },
+  // Ondersteunende stories
+  { dow: 6, hour: 13, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
   { dow: 6, hour: 16, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
-  { dow: 6, hour: 18, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
-
-  { dow: 6, hour: 11, minute: 0, category: 'This or that', post_type: 'story', weekIndex: [2], title: 'This or that #1' },
-  { dow: 6, hour: 13, minute: 0, category: 'This or that', post_type: 'story', weekIndex: [2], title: 'This or that #2' },
-  { dow: 6, hour: 15, minute: 0, category: 'This or that', post_type: 'story', weekIndex: [2], title: 'This or that #3' },
-
-  { dow: 6, hour: 11, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3], title: 'Bedel story' },
+  { dow: 6, hour: 19, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
+  { dow: 6, hour: 13, minute: 0, category: 'This or that', post_type: 'story', weekIndex: [2] },
+  { dow: 6, hour: 16, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2] },
+  { dow: 6, hour: 19, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2] },
   { dow: 6, hour: 13, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3] },
-  { dow: 6, hour: 15, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3] },
-  { dow: 6, hour: 17, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3] },
-
-  { dow: 6, hour: 11, minute: 0, category: 'Algemeen',     post_type: 'feed',  weekIndex: [4], title: 'Algemeen feedpost' },
-  { dow: 6, hour: 12, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
-  { dow: 6, hour: 14, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
+  { dow: 6, hour: 16, minute: 0, category: 'Review',       post_type: 'story', weekIndex: [3] },
+  { dow: 6, hour: 19, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3] },
+  { dow: 6, hour: 13, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
   { dow: 6, hour: 16, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
-  { dow: 6, hour: 18, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
+  { dow: 6, hour: 19, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
 ]
 
 export async function POST(request: NextRequest) {
@@ -89,7 +111,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'year (number) en month (0-11) zijn verplicht' }, { status: 400 })
     }
 
-    // Build all dates in this month
     const monthStart = new Date(year, month, 1)
     const monthEnd = new Date(year, month + 1, 0)
     const dates: Date[] = []
@@ -97,25 +118,24 @@ export async function POST(request: NextRequest) {
       dates.push(new Date(d))
     }
 
-    // Pre-fetch existing posts in this range to skip duplicate slots
     const fromIso = monthStart.toISOString()
     const toIso = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
-    const existingResult = await sql<{ scheduled_for: string; category: string | null }>`
-      SELECT scheduled_for::text, category FROM social_posts
+    const existingResult = await sql<{ scheduled_for: string; category: string | null; post_type: string }>`
+      SELECT scheduled_for::text, category, post_type FROM social_posts
       WHERE scheduled_for >= ${fromIso}::timestamptz AND scheduled_for <= ${toIso}::timestamptz
     `
+    // Skip an exact (date, hour, minute, category, post_type) combination if already there
     const existingKeys = new Set(
       existingResult.rows.map(r => {
         const d = new Date(r.scheduled_for)
-        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}-${r.category ?? ''}`
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}-${r.category ?? ''}-${r.post_type}`
       })
     )
 
     let inserted = 0
     for (const date of dates) {
-      // Convert to Mon=0 … Sun=6
       const dow = (date.getDay() + 6) % 7
-      const weekOfMonth = Math.floor((date.getDate() - 1) / 7) + 1 // 1 … 5
+      const weekOfMonth = Math.floor((date.getDate() - 1) / 7) + 1
 
       const matching = TEMPLATE.filter(t =>
         t.dow === dow && (t.weekIndex === undefined || t.weekIndex.includes(weekOfMonth))
@@ -123,13 +143,12 @@ export async function POST(request: NextRequest) {
       for (const item of matching) {
         const scheduled = new Date(date)
         scheduled.setHours(item.hour, item.minute, 0, 0)
-        const key = `${scheduled.getFullYear()}-${scheduled.getMonth()}-${scheduled.getDate()}-${scheduled.getHours()}-${scheduled.getMinutes()}-${item.category}`
+        const key = `${scheduled.getFullYear()}-${scheduled.getMonth()}-${scheduled.getDate()}-${scheduled.getHours()}-${scheduled.getMinutes()}-${item.category}-${item.post_type}`
         if (existingKeys.has(key)) continue
 
         await sql`
           INSERT INTO social_posts (
-            scheduled_for, platform, post_type, category, title, image_urls,
-            status
+            scheduled_for, platform, post_type, category, title, image_urls, status
           ) VALUES (
             ${scheduled.toISOString()}::timestamptz,
             'instagram',
