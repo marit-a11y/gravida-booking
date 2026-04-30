@@ -170,6 +170,12 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
       .filter(a => !isFakeFullyBooked(a.date, regionName))
       .map(a => a.date)
   )
+  // Track which days are fake-fully-booked so we can show them as "vol" instead of just hidden
+  const fullSet = new Set(
+    availableDates
+      .filter(a => isFakeFullyBooked(a.date, regionName))
+      .map(a => a.date)
+  )
   const days     = getDaysInMonth(calYear, calMonth)
   const firstDow = getFirstDayOfWeek(calYear, calMonth)
 
@@ -331,8 +337,28 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
                 {days.map(dateStr => {
                   const dayNum  = parseInt(dateStr.split('-')[2], 10)
                   const avail   = availSet.has(dateStr)
+                  const isFull  = fullSet.has(dateStr)
                   const isPast  = dateStr < todayStr
                   const isToday = dateStr === todayStr
+
+                  // Day is in DB but artificially shown as fully booked
+                  if (isFull && !isPast) {
+                    return (
+                      <button key={dateStr} disabled
+                        title="Volgeboekt"
+                        style={{
+                          minHeight: 44, borderRadius: 10, border: '2px solid transparent',
+                          background: '#f5e6e0', color: '#b8745d',
+                          fontWeight: 500, fontSize: 13, cursor: 'not-allowed',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          gap: 1, padding: '2px 0', position: 'relative',
+                        }}>
+                        <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{dayNum}</span>
+                        <span style={{ fontSize: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>vol</span>
+                      </button>
+                    )
+                  }
+
                   return (
                     <button key={dateStr} onClick={() => handleDateClick(dateStr)} disabled={!avail || isPast}
                       style={{
