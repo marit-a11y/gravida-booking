@@ -11,26 +11,47 @@ export interface ThemeEvent {
 
 // ─── Vaste data (zelfde dag elk jaar) ─────────────────────────────────────
 const FIXED_DATES: Omit<ThemeEvent, 'date'> & { month: number; day: number }[] = [
+  // ── Algemene feestdagen ──────────────────────────────────────────────
   { month: 1,  day: 1,  name: 'Nieuwjaarsdag',           emoji: '🎉', type: 'feestdag',    hook: 'Nieuw jaar, nieuw begin — perfecte kans om geboortebeeldjes te delen' },
-  { month: 2,  day: 14, name: 'Valentijnsdag',           emoji: '💌', type: 'commercieel', hook: 'Cadeau-idee voor aanstaande ouders / partner' },
+  { month: 2,  day: 14, name: 'Valentijnsdag',           emoji: '💌', type: 'commercieel', hook: 'Cadeau-idee voor aanstaande ouders / partner — cadeaubon-actie' },
   { month: 3,  day: 8,  name: 'Internationale Vrouwendag', emoji: '♀️', type: 'themadag',  hook: 'Vier het lichaam en kracht van vrouwen / aanstaande moeders' },
   { month: 4,  day: 27, name: 'Koningsdag',              emoji: '👑', type: 'feestdag',    hook: 'Oranje content / open atelier vibe' },
   { month: 5,  day: 4,  name: 'Dodenherdenking',         emoji: '🕯️', type: 'feestdag',    hook: 'Stil moment — geen commerciële post' },
   { month: 5,  day: 5,  name: 'Bevrijdingsdag',          emoji: '🎈', type: 'feestdag' },
-  { month: 5,  day: 5,  name: 'Internationale Dag van de Verloskundige', emoji: '🤰', type: 'themadag', hook: 'Eer verloskundigen — partners van Gravida' },
-  { month: 6,  day: 21, name: 'Begin van de zomer',      emoji: '☀️', type: 'themadag',    hook: 'Zwangerschap in de zomer — tips, beelden buiten' },
-  { month: 8,  day: 1,  name: 'World Breastfeeding Week (start)', emoji: '🤱', type: 'themadag', hook: 'Borstvoeding awareness — 1-7 augustus' },
-  { month: 9,  day: 22, name: 'Begin van de herfst',     emoji: '🍂', type: 'themadag',    hook: 'Cosy zwangerschap, herfstcollectie beeldjes' },
-  { month: 10, day: 15, name: 'Pregnancy & Infant Loss Awareness Day', emoji: '🕊️', type: 'themadag', hook: 'Stil moment voor verlies — gevoelig, niet commercieel' },
-  { month: 10, day: 31, name: 'Halloween',               emoji: '🎃', type: 'commercieel', hook: 'Speelse zwangerschapsbuik-content' },
+  { month: 10, day: 31, name: 'Halloween',               emoji: '🎃', type: 'commercieel', hook: 'Speelse zwangerschapsbuik-content (skelet-vibes met buik bv.)' },
   { month: 11, day: 11, name: 'Sint-Maarten',            emoji: '🏮', type: 'feestdag' },
   { month: 12, day: 5,  name: 'Sinterklaas',             emoji: '🎁', type: 'feestdag',    hook: 'Cadeauboncampagne — bestel op tijd voor pakjesavond' },
-  { month: 12, day: 21, name: 'Begin van de winter',     emoji: '❄️', type: 'themadag' },
-  { month: 12, day: 24, name: 'Kerstavond',              emoji: '🎄', type: 'feestdag',    hook: 'Cadeauboncampagne — last-minute' },
+  { month: 12, day: 24, name: 'Kerstavond',              emoji: '🎄', type: 'feestdag',    hook: 'Cadeauboncampagne — last-minute beeldje of bon' },
   { month: 12, day: 25, name: 'Eerste Kerstdag',         emoji: '🎄', type: 'feestdag' },
   { month: 12, day: 26, name: 'Tweede Kerstdag',         emoji: '🎄', type: 'feestdag' },
-  { month: 12, day: 31, name: 'Oudejaarsavond',          emoji: '🎆', type: 'feestdag',    hook: 'Year in review / dankjewel post' },
+  { month: 12, day: 31, name: 'Oudejaarsavond',          emoji: '🎆', type: 'feestdag',    hook: 'Year in review / dankjewel post — geboortes van dit jaar' },
+
+  // ── Seizoenen ───────────────────────────────────────────────────────
   { month: 3,  day: 20, name: 'Begin van de lente',      emoji: '🌷', type: 'themadag',    hook: 'Nieuw leven, lente, frisse start' },
+  { month: 6,  day: 21, name: 'Begin van de zomer',      emoji: '☀️', type: 'themadag',    hook: 'Zwangerschap in de zomer — tips, beelden buiten' },
+  { month: 9,  day: 22, name: 'Begin van de herfst',     emoji: '🍂', type: 'themadag',    hook: 'Cosy zwangerschap, herfstcollectie beeldjes' },
+  { month: 12, day: 21, name: 'Begin van de winter',     emoji: '❄️', type: 'themadag',    hook: 'Cosy buikfoto, kerstcollectie' },
+
+  // ── Zwangerschap / baby / verloskunde-specifiek (kerncontent voor Gravida) ──
+  { month: 1,  day: 1,  name: 'Doula Awareness Month (start)', emoji: '🤝', type: 'themadag', hook: 'Hele januari — eer doulas en bevallingsbegeleiders' },
+  { month: 2,  day: 7,  name: 'Wereld Zwangerschaps & Geboorte Welzijn Dag', emoji: '🤰', type: 'themadag', hook: 'Bewustzijn rond mentaal welzijn tijdens zwangerschap' },
+  { month: 3,  day: 21, name: 'Wereld Down Syndroom Dag',  emoji: '💛', type: 'themadag', hook: 'Inclusiviteit — gevoelig framen, geen commercieel' },
+  { month: 4,  day: 11, name: 'International Day for Maternal Health and Rights', emoji: '🤱', type: 'themadag', hook: 'Bewustzijn moedergezondheid wereldwijd' },
+  { month: 4,  day: 28, name: 'Wereld IVF Dag (eerste IVF baby)', emoji: '🌟', type: 'themadag', hook: 'IVF/vruchtbaarheidsreis — sensitief en bemoedigend' },
+  { month: 5,  day: 5,  name: 'Internationale Dag van de Verloskundige', emoji: '🤰', type: 'themadag', hook: 'Eer verloskundigen — partners van Gravida' },
+  { month: 5,  day: 1,  name: 'International Doula Month (start)', emoji: '🤝', type: 'themadag', hook: 'Hele mei — eer doulas en bevallingsbegeleiders' },
+  { month: 5,  day: 28, name: 'Internationale Dag voor Vrouwengezondheid', emoji: '♀️', type: 'themadag', hook: 'Vrouwen-welzijn breed' },
+  { month: 6,  day: 1,  name: 'Pregnancy Awareness Month (start)', emoji: '🤰', type: 'themadag', hook: 'Hele juni — zwangerschapscontent extra welkom' },
+  { month: 7,  day: 25, name: 'Wereld IVF Dag',          emoji: '👶', type: 'themadag',    hook: 'Verjaardag eerste IVF-baby — hoop & wetenschap' },
+  { month: 8,  day: 1,  name: 'Wereldborstvoedingsweek (start)', emoji: '🤱', type: 'themadag', hook: 'Borstvoeding awareness — 1-7 augustus' },
+  { month: 8,  day: 7,  name: 'Wereldborstvoedingsweek (einde)', emoji: '🤱', type: 'themadag', hook: 'Afsluitend bericht borstvoedingsweek' },
+  { month: 9,  day: 1,  name: 'Newborn Care Awareness Month (start)', emoji: '👶', type: 'themadag', hook: 'Zorg voor pasgeborenen — hele september' },
+  { month: 9,  day: 18, name: 'Internationale Pasgeborenendag', emoji: '👶', type: 'themadag', hook: 'Vier het wonder van een nieuw mensje' },
+  { month: 10, day: 1,  name: 'Pregnancy and Infant Loss Awareness Month (start)', emoji: '🕊️', type: 'themadag', hook: 'Hele oktober — sensitief, niet commercieel' },
+  { month: 10, day: 15, name: 'Pregnancy & Infant Loss Awareness Day', emoji: '🕊️', type: 'themadag', hook: 'Wave of Light om 19u — stil moment voor verlies' },
+  { month: 11, day: 17, name: 'Wereld Prematurendag',    emoji: '💜', type: 'themadag',    hook: 'Bewustzijn voor te vroeg geboren baby&apos;s — paarse content' },
+  { month: 11, day: 25, name: 'International Day for Elimination of Violence Against Women', emoji: '🧡', type: 'themadag', hook: 'Geen commercieel; misschien stil signaal' },
+  { month: 12, day: 14, name: 'Internationale Monkey Day (zwangerschapssymbool buik)', emoji: '🐵', type: 'commercieel', hook: 'Speels: schattige buik-content' },
 ] as never
 
 // ─── Variabele data per jaar (Pasen-gebaseerd + Moederdag/Vaderdag) ──────

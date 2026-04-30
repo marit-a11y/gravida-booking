@@ -31,17 +31,40 @@ export async function POST(request: NextRequest) {
       title,          // bij mode='caption'
     } = body
 
-    // Vind events rond de datum (zelfde maand) zodat we erop kunnen aanhaken
+    // Vind events rond de datum. We onderscheiden 3 zones:
+    // - EXACT: zelfde dag → AI mag/moet expliciet aanhaken
+    // - NABIJ (±3 dagen): aanloop-content toegestaan ("over 2 dagen is het Moederdag")
+    // - VERDER WEG (rest van maand): puur info, NIET als hook gebruiken
     let eventContext = ''
     if (date) {
       const [y, m, d] = date.split('-').map(Number)
+      const target = new Date(y, m - 1, d)
       const exact = getEventForDate(y, m - 1, d)
       const monthEvents = getEventsForMonth(y, m - 1)
+      const nearby = monthEvents.filter(e => {
+        if (e.date === date) return false  // exact al apart
+        const ed = new Date(e.date + 'T00:00:00')
+        const days = Math.round((ed.getTime() - target.getTime()) / 86400000)
+        return days >= -1 && days <= 7  // 1 dag na of tot 7 dagen voor (aanloop)
+      })
+
+      const parts: string[] = []
       if (exact.length > 0) {
-        eventContext = `\n\nLET OP: deze datum (${date}) valt op: ${exact.map(e => `${e.emoji} ${e.name}${e.hook ? ` — ${e.hook}` : ''}`).join('; ')}. Maak hier expliciet gebruik van.`
-      } else if (monthEvents.length > 0) {
-        eventContext = `\n\nDeze maand komen voor: ${monthEvents.map(e => `${e.date}: ${e.emoji} ${e.name}${e.hook ? ` (${e.hook})` : ''}`).join(' | ')}. Verwerk een relevant thema waar passend.`
+        parts.push(`DEZE DAG (${date}) IS: ${exact.map(e => `${e.emoji} ${e.name}${e.hook ? ` — ${e.hook}` : ''}`).join('; ')}. Haak hier expliciet op aan in elk idee.`)
       }
+      if (nearby.length > 0) {
+        const nearbyText = nearby.map(e => {
+          const ed = new Date(e.date + 'T00:00:00')
+          const days = Math.round((ed.getTime() - target.getTime()) / 86400000)
+          const when = days > 0 ? `over ${days} dag${days === 1 ? '' : 'en'}` : days < 0 ? `${Math.abs(days)} dag${Math.abs(days) === 1 ? '' : 'en'} geleden` : 'vandaag'
+          return `${e.date} (${when}): ${e.emoji} ${e.name}${e.hook ? ` — ${e.hook}` : ''}`
+        }).join(' | ')
+        parts.push(`Aanloop-data binnen 1 week: ${nearbyText}. Mag gebruikt worden voor teaser/aankondiging als het past, maar alleen als het écht klopt qua timing.`)
+      }
+      if (exact.length === 0 && nearby.length === 0) {
+        parts.push(`Op ${date} staat GEEN themadag of feestdag gepland. Verzin algemene Gravida-content — verwijs NIET naar themadagen die elders in de maand vallen, want dan klopt de timing niet.`)
+      }
+      eventContext = '\n\n## DATUM-CONTEXT\n' + parts.join('\n')
     }
 
     const brand = `
@@ -86,6 +109,11 @@ Brainstorm ${count} concrete Instagram post-ideeën voor Gravida.
 ${category ? `Categorie: ${category}` : 'Categorie: vrij — kies wat past bij Gravida'}
 ${post_type ? `Post type: ${post_type}` : 'Post type: kies passend per idee (feed / story / reel / carousel)'}
 ${eventContext}
+
+BELANGRIJKE REGEL — TIMING:
+- Refereer alleen aan een feestdag of themadag als die ook ECHT op of vlak vóór de geplande datum valt (zie DATUM-CONTEXT hierboven).
+- Als de DATUM-CONTEXT zegt dat er geen themadag is, verzin GEEN content rond dagen die elders in de maand vallen — die zijn alleen ter info.
+- Bijvoorbeeld: een post op 11 mei mag NIET gaan over de Internationale Dag van de Verloskundige (5 mei), want die is al voorbij.
 
 Maak elk idee uniek en uitvoerbaar. Variatie in toon en aanpak.
 

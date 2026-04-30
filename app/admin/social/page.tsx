@@ -138,6 +138,32 @@ export default function SocialPlannerPage() {
     return map
   }, [monthEvents])
 
+  // Aankomende belangrijke data binnen 60 dagen (vanaf vandaag)
+  const upcomingEvents = useMemo(() => {
+    const now = new Date(); now.setHours(0, 0, 0, 0)
+    const window = new Date(now); window.setDate(window.getDate() + 60)
+    // Pak events voor dit + volgend jaar zodat einde-jaar werkt
+    const all: ThemeEvent[] = []
+    for (let yr = now.getFullYear(); yr <= now.getFullYear() + 1; yr++) {
+      for (let m = 0; m < 12; m++) all.push(...getEventsForMonth(yr, m))
+    }
+    return all
+      .filter(e => {
+        const d = new Date(e.date + 'T00:00:00')
+        return d >= now && d <= window
+      })
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 12)
+  }, [])
+
+  const [upcomingOpen, setUpcomingOpen] = useState(true)
+
+  const jumpToDate = (dateStr: string) => {
+    const [y, m] = dateStr.split('-').map(Number)
+    setCalYear(y)
+    setCalMonth(m - 1)
+  }
+
   const monthStart = new Date(calYear, calMonth, 1)
   const monthEnd = new Date(calYear, calMonth + 1, 0, 23, 59, 59)
 
@@ -532,6 +558,51 @@ export default function SocialPlannerPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Aankomende belangrijke data */}
+      {upcomingEvents.length > 0 && (
+        <div className="card mb-6">
+          <button onClick={() => setUpcomingOpen(o => !o)}
+            className="w-full flex items-center justify-between text-left">
+            <p className="text-xs font-semibold text-gravida-green uppercase tracking-wide">
+              📅 Aankomende belangrijke data ({upcomingEvents.length})
+            </p>
+            <span className="text-xs text-gravida-light-sage">{upcomingOpen ? '▾' : '▸'}</span>
+          </button>
+          {upcomingOpen && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {upcomingEvents.map((e, i) => {
+                const d = new Date(e.date + 'T00:00:00')
+                const today = new Date(); today.setHours(0,0,0,0)
+                const days = Math.round((d.getTime() - today.getTime()) / 86400000)
+                const dateLabel = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
+                const dayLabel = days === 0 ? 'vandaag' : days === 1 ? 'morgen' : `over ${days} dagen`
+                const bg = e.type === 'commercieel' ? 'bg-pink-50 border-pink-200'
+                         : e.type === 'feestdag' ? 'bg-amber-50 border-amber-200'
+                         : 'bg-emerald-50 border-emerald-200'
+                return (
+                  <button key={i} onClick={() => jumpToDate(e.date)}
+                    className={`text-left rounded-lg border p-2.5 text-xs hover:shadow-sm transition-shadow ${bg}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gravida-green flex items-center gap-1">
+                          <span>{e.emoji}</span>
+                          <span className="truncate">{e.name}</span>
+                        </div>
+                        {e.hook && <p className="text-[11px] text-gravida-sage mt-0.5 line-clamp-2">{e.hook}</p>}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="font-semibold text-gravida-green">{dateLabel}</div>
+                        <div className="text-[10px] text-gravida-light-sage">{dayLabel}</div>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
