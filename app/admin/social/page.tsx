@@ -548,14 +548,26 @@ export default function SocialPlannerPage() {
                         ⬇️ Download media
                       </a>
                     )}
-                    <a
-                      href="https://www.instagram.com/"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        // Open IG immediately (window.open inside a user click is allowed)
+                        window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer')
+                        // Auto-mark as geplaatst if not already
+                        const isAlreadyPosted = editingPost.status === 'geplaatst' || editingPost.status === 'posted'
+                        if (!isAlreadyPosted) {
+                          const res = await fetch(`/api/admin/social-posts/${editingPost.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'geplaatst' }),
+                          })
+                          if (res.ok) await load()
+                        }
+                      }}
                       className="text-xs px-3 py-1.5 rounded-lg bg-pink-100 text-pink-700 hover:bg-pink-200 transition-colors flex items-center gap-1.5"
-                      title="Open Instagram (op mobiel opent de app als geïnstalleerd)">
-                      📷 Open Instagram
-                    </a>
+                      title="Opent Instagram in nieuwe tab én markeert deze post als geplaatst">
+                      📷 Open Instagram &amp; markeer geplaatst
+                    </button>
                   </div>
                   {!form.caption && !form.hashtags && (
                     <p className="text-[11px] text-gravida-light-sage italic">Vul caption / hashtags hieronder in om te kunnen kopiëren.</p>
