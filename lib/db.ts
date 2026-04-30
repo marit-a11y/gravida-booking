@@ -596,12 +596,28 @@ export async function generateStandardAvailability(weeksAhead = 12): Promise<num
   `
   const existingKeys = new Set(existingResult.rows.map(r => `${r.date}|${r.region}`))
 
+  // Pre-fetch dates that already have an active booking — staff is busy that day
+  // (matches the existing closeSiblingsByGroupId behavior: 1 booking per staff per day)
+  const busyDatesResult = await sql<{ date: string }>`
+    SELECT DISTINCT COALESCE(b.date, a.date)::text as date
+    FROM bookings b
+    LEFT JOIN availability a ON b.availability_id = a.id
+    WHERE b.status != 'geannuleerd'
+      AND COALESCE(b.date, a.date) >= ${today.toISOString().split('T')[0]}::date
+      AND COALESCE(b.date, a.date) <= ${end.toISOString().split('T')[0]}::date
+  `
+  const busyDates = new Set(busyDatesResult.rows.map(r => r.date))
+
   let inserted = 0
 
   for (let d = new Date(today); d <= end; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toISOString().split('T')[0]
     const dow = (d.getDay() + 6) % 7 // 0=Mon … 6=Sun
     const dayKey = DAY_KEYS[dow]
+
+    // Skip date entirely if there's already an active booking elsewhere
+    // (e.g. a studio scan booking blocks the day for aan-huis bookings too)
+    if (busyDates.has(dateStr)) continue
 
     for (const region of BOOKABLE_REGIONS) {
       const key = `${dateStr}|${region}`
