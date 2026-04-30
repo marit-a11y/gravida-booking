@@ -505,6 +505,41 @@ const BOOKABLE_REGIONS = [
   'Groningen, Friesland en Drenthe',
 ]
 
+// "Korte dag" = werktijd onder deze drempel (in uren). Op korte dagen blijft
+// Laila dichtbij huis (Haarlem) en bedient ze alleen NH+ZH. Op lange dagen
+// kan ze verder reizen → de overige aan-huis regio's.
+const SHORT_DAY_THRESHOLD_HOURS = 7
+
+// Regio's die op korte dagen worden gegenereerd (dichtbij Haarlem)
+const NEAR_REGIONS = [
+  'Noord-Holland & Flevoland',
+  'Zuid-Holland',
+]
+
+// Regio's die op lange dagen worden gegenereerd (verder weg)
+const FAR_REGIONS = [
+  'Utrecht & Gelderland & Overijssel',
+  'Noord-Brabant',
+  'Limburg',
+  'Groningen, Friesland en Drenthe',
+]
+
+/** Bereken werktijd in minuten voor een werkdag-config. */
+function workingMinutes(wh: { start: string; end: string }): number {
+  const [sh, sm] = wh.start.split(':').map(Number)
+  const [eh, em] = wh.end.split(':').map(Number)
+  return (eh * 60 + em) - (sh * 60 + sm)
+}
+
+/**
+ * Bepaal welke regio's op een dag gegenereerd mogen worden, gegeven de
+ * werktijden van de medewerker. Korte dag → NEAR; lange dag → FAR.
+ */
+function regionsForWorkingHours(wh: { start: string; end: string }): string[] {
+  const minutes = workingMinutes(wh)
+  return minutes < SHORT_DAY_THRESHOLD_HOURS * 60 ? NEAR_REGIONS : FAR_REGIONS
+}
+
 // Dutch-week day keys used in staff.working_hours JSONB
 const DAY_KEYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 
@@ -636,6 +671,16 @@ export async function generateStandardAvailability(weeksAhead = 12): Promise<num
         )
         return !isAbsent
       })
+
+      // Korte dag (<7u) → alleen NEAR regio's. Lange dag → alleen FAR regio's.
+      // Voorkomt dat Laila op een halve dag naar Limburg moet rijden, of op
+      // een lange dag aan-huis-scans pakt die dichtbij zijn waarbij ze beter
+      // verder kan reizen.
+      if (available) {
+        const wh = available.working_hours[dayKey]
+        const allowedRegions = regionsForWorkingHours(wh)
+        if (!allowedRegions.includes(region)) continue
+      }
 
       if (!available) continue
 
