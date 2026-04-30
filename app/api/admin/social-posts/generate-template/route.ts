@@ -18,7 +18,7 @@ export const maxDuration = 60
  *
  * Categorieën roteren per week zodat de feed niet repetitief is:
  *   Week 1: Beeldjes-focus      (educatief over producten)
- *   Week 2: Meet Jessica        (entertainment / persoonlijk)
+ *   Week 2: Atelier             (entertainment / persoonlijk, achter-de-schermen)
  *   Week 3: Bedels + Review     (variatie + social proof)
  *   Week 4: Algemeen / promo    (boekingen, scannen, info)
  */
@@ -37,7 +37,7 @@ const TEMPLATE: TemplateItem[] = [
   // ──────────────────────── MAANDAG ────────────────────────
   // Reel om 19:00 (peak time) — categorie roteert per week
   { dow: 0, hour: 19, minute: 0, category: 'Beeldjes',     post_type: 'reel',  weekIndex: [1], title: 'Reel: beeldjes proces' },
-  { dow: 0, hour: 19, minute: 0, category: 'Meet jessica', post_type: 'reel',  weekIndex: [2], title: 'Reel: Meet Jessica' },
+  { dow: 0, hour: 19, minute: 0, category: 'Atelier', post_type: 'reel',  weekIndex: [2], title: 'Reel: atelier sneak peek'},
   { dow: 0, hour: 19, minute: 0, category: 'Bedels',       post_type: 'reel',  weekIndex: [3], title: 'Reel: bedels' },
   { dow: 0, hour: 19, minute: 0, category: 'Algemeen',     post_type: 'reel',  weekIndex: [4], title: 'Reel: scan ervaring' },
   // Stories
@@ -46,7 +46,7 @@ const TEMPLATE: TemplateItem[] = [
 
   // ──────────────────────── DINSDAG ────────────────────────
   { dow: 1, hour: 10, minute: 0, category: 'This or that', post_type: 'story', weekIndex: [1, 3], title: 'This or that' },
-  { dow: 1, hour: 10, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2], title: 'Achter de schermen' },
+  { dow: 1, hour: 10, minute: 0, category: 'Atelier', post_type: 'story', weekIndex: [2], title: 'Achter de schermen' },
   { dow: 1, hour: 10, minute: 0, category: 'Review',       post_type: 'story', weekIndex: [4], title: 'Review highlight' },
   { dow: 1, hour: 17, minute: 0, category: 'Beeldjes',     post_type: 'story' },
 
@@ -64,7 +64,7 @@ const TEMPLATE: TemplateItem[] = [
   // ──────────────────────── DONDERDAG ────────────────────────
   // Reel om 19:00 — categorie roteert
   { dow: 3, hour: 19, minute: 0, category: 'FAQ',          post_type: 'reel', weekIndex: [1], title: 'Reel: veelgestelde vraag' },
-  { dow: 3, hour: 19, minute: 0, category: 'Meet jessica', post_type: 'reel', weekIndex: [2], title: 'Reel: Jessica vertelt' },
+  { dow: 3, hour: 19, minute: 0, category: 'Atelier', post_type: 'reel', weekIndex: [2], title: 'Reel: atelier proces'},
   { dow: 3, hour: 19, minute: 0, category: 'Review',       post_type: 'reel', weekIndex: [3], title: 'Reel: klant ervaring' },
   { dow: 3, hour: 19, minute: 0, category: 'This or that', post_type: 'reel', weekIndex: [4], title: 'Reel: this or that' },
   // Stories
@@ -86,7 +86,7 @@ const TEMPLATE: TemplateItem[] = [
   // ──────────────────────── ZONDAG ────────────────────────
   // Feedpost om 11:00 — categorie roteert per week
   { dow: 6, hour: 11, minute: 0, category: 'Beeldjes',     post_type: 'feed', weekIndex: [1], title: 'Beeldje feedpost' },
-  { dow: 6, hour: 11, minute: 0, category: 'Meet jessica', post_type: 'feed', weekIndex: [2], title: 'Meet Jessica feedpost' },
+  { dow: 6, hour: 11, minute: 0, category: 'Atelier', post_type: 'feed', weekIndex: [2], title: 'Atelier feedpost'},
   { dow: 6, hour: 11, minute: 0, category: 'Review',       post_type: 'feed', weekIndex: [3], title: 'Review feedpost' },
   { dow: 6, hour: 11, minute: 0, category: 'Algemeen',     post_type: 'feed', weekIndex: [4], title: 'Algemeen feedpost' },
   // Ondersteunende stories
@@ -94,8 +94,8 @@ const TEMPLATE: TemplateItem[] = [
   { dow: 6, hour: 16, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
   { dow: 6, hour: 19, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
   { dow: 6, hour: 13, minute: 0, category: 'This or that', post_type: 'story', weekIndex: [2] },
-  { dow: 6, hour: 16, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2] },
-  { dow: 6, hour: 19, minute: 0, category: 'Meet jessica', post_type: 'story', weekIndex: [2] },
+  { dow: 6, hour: 16, minute: 0, category: 'Atelier', post_type: 'story', weekIndex: [2] },
+  { dow: 6, hour: 19, minute: 0, category: 'Atelier', post_type: 'story', weekIndex: [2] },
   { dow: 6, hour: 13, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3] },
   { dow: 6, hour: 16, minute: 0, category: 'Review',       post_type: 'story', weekIndex: [3] },
   { dow: 6, hour: 19, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3] },

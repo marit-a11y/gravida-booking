@@ -42,7 +42,7 @@ const CATEGORIES = [
   { value: 'Beeldjes',     color: 'bg-amber-50 border-amber-200 text-amber-800' },
   { value: 'FAQ',          color: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
   { value: 'This or that', color: 'bg-blue-50 border-blue-200 text-blue-800' },
-  { value: 'Meet jessica', color: 'bg-rose-50 border-rose-200 text-rose-800' },
+  { value: 'Atelier', color: 'bg-rose-50 border-rose-200 text-rose-800' },
   { value: 'Bedels',       color: 'bg-yellow-50 border-yellow-200 text-yellow-800' },
   { value: 'Review',       color: 'bg-purple-50 border-purple-200 text-purple-800' },
   { value: 'Algemeen',     color: 'bg-orange-50 border-orange-200 text-orange-800' },
@@ -240,7 +240,7 @@ export default function SocialPlannerPage() {
   const generateTemplate = async () => {
     if (!confirm(
       `Standaard contentplanning genereren voor ${DUTCH_MONTHS[calMonth]} ${calYear}?\n\n` +
-      `Dit voegt het wekelijkse ritme toe (Beeldjes, FAQ, Meet jessica, This or that, Bedels, Review, Algemeen). ` +
+      `Dit voegt het wekelijkse ritme toe (Beeldjes, FAQ, Atelier, This or that, Bedels, Review, Algemeen). ` +
       `Bestaande posts blijven staan; alleen lege slots worden gevuld.\n\n` +
       `Status: alle posts krijgen 'concept' — vul daarna titels en beelden in.`
     )) return
@@ -273,7 +273,7 @@ export default function SocialPlannerPage() {
         </div>
         <div className="flex gap-2 shrink-0">
           <button onClick={generateTemplate} className="btn-secondary"
-            title="Genereer een standaard wekelijks ritme voor deze maand (Beeldjes, FAQ, Meet jessica, etc.)">
+            title="Genereer een standaard wekelijks ritme voor deze maand (Beeldjes, FAQ, Atelier, etc.)">
             ✨ Plan deze maand
           </button>
           <button onClick={() => openNewModal()} className="btn-primary">+ Nieuwe post</button>
