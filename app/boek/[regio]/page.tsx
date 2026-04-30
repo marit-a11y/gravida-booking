@@ -61,6 +61,16 @@ const REGION_INFO: Record<string, { text: string; travelFee?: string; diy?: bool
 }
 
 // ─── Artificial scarcity ────────────────────────────────────────────────────
+
+// Make ~20% of days appear fully booked even though slots are free in the backend.
+// Deterministic per (date, region) so the same day stays consistently "vol"
+// across refreshes and devices — feels like real bookings, not random.
+function isFakeFullyBooked(date: string, region: string): boolean {
+  let seed = 0
+  for (const ch of date + region) seed = ((seed * 31) + ch.charCodeAt(0)) >>> 0
+  return seed % 5 === 0
+}
+
 // Returns a deterministic set of slot strings that appear "full" to the visitor,
 // even though they are still free in the backend.
 // Rules: leave 1 or 2 real slots bookable; fake-booked slots are consecutive
@@ -154,7 +164,12 @@ export default function EmbedBookingPage({ params }: { params: { regio: string }
 
   useEffect(() => { loadDates() }, [loadDates])
 
-  const availSet = new Set(availableDates.map(a => a.date))
+  // Filter out artificially "fully booked" days for this region
+  const availSet = new Set(
+    availableDates
+      .filter(a => !isFakeFullyBooked(a.date, regionName))
+      .map(a => a.date)
+  )
   const days     = getDaysInMonth(calYear, calMonth)
   const firstDow = getFirstDayOfWeek(calYear, calMonth)
 
