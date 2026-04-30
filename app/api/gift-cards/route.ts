@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Create Mollie payment
     const origin = request.headers.get('origin') || request.headers.get('referer')?.replace(/\/[^/]*$/, '') || ''
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || 'https://gravida-booking.vercel.app'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || 'https://dashboard.gravida.nl'
 
     if (!process.env.MOLLIE_API_KEY) {
       return NextResponse.json({ error: 'Betalingssysteem niet geconfigureerd. Neem contact op.' }, { status: 500 })

@@ -158,7 +158,7 @@ function staffEmailHtml(params: {
       </td></tr>
     </table>
 
-    <a href="https://gravida-booking.vercel.app/admin/boekingen"
+    <a href="https://dashboard.gravida.nl/admin/boekingen"
        style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;">
       Bekijk in het beheerpaneel →
     </a>
@@ -426,7 +426,7 @@ function diyStaffEmailHtml(params: {
       </td></tr>
     </table>
 
-    <a href="https://gravida-booking.vercel.app/admin/diy-scanners"
+    <a href="https://dashboard.gravida.nl/admin/diy-scanners"
        style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;">
       Bekijk in het beheerpaneel →
     </a>
