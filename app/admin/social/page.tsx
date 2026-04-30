@@ -342,17 +342,26 @@ export default function SocialPlannerPage() {
                       const thumb = p.image_urls?.[0]
                       const ti = typeInfo(p.post_type)
                       const ci = categoryInfo(p.category)
+                      const isPosted = p.status === 'geplaatst' || p.status === 'posted'
+                      const isReady = p.status === 'klaargezet' || p.status === 'scheduled'
                       return (
                         <button key={p.id} onClick={(e) => { e.stopPropagation(); openEditModal(p) }}
-                          className={`flex items-center gap-1 sm:gap-1.5 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-[10px] hover:opacity-80 transition-opacity overflow-hidden ${ti.badge}`}
-                          title={`${time} · ${ti.label} · ${p.category ?? ''} · ${p.title ?? p.caption?.slice(0, 40) ?? ''}`}
+                          className={`relative flex items-center gap-1 sm:gap-1.5 px-1 sm:px-1.5 py-0.5 sm:py-1 rounded-md text-[9px] sm:text-[10px] hover:opacity-80 transition-opacity overflow-hidden ${isPosted ? 'bg-green-100 text-green-700 ring-1 ring-green-300' : ti.badge}`}
+                          title={`${time} · ${ti.label} · ${p.category ?? ''} · ${p.title ?? p.caption?.slice(0, 40) ?? ''}${isPosted ? ' · GEPLAATST' : isReady ? ' · KLAARGEZET' : ''}`}
                         >
+                          {/* Thumb / category icon */}
                           {thumb ? (
-                            <img src={thumb} alt="" className="w-4 h-4 sm:w-5 sm:h-5 rounded object-cover shrink-0" />
+                            <ThumbOrFallback src={thumb} fallback={ci?.icon ?? ti.emoji} />
                           ) : (
-                            <span className="text-[10px] sm:text-xs">{ci?.icon ?? ti.emoji}</span>
+                            <span className="text-[10px] sm:text-xs shrink-0">{ci?.icon ?? ti.emoji}</span>
                           )}
                           <span className="truncate">{time}{p.title ? ` · ${p.title.slice(0,15)}` : p.category ? ` · ${p.category.slice(0,12)}` : ''}</span>
+                          {isPosted && (
+                            <span className="ml-auto text-[10px] shrink-0" title="Geplaatst">✓</span>
+                          )}
+                          {isReady && !isPosted && (
+                            <span className="ml-auto text-[10px] shrink-0 opacity-70" title="Klaargezet">⏱</span>
+                          )}
                         </button>
                       )
                     })}
@@ -440,9 +449,11 @@ export default function SocialPlannerPage() {
                         <td className="px-3 py-2 align-top">
                           <button
                             onClick={() => cycleStatus(p)}
-                            className={`text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer outline-none whitespace-nowrap hover:opacity-80 ${statusInfo(p.status).color}`}
+                            className={`inline-flex items-center gap-1 text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer outline-none whitespace-nowrap hover:opacity-80 ${statusInfo(p.status).color}`}
                             title="Klik om status te wijzigen"
                           >
+                            {(p.status === 'geplaatst' || p.status === 'posted') && <span>✓</span>}
+                            {(p.status === 'klaargezet' || p.status === 'scheduled') && <span>⏱</span>}
                             {statusInfo(p.status).label}
                           </button>
                         </td>
@@ -732,5 +743,40 @@ export default function SocialPlannerPage() {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Tiny thumbnail with graceful fallback to an emoji/icon if the image fails to
+ * load (e.g. blob URL expired, file deleted, CORS hiccup). Tries video poster
+ * for video URLs.
+ */
+function ThumbOrFallback({ src, fallback }: { src: string; fallback: string }) {
+  const [errored, setErrored] = useState(false)
+  const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(src)
+
+  if (errored) {
+    return <span className="text-[10px] sm:text-xs shrink-0">{fallback}</span>
+  }
+
+  if (isVideo) {
+    return (
+      <video
+        src={src}
+        className="w-4 h-4 sm:w-5 sm:h-5 rounded object-cover shrink-0 bg-black"
+        muted
+        playsInline
+        onError={() => setErrored(true)}
+      />
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className="w-4 h-4 sm:w-5 sm:h-5 rounded object-cover shrink-0"
+      onError={() => setErrored(true)}
+    />
   )
 }
