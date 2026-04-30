@@ -9,6 +9,7 @@
     "setup-db": "npx ts-node --project tsconfig.json scripts/setup-db.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
     "@mollie/api-client": "^4.5.0",
     "@react-pdf/renderer": "^4.5.1",
     "@vercel/blob": "^2.3.3",

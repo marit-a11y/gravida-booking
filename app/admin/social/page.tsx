@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { getEventsForMonth, getEventForDate, CONTENT_IDEAS, type ThemeEvent, type CategoryIdea } from '@/lib/social-themes'
 
 interface SocialPost {
   id: number
@@ -98,6 +99,38 @@ export default function SocialPlannerPage() {
   const [filterCategory, setFilterCategory] = useState('alle')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  // Ideeen-modal (statische lijst per categorie)
+  const [ideasModalOpen, setIdeasModalOpen] = useState(false)
+  const [ideasCategory, setIdeasCategory] = useState<string>('Beeldjes')
+  // AI ideeen state (binnen het edit-modal)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const [aiIdeas, setAiIdeas] = useState<Array<{
+    title: string; caption: string; hashtags: string; post_type: string; reasoning?: string
+  }>>([])
+
+  // Events (feestdagen / themadagen) voor zichtbare maand + buffer
+  const monthEvents = useMemo(() => {
+    // Pak events voor zichtbare maand én buurmaanden (kalender-grid loopt over)
+    const all: ThemeEvent[] = []
+    for (let offset = -1; offset <= 1; offset++) {
+      let y = calYear, m = calMonth + offset
+      if (m < 0) { m += 12; y -= 1 }
+      if (m > 11) { m -= 12; y += 1 }
+      all.push(...getEventsForMonth(y, m))
+    }
+    return all
+  }, [calYear, calMonth])
+
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, ThemeEvent[]>()
+    for (const e of monthEvents) {
+      const arr = map.get(e.date) ?? []
+      arr.push(e)
+      map.set(e.date, arr)
+    }
+    return map
+  }, [monthEvents])
 
   const monthStart = new Date(calYear, calMonth, 1)
   const monthEnd = new Date(calYear, calMonth + 1, 0, 23, 59, 59)
@@ -262,6 +295,69 @@ export default function SocialPlannerPage() {
     }
   }
 
+  // ── AI ideeen genereren (binnen edit-modal) ─────────────────────────────
+  const generateAiIdeas = async (mode: 'ideas' | 'caption') => {
+    setAiLoading(true); setAiError(''); setAiIdeas([])
+    try {
+      const date = form.scheduled_for_local
+        ? form.scheduled_for_local.slice(0, 10)
+        : undefined
+      const res = await fetch('/api/admin/social-posts/ai-ideas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          category: form.category || null,
+          post_type: form.post_type || 'feed',
+          date,
+          title: mode === 'caption' ? form.title : undefined,
+          count: 5,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setAiError(data.error ?? 'AI request mislukt')
+      } else {
+        setAiIdeas(data.ideas ?? [])
+      }
+    } catch (err) {
+      setAiError('Verbindingsfout: ' + (err instanceof Error ? err.message : String(err)))
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const applyAiIdea = (idea: { title: string; caption: string; hashtags: string; post_type: string }) => {
+    setForm(f => ({
+      ...f,
+      title: idea.title,
+      caption: idea.caption,
+      hashtags: idea.hashtags,
+      post_type: (['feed','story','reel','carousel'].includes(idea.post_type) ? idea.post_type : f.post_type) as string,
+    }))
+    setAiIdeas([])  // verberg lijst na keuze
+  }
+
+  // Vanaf categorie-idee een nieuwe post-modal openen
+  const useCategoryIdea = (idea: CategoryIdea, category: string) => {
+    const d = new Date()
+    d.setHours(10, 0, 0, 0)
+    setEditingPost(null)
+    setForm({
+      ...EMPTY_FORM,
+      scheduled_for_local: isoLocalDateTime(d),
+      image_urls: [],
+      image_urls_text: '',
+      category,
+      post_type: idea.bestType ?? 'feed',
+      title: idea.title,
+      internal_notes: idea.description,
+    })
+    setIdeasModalOpen(false)
+    setError(''); setUploadError('')
+    setModalOpen(true)
+  }
+
   const platformInfo = (p: string) => PLATFORMS.find(x => x.value === p) ?? PLATFORMS[0]
   const statusInfo = (s: string) => STATUSES.find(x => x.value === s) ?? STATUSES[0]
   const categoryInfo = (c: string | null) => CATEGORIES.find(x => x.value === c) ?? null
@@ -276,7 +372,11 @@ export default function SocialPlannerPage() {
           <h1 className="page-title">Social media planner</h1>
           <p className="text-gravida-sage mt-1 text-sm">Plan je posts per categorie en houd het overzicht. Klik op een dag om toe te voegen.</p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <button onClick={() => setIdeasModalOpen(true)} className="btn-secondary"
+            title="Bekijk content-ideeën per categorie">
+            💡 Ideeën
+          </button>
           <button onClick={generateTemplate} className="btn-secondary"
             title="Genereer een standaard wekelijks ritme voor deze maand (Beeldjes, FAQ, Atelier, etc.)">
             ✨ Plan deze maand
@@ -325,16 +425,33 @@ export default function SocialPlannerPage() {
               const inMonth = d.getMonth() === calMonth
               const isToday = key === todayKey
               const dayPosts = (postsByDate.get(key) ?? []).sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))
+              const dayEvents = eventsByDate.get(key) ?? []
+              const eventBg = dayEvents.some(e => e.type === 'commercieel')
+                ? 'bg-pink-50/40' : dayEvents.length > 0 ? 'bg-amber-50/30' : ''
               return (
                 <div key={key}
                   onClick={() => openNewModal(d)}
                   className={`relative min-h-[90px] sm:min-h-[110px] rounded-xl p-1.5 sm:p-2 cursor-pointer transition-all border-2 ${
                     isToday ? 'border-gravida-sage' : 'border-transparent'
-                  } ${inMonth ? 'bg-white hover:bg-gravida-off-white' : 'bg-gravida-cream/30 opacity-60'}`}
+                  } ${inMonth ? `bg-white hover:bg-gravida-off-white ${eventBg}` : 'bg-gravida-cream/30 opacity-60'}`}
                 >
-                  <div className={`text-xs sm:text-sm font-semibold mb-1 ${isToday ? 'text-gravida-sage' : inMonth ? 'text-gravida-green' : 'text-gravida-light-sage'}`}>
-                    {d.getDate()}
+                  <div className="flex items-start justify-between mb-1">
+                    <div className={`text-xs sm:text-sm font-semibold ${isToday ? 'text-gravida-sage' : inMonth ? 'text-gravida-green' : 'text-gravida-light-sage'}`}>
+                      {d.getDate()}
+                    </div>
+                    {dayEvents.length > 0 && (
+                      <div className="flex gap-0.5" title={dayEvents.map(e => `${e.name}${e.hook ? ` — ${e.hook}` : ''}`).join('\n')}>
+                        {dayEvents.slice(0, 2).map((e, i) => (
+                          <span key={i} className="text-[10px] sm:text-xs">{e.emoji}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                  {dayEvents.length > 0 && inMonth && (
+                    <div className="text-[8px] sm:text-[9px] text-gravida-sage truncate mb-1 leading-tight" title={dayEvents.map(e => e.name).join(', ')}>
+                      {dayEvents[0].name}
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1">
                     {dayPosts.slice(0, 3).map(p => {
                       const t = new Date(p.scheduled_for)
@@ -487,6 +604,71 @@ export default function SocialPlannerPage() {
                 className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center transition-colors text-gravida-light-sage">✕</button>
             </div>
             <div className="p-6 space-y-4">
+              {/* Themadag-banner als de geplande datum op een feestdag/themadag valt */}
+              {(() => {
+                if (!form.scheduled_for_local) return null
+                const [y, m, d] = form.scheduled_for_local.slice(0,10).split('-').map(Number)
+                const evs = getEventForDate(y, m - 1, d)
+                if (evs.length === 0) return null
+                return (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-xs font-semibold text-amber-800 mb-1">📅 Op deze dag</p>
+                    {evs.map((e, i) => (
+                      <div key={i} className="text-xs text-amber-900">
+                        <span className="font-medium">{e.emoji} {e.name}</span>
+                        {e.hook && <span className="text-amber-700"> — {e.hook}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+
+              {/* AI ideeen-sectie */}
+              <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-3 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <p className="text-xs font-semibold text-purple-800 uppercase tracking-wide">✨ AI assistent</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    <button type="button" onClick={() => generateAiIdeas('ideas')} disabled={aiLoading}
+                      className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50">
+                      {aiLoading ? '⏳ Bezig...' : '💡 Genereer 5 ideeën'}
+                    </button>
+                    {form.title && (
+                      <button type="button" onClick={() => generateAiIdeas('caption')} disabled={aiLoading}
+                        className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-white border border-purple-300 text-purple-700 hover:bg-purple-100 disabled:opacity-50">
+                        ✏️ Schrijf caption voor titel
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {aiError && <p className="text-[11px] text-red-600">{aiError}</p>}
+                {aiIdeas.length > 0 && (
+                  <div className="space-y-2 max-h-72 overflow-y-auto">
+                    {aiIdeas.map((idea, i) => (
+                      <div key={i} className="bg-white rounded-lg border border-purple-100 p-2.5 text-xs">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p className="font-semibold text-gravida-green">{idea.title}</p>
+                          <button type="button" onClick={() => applyAiIdea(idea)}
+                            className="shrink-0 text-[10px] px-2 py-0.5 rounded bg-gravida-sage text-white hover:bg-gravida-green">
+                            Gebruik
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-gravida-sage mb-1">
+                          <span className="inline-block bg-gravida-cream px-1.5 py-0.5 rounded mr-1 text-[10px]">{idea.post_type}</span>
+                          {idea.reasoning}
+                        </p>
+                        <p className="text-[11px] text-gravida-green/80 line-clamp-3 mb-1">{idea.caption}</p>
+                        <p className="text-[10px] text-gravida-light-sage truncate">{idea.hashtags}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!aiLoading && aiIdeas.length === 0 && !aiError && (
+                  <p className="text-[11px] text-purple-700/70">
+                    Klik &quot;Genereer 5 ideeën&quot; voor brainstorm op basis van categorie/type/datum.
+                  </p>
+                )}
+              </div>
+
               {/* Klaar voor Instagram — quick-copy helpers (alleen bij bestaande posts) */}
               {editingPost && (
                 <div className="rounded-xl border border-gravida-cream bg-gravida-off-white p-3 space-y-2">
@@ -750,6 +932,63 @@ export default function SocialPlannerPage() {
                   {saving ? 'Opslaan...' : editingPost ? 'Opslaan' : 'Inplannen'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ideeen-modal: statische lijst per categorie */}
+      {ideasModalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-fade-in max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gravida-cream flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gravida-sage">💡 Content-ideeën per categorie</h2>
+                <p className="text-xs text-gravida-light-sage mt-1">Klik op een idee om er een nieuwe post van te maken.</p>
+              </div>
+              <button onClick={() => setIdeasModalOpen(false)}
+                className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center transition-colors text-gravida-light-sage">✕</button>
+            </div>
+            <div className="px-6 pt-4 pb-2 flex flex-wrap gap-1.5 border-b border-gravida-cream">
+              {CATEGORIES.map(c => (
+                <button key={c.value} onClick={() => setIdeasCategory(c.value)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                    ideasCategory === c.value
+                      ? 'bg-gravida-sage text-white border-gravida-sage'
+                      : `${c.color} hover:opacity-80`
+                  }`}>
+                  {c.icon} {c.value}
+                </button>
+              ))}
+            </div>
+            <div className="p-6 overflow-y-auto flex-1 space-y-2">
+              {(CONTENT_IDEAS[ideasCategory] ?? []).map((idea, i) => (
+                <div key={i} className="rounded-lg border border-gravida-cream p-3 hover:border-gravida-sage transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm text-gravida-green">{idea.title}</p>
+                      <p className="text-xs text-gravida-sage mt-0.5">{idea.description}</p>
+                      {idea.bestType && (
+                        <span className={`inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded ${POST_TYPES.find(t => t.value === idea.bestType)?.badge ?? 'bg-gray-100 text-gray-700'}`}>
+                          {idea.bestType}
+                        </span>
+                      )}
+                    </div>
+                    <button onClick={() => useCategoryIdea(idea, ideasCategory)}
+                      className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-gravida-sage text-white hover:bg-gravida-green transition-colors">
+                      Gebruik
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-gravida-cream flex justify-between items-center">
+              <p className="text-[11px] text-gravida-light-sage italic">
+                Wil je AI-gegenereerde varianten? Open een post en klik op &quot;✨ Genereer ideeën&quot;.
+              </p>
+              <button onClick={() => setIdeasModalOpen(false)} className="text-xs px-3 py-1.5 rounded-lg border border-gravida-cream hover:border-gravida-sage">
+                Sluiten
+              </button>
             </div>
           </div>
         </div>
