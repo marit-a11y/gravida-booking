@@ -476,6 +476,82 @@ export default function SocialPlannerPage() {
                 className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center transition-colors text-gravida-light-sage">✕</button>
             </div>
             <div className="p-6 space-y-4">
+              {/* Klaar voor Instagram — quick-copy helpers (alleen bij bestaande posts) */}
+              {editingPost && (
+                <div className="rounded-xl border border-gravida-cream bg-gravida-off-white p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gravida-sage uppercase tracking-wide">📲 Klaar voor Instagram</p>
+                    {(editingPost.status !== 'geplaatst' && editingPost.status !== 'posted') && (
+                      <button
+                        onClick={async () => {
+                          const res = await fetch(`/api/admin/social-posts/${editingPost.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'geplaatst' }),
+                          })
+                          if (res.ok) { await load(); setModalOpen(false) }
+                        }}
+                        className="text-[10px] font-medium px-2 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                        title="Markeer als geplaatst"
+                      >
+                        ✓ Geplaatst
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {form.caption && (
+                      <button type="button"
+                        onClick={() => { navigator.clipboard.writeText(form.caption ?? ''); }}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-white border border-gravida-cream hover:border-gravida-sage transition-colors flex items-center gap-1.5"
+                        title="Caption naar klembord">
+                        📋 Caption
+                      </button>
+                    )}
+                    {form.hashtags && (
+                      <button type="button"
+                        onClick={() => { navigator.clipboard.writeText(form.hashtags ?? ''); }}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-white border border-gravida-cream hover:border-gravida-sage transition-colors flex items-center gap-1.5"
+                        title="Hashtags naar klembord">
+                        # Hashtags
+                      </button>
+                    )}
+                    {(form.caption || form.hashtags) && (
+                      <button type="button"
+                        onClick={() => {
+                          const all = [form.caption, form.hashtags].filter(Boolean).join('\n\n')
+                          navigator.clipboard.writeText(all)
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-gravida-sage text-white hover:bg-gravida-green transition-colors flex items-center gap-1.5"
+                        title="Caption + hashtags samen naar klembord">
+                        📋 Alles kopiëren
+                      </button>
+                    )}
+                    {form.image_urls_text && form.image_urls_text.trim() && (
+                      <a
+                        href={form.image_urls_text.split('\n').map(s => s.trim()).filter(Boolean)[0]}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs px-3 py-1.5 rounded-lg bg-white border border-gravida-cream hover:border-gravida-sage transition-colors flex items-center gap-1.5"
+                        title="Download afbeelding naar je toestel">
+                        ⬇️ Download media
+                      </a>
+                    )}
+                    <a
+                      href="https://www.instagram.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs px-3 py-1.5 rounded-lg bg-pink-100 text-pink-700 hover:bg-pink-200 transition-colors flex items-center gap-1.5"
+                      title="Open Instagram (op mobiel opent de app als geïnstalleerd)">
+                      📷 Open Instagram
+                    </a>
+                  </div>
+                  {!form.caption && !form.hashtags && (
+                    <p className="text-[11px] text-gravida-light-sage italic">Vul caption / hashtags hieronder in om te kunnen kopiëren.</p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
                   <label className="label">Datum &amp; tijd *</label>
