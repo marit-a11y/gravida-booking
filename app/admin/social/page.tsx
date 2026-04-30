@@ -235,6 +235,27 @@ export default function SocialPlannerPage() {
     }
   }
 
+  const generateTemplate = async () => {
+    if (!confirm(
+      `Standaard contentplanning genereren voor ${DUTCH_MONTHS[calMonth]} ${calYear}?\n\n` +
+      `Dit voegt het wekelijkse ritme toe (Beeldjes, FAQ, Meet jessica, This or that, Bedels, Review, Algemeen). ` +
+      `Bestaande posts blijven staan; alleen lege slots worden gevuld.\n\n` +
+      `Status: alle posts krijgen 'concept' — vul daarna titels en beelden in.`
+    )) return
+    const res = await fetch('/api/admin/social-posts/generate-template', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year: calYear, month: calMonth }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      alert(`${data.inserted} posts toegevoegd voor ${DUTCH_MONTHS[calMonth]} ${calYear}.`)
+      await load()
+    } else {
+      alert(data.error ?? 'Genereren mislukt')
+    }
+  }
+
   const platformInfo = (p: string) => PLATFORMS.find(x => x.value === p) ?? PLATFORMS[0]
   const statusInfo = (s: string) => STATUSES.find(x => x.value === s) ?? STATUSES[0]
   const categoryInfo = (c: string | null) => CATEGORIES.find(x => x.value === c) ?? null
@@ -248,7 +269,13 @@ export default function SocialPlannerPage() {
           <h1 className="page-title">Social media planner</h1>
           <p className="text-gravida-sage mt-1 text-sm">Plan je posts per categorie en houd het overzicht. Klik op een dag om toe te voegen.</p>
         </div>
-        <button onClick={() => openNewModal()} className="btn-primary shrink-0">+ Nieuwe post</button>
+        <div className="flex gap-2 shrink-0">
+          <button onClick={generateTemplate} className="btn-secondary"
+            title="Genereer een standaard wekelijks ritme voor deze maand (Beeldjes, FAQ, Meet jessica, etc.)">
+            ✨ Plan deze maand
+          </button>
+          <button onClick={() => openNewModal()} className="btn-primary">+ Nieuwe post</button>
+        </div>
       </div>
 
       {/* Toolbar: month nav + view toggle + category filter */}
