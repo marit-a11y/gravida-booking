@@ -8,6 +8,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const mode = searchParams.get('mode') ?? 'booking'
 
+    if (mode === 'date') {
+      const date = searchParams.get('date') ?? '2026-05-12'
+      const avail = await sql`
+        SELECT id, date::text, region, slots, max_per_slot, is_active, is_closed, group_id::text, notes
+        FROM availability WHERE date = ${date}::date
+        ORDER BY id
+      `
+      const bookings = await sql`
+        SELECT b.id, b.customer_number, b.first_name, b.last_name, b.time_slot, b.status, b.availability_id,
+               a.region as a_region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        WHERE COALESCE(b.date, a.date) = ${date}::date
+        ORDER BY b.created_at
+      `
+      return NextResponse.json({ date, availability: avail.rows, bookings: bookings.rows })
+    }
+
     if (mode === 'absence') {
       // Debug absence filtering
       const staff = await sql`
