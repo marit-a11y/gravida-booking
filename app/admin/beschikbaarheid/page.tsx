@@ -626,6 +626,39 @@ export default function BeschikbaarheidPage() {
           >
             {autoSyncing ? 'Synchroniseren...' : '↻ Synchroniseer komende 12 weken'}
           </button>
+          <button
+            onClick={async () => {
+              if (autoSyncing) return
+              if (!confirm(
+                "Alle aan-huis beschikbaarheid (NH&Flevoland, ZH, U/Geld/Ov, Brabant, Limburg, Gron/Fr/Drenthe) " +
+                "vanaf vandaag opnieuw genereren volgens de huidige regels (korte/lange dag, reistijd, afwezigheid)?\n\n" +
+                "Reserveringen blijven onaangetast — entries met boekingen worden behouden.\n" +
+                "Studio scans, Curacao en DIY blijven volledig ongemoeid."
+              )) return
+              setAutoSyncing(true)
+              setAutoSyncMsg('')
+              try {
+                const res = await fetch('/api/admin/availability/regenerate-bookable', { method: 'POST' })
+                const data = await res.json()
+                if (res.ok) {
+                  setAutoSyncMsg(`${data.deleted} verwijderd, ${data.kept_with_bookings} behouden i.v.m. boekingen, ${data.regenerated} opnieuw gegenereerd`)
+                  await loadAvailability()
+                } else {
+                  setAutoSyncMsg(data.error ?? 'Regenereren mislukt')
+                }
+              } catch {
+                setAutoSyncMsg('Verbindingsfout')
+              } finally {
+                setAutoSyncing(false)
+                setTimeout(() => setAutoSyncMsg(''), 8000)
+              }
+            }}
+            disabled={autoSyncing}
+            className="btn-secondary"
+            title="Verwijder alle niet-geboekte aan-huis beschikbaarheid en regenereer volgens huidige regels (korte/lange dag etc)"
+          >
+            {autoSyncing ? '...' : '🔄 Regenereer aan-huis'}
+          </button>
           <button onClick={() => { setBulkOpen(true); setBulkError(''); setBulkResult(null) }} className="btn-primary">
             + Bulk toevoegen
           </button>
