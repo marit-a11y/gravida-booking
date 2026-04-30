@@ -1125,3 +1125,114 @@ export async function markExpiredGiftCards(): Promise<number> {
   `
   return result.rowCount ?? 0
 }
+
+// ─── Social media planner ────────────────────────────────────────────────────
+
+export interface SocialPost {
+  id: number
+  scheduled_for: string
+  platform: string
+  post_type: string
+  image_urls: string[]
+  caption: string | null
+  hashtags: string | null
+  status: string
+  canva_url: string | null
+  internal_notes: string | null
+  reminder_sent: boolean
+  created_at: string
+}
+
+export interface CreateSocialPostInput {
+  scheduled_for: string
+  platform?: string
+  post_type?: string
+  image_urls?: string[]
+  caption?: string
+  hashtags?: string
+  status?: string
+  canva_url?: string
+  internal_notes?: string
+}
+
+export async function getSocialPosts(filters?: { from?: string; to?: string }): Promise<SocialPost[]> {
+  if (filters?.from && filters?.to) {
+    const r = await sql<SocialPost>`
+      SELECT id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+             status, canva_url, internal_notes, reminder_sent, created_at::text
+      FROM social_posts
+      WHERE scheduled_for >= ${filters.from}::timestamptz
+        AND scheduled_for <= ${filters.to}::timestamptz
+      ORDER BY scheduled_for ASC
+    `
+    return r.rows
+  }
+  const r = await sql<SocialPost>`
+    SELECT id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+           status, canva_url, internal_notes, reminder_sent, created_at::text
+    FROM social_posts
+    ORDER BY scheduled_for ASC
+  `
+  return r.rows
+}
+
+export async function getSocialPostById(id: number): Promise<SocialPost | null> {
+  const r = await sql<SocialPost>`
+    SELECT id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+           status, canva_url, internal_notes, reminder_sent, created_at::text
+    FROM social_posts WHERE id = ${id}
+  `
+  return r.rows[0] ?? null
+}
+
+export async function createSocialPost(input: CreateSocialPostInput): Promise<SocialPost> {
+  const r = await sql<SocialPost>`
+    INSERT INTO social_posts (
+      scheduled_for, platform, post_type, image_urls, caption, hashtags, status,
+      canva_url, internal_notes
+    ) VALUES (
+      ${input.scheduled_for}::timestamptz,
+      ${input.platform ?? 'instagram'},
+      ${input.post_type ?? 'feed'},
+      ${JSON.stringify(input.image_urls ?? [])}::jsonb,
+      ${input.caption ?? null},
+      ${input.hashtags ?? null},
+      ${input.status ?? 'scheduled'},
+      ${input.canva_url ?? null},
+      ${input.internal_notes ?? null}
+    )
+    RETURNING id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+              status, canva_url, internal_notes, reminder_sent, created_at::text
+  `
+  return r.rows[0]
+}
+
+export async function updateSocialPost(
+  id: number,
+  input: Partial<CreateSocialPostInput> & { reminder_sent?: boolean }
+): Promise<SocialPost | null> {
+  const existing = await getSocialPostById(id)
+  if (!existing) return null
+  const r = await sql<SocialPost>`
+    UPDATE social_posts
+    SET scheduled_for  = ${input.scheduled_for ?? existing.scheduled_for}::timestamptz,
+        platform       = ${input.platform ?? existing.platform},
+        post_type      = ${input.post_type ?? existing.post_type},
+        image_urls     = ${JSON.stringify(input.image_urls ?? existing.image_urls)}::jsonb,
+        caption        = ${input.caption !== undefined ? input.caption : existing.caption},
+        hashtags       = ${input.hashtags !== undefined ? input.hashtags : existing.hashtags},
+        status         = ${input.status ?? existing.status},
+        canva_url      = ${input.canva_url !== undefined ? input.canva_url : existing.canva_url},
+        internal_notes = ${input.internal_notes !== undefined ? input.internal_notes : existing.internal_notes},
+        reminder_sent  = ${input.reminder_sent !== undefined ? input.reminder_sent : existing.reminder_sent}
+    WHERE id = ${id}
+    RETURNING id, scheduled_for::text, platform, post_type, image_urls, caption, hashtags,
+              status, canva_url, internal_notes, reminder_sent, created_at::text
+  `
+  return r.rows[0] ?? null
+}
+
+export async function deleteSocialPost(id: number): Promise<boolean> {
+  const r = await sql`DELETE FROM social_posts WHERE id = ${id}`
+  return (r.rowCount ?? 0) > 0
+}

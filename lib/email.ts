@@ -832,3 +832,72 @@ export async function sendDiyReviewEmail(params: DiyReviewEmailParams): Promise<
     replyTo: 'marit@gravida.nl',
   })
 }
+
+// ─── Social media planner reminder ───────────────────────────────────────────
+
+export interface SocialReminderItem {
+  id: number
+  scheduled_for: string
+  platform: string
+  post_type: string
+  caption: string | null
+  image_urls: string[]
+  canva_url: string | null
+}
+
+export async function sendSocialPlannerReminder(items: SocialReminderItem[]): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — skipping email')
+    return
+  }
+  if (items.length === 0) return
+
+  const staffEmail = (process.env.STAFF_EMAIL ?? '').trim()
+  if (!staffEmail) return
+
+  const formatTime = (iso: string) => {
+    const d = new Date(iso)
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+  }
+  const platformLabels: Record<string, string> = {
+    instagram: '📷 Instagram', tiktok: '🎵 TikTok', linkedin: '💼 LinkedIn', facebook: '👥 Facebook',
+  }
+  const typeLabels: Record<string, string> = {
+    feed: 'Feed', story: 'Story', reel: 'Reel', carousel: 'Carousel',
+  }
+
+  const rows = items.map(it => `
+    <tr>
+      <td style="padding:14px 0;border-bottom:1px solid #e8e6e0;width:80px;vertical-align:top;font-size:14px;color:#1e2d1f;font-weight:600;">${formatTime(it.scheduled_for)}</td>
+      <td style="padding:14px 0;border-bottom:1px solid #e8e6e0;font-size:13px;color:#3d4d3e;vertical-align:top;">
+        <div style="margin-bottom:4px;font-weight:500;">${platformLabels[it.platform] ?? it.platform} · ${typeLabels[it.post_type] ?? it.post_type}</div>
+        ${it.caption ? `<div style="color:#5a6e5c;line-height:1.5;font-size:12px;">${it.caption.length > 120 ? it.caption.slice(0, 120) + '…' : it.caption}</div>` : ''}
+        ${it.canva_url ? `<div style="margin-top:6px;"><a href="${it.canva_url}" style="color:${BRAND_GREEN};font-size:12px;">Canva design openen →</a></div>` : ''}
+      </td>
+      ${it.image_urls?.[0] ? `<td style="padding:14px 0;border-bottom:1px solid #e8e6e0;width:60px;vertical-align:top;text-align:right;"><img src="${it.image_urls[0]}" style="width:50px;height:50px;border-radius:8px;object-fit:cover;"/></td>` : '<td></td>'}
+    </tr>
+  `).join('')
+
+  const html = layout(`
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:600;color:#1e2d1f;letter-spacing:-0.5px;">
+      Posts voor vandaag
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#5a6e5c;">
+      ${items.length} post${items.length === 1 ? '' : 's'} ingepland om vandaag te plaatsen.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:8px 22px;">
+      ${rows}
+    </table>
+    <a href="https://dashboard.gravida.nl/admin/social"
+       style="display:inline-block;margin-top:24px;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;">
+      Open de planner →
+    </a>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: staffEmail,
+    subject: `Social media — ${items.length} post${items.length === 1 ? '' : 's'} vandaag`,
+    html,
+  })
+}

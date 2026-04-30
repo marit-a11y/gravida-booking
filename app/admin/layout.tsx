@@ -13,6 +13,7 @@ const navItems = [
   { href: '/admin/diy-scanners',    label: 'DIY Scanners',   icon: '◆' },
   { href: '/admin/diy-beoordeling', label: 'Scan beoordeling', icon: '✓', badge: true },
   { href: '/admin/cadeaubonnen',    label: 'Cadeaubonnen',   icon: '🎁' },
+  { href: '/admin/social',          label: 'Social planner', icon: '📅' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
