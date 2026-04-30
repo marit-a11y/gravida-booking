@@ -102,6 +102,12 @@ export default function SocialPlannerPage() {
   // Ideeen-modal (statische lijst per categorie)
   const [ideasModalOpen, setIdeasModalOpen] = useState(false)
   const [ideasCategory, setIdeasCategory] = useState<string>('Beeldjes')
+  // Legenda + bulk-delete
+  const [legendOpen, setLegendOpen] = useState(false)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleteFilter, setBulkDeleteFilter] = useState<'all' | 'draft' | 'klaargezet' | 'geplaatst' | 'gemist'>('draft')
+  const [bulkOnlyEmpty, setBulkOnlyEmpty] = useState(true)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   // AI ideeen state (binnen het edit-modal)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState('')
@@ -358,6 +364,41 @@ export default function SocialPlannerPage() {
     setModalOpen(true)
   }
 
+  // Bulk delete posts in zichtbare maand
+  const handleBulkDelete = async () => {
+    const monthLabel = `${DUTCH_MONTHS[calMonth]} ${calYear}`
+    const statusLabel = bulkDeleteFilter === 'all'
+      ? 'ALLE posts'
+      : `posts met status "${bulkDeleteFilter}"`
+    const emptyLabel = bulkOnlyEmpty ? ' (alleen zonder titel/caption/media)' : ''
+    if (!confirm(`Weet je zeker dat je ${statusLabel}${emptyLabel} in ${monthLabel} wilt verwijderen?\n\nDit kan niet ongedaan gemaakt worden.`)) return
+
+    setBulkDeleting(true)
+    try {
+      const from = new Date(calYear, calMonth, 1).toISOString()
+      const to = new Date(calYear, calMonth + 1, 0, 23, 59, 59).toISOString()
+      const res = await fetch('/api/admin/social-posts/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from, to,
+          status: bulkDeleteFilter,
+          only_empty: bulkOnlyEmpty,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        alert(`${data.deleted} posts verwijderd uit ${monthLabel}.`)
+        setBulkDeleteOpen(false)
+        await load()
+      } else {
+        alert(data.error ?? 'Verwijderen mislukt')
+      }
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
   const platformInfo = (p: string) => PLATFORMS.find(x => x.value === p) ?? PLATFORMS[0]
   const statusInfo = (s: string) => STATUSES.find(x => x.value === s) ?? STATUSES[0]
   const categoryInfo = (c: string | null) => CATEGORIES.find(x => x.value === c) ?? null
@@ -373,6 +414,10 @@ export default function SocialPlannerPage() {
           <p className="text-gravida-sage mt-1 text-sm">Plan je posts per categorie en houd het overzicht. Klik op een dag om toe te voegen.</p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
+          <button onClick={() => setLegendOpen(o => !o)} className="btn-secondary"
+            title="Toon uitleg van kleuren en symbolen">
+            {legendOpen ? '✕ Legenda' : 'ℹ️ Legenda'}
+          </button>
           <button onClick={() => setIdeasModalOpen(true)} className="btn-secondary"
             title="Bekijk content-ideeën per categorie">
             💡 Ideeën
@@ -380,6 +425,11 @@ export default function SocialPlannerPage() {
           <button onClick={generateTemplate} className="btn-secondary"
             title="Genereer een standaard wekelijks ritme voor deze maand (Beeldjes, FAQ, Atelier, etc.)">
             ✨ Plan deze maand
+          </button>
+          <button onClick={() => setBulkDeleteOpen(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+            title="Verwijder posts uit deze maand">
+            🗑️ Wis maand
           </button>
           <button onClick={() => openNewModal()} className="btn-primary">+ Nieuwe post</button>
         </div>
@@ -411,6 +461,79 @@ export default function SocialPlannerPage() {
           </div>
         </div>
       </div>
+
+      {/* Legenda */}
+      {legendOpen && (
+        <div className="card mb-6 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div>
+              <p className="font-semibold text-gravida-green mb-2">Post-types (rij-kleur)</p>
+              <div className="space-y-1.5">
+                {POST_TYPES.map(t => (
+                  <div key={t.value} className="flex items-center gap-2">
+                    <span className={`inline-block w-4 h-4 rounded ${t.rowBg.replace('/60', '')} border border-gravida-cream`}></span>
+                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded ${t.badge}`}>
+                      <span>{t.emoji}</span><span>{t.label}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="font-semibold text-gravida-green mb-2">Categorieën (icoon)</p>
+              <div className="grid grid-cols-2 gap-1">
+                {CATEGORIES.map(c => (
+                  <span key={c.value} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px] ${c.color}`}>
+                    <span>{c.icon}</span><span>{c.value}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="font-semibold text-gravida-green mb-2">Status</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[11px]">Concept</span>
+                  <span className="text-gravida-light-sage">— nog uitwerken</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[11px]">⏱ Klaargezet</span>
+                  <span className="text-gravida-light-sage">— klaar om te plaatsen</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[11px]">✓ Geplaatst</span>
+                  <span className="text-gravida-light-sage">— online</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[11px]">Gemist</span>
+                  <span className="text-gravida-light-sage">— niet geplaatst</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="font-semibold text-gravida-green mb-2">Themadagen / feestdagen</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-4 h-4 rounded bg-pink-50/60 border border-pink-200"></span>
+                  <span>Commerciële dag (Moederdag, Valentijn, Sinterklaas, ...)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-4 h-4 rounded bg-amber-50/60 border border-amber-200"></span>
+                  <span>Themadag / feestdag</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span>💐 👑 🎄</span>
+                  <span>Emoji-badge in hoek = themadag (hover voor uitleg)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-4 h-4 rounded border-2 border-gravida-sage"></span>
+                  <span>Vandaag</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Calendar view */}
       {view === 'calendar' && (
@@ -988,6 +1111,57 @@ export default function SocialPlannerPage() {
               </p>
               <button onClick={() => setIdeasModalOpen(false)} className="text-xs px-3 py-1.5 rounded-lg border border-gravida-cream hover:border-gravida-sage">
                 Sluiten
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk-delete modal */}
+      {bulkDeleteOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+            <div className="p-6 border-b border-gravida-cream flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-red-700">🗑️ Wis posts uit {DUTCH_MONTHS[calMonth]} {calYear}</h2>
+                <p className="text-xs text-gravida-light-sage mt-1">Geplaatste posts blijven default behouden — kies hieronder welke je echt wilt verwijderen.</p>
+              </div>
+              <button onClick={() => setBulkDeleteOpen(false)}
+                className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center text-gravida-light-sage">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="label">Welke posts?</label>
+                <select className="input-field" value={bulkDeleteFilter} onChange={e => setBulkDeleteFilter(e.target.value as typeof bulkDeleteFilter)}>
+                  <option value="draft">Alleen Concepten</option>
+                  <option value="klaargezet">Alleen Klaargezet</option>
+                  <option value="gemist">Alleen Gemist</option>
+                  <option value="geplaatst">Alleen Geplaatst (let op!)</option>
+                  <option value="all">Alle statussen (gevaarlijk)</option>
+                </select>
+              </div>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input type="checkbox" checked={bulkOnlyEmpty} onChange={e => setBulkOnlyEmpty(e.target.checked)}
+                  className="mt-0.5" />
+                <span className="text-sm">
+                  <strong>Alleen lege posts</strong>
+                  <span className="block text-[11px] text-gravida-light-sage">
+                    Verwijdert alleen posts zonder titel, caption of media. Veiligst voor het opruimen van een gegenereerde template.
+                  </span>
+                </span>
+              </label>
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
+                ⚠️ Deze actie verwijdert posts permanent. Maak eerst een backup als je twijfelt.
+              </div>
+            </div>
+            <div className="p-4 border-t border-gravida-cream flex justify-end gap-2">
+              <button onClick={() => setBulkDeleteOpen(false)}
+                className="text-xs px-3 py-1.5 rounded-lg border border-gravida-cream hover:border-gravida-sage">
+                Annuleren
+              </button>
+              <button onClick={handleBulkDelete} disabled={bulkDeleting}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                {bulkDeleting ? 'Verwijderen...' : '🗑️ Verwijder'}
               </button>
             </div>
           </div>
