@@ -229,6 +229,7 @@ export default function BoekingenPage() {
   // ─── New booking helpers ───────────────────────────────────────────────────
   const [manualDate, setManualDate] = useState('')
   const [manualSlot, setManualSlot] = useState('')
+  const [forceManual, setForceManual] = useState(false)  // override planning, kies vrij
 
   const openNewModal = async () => {
     setShowNewModal(true)
@@ -238,6 +239,7 @@ export default function BoekingenPage() {
     setSelectedSlot('')
     setManualDate('')
     setManualSlot('')
+    setForceManual(false)
     setNewBookingError('')
     setNewBookingSuccess('')
     try {
@@ -254,7 +256,9 @@ export default function BoekingenPage() {
   const datesForRegion = availabilityList
     .filter(a => a.region === selectedRegion)
     .sort((a, b) => a.date.localeCompare(b.date))
+  // useManual = er is geen beschikbaarheid OF de gebruiker heeft expliciet "vrije datum" aangezet
   const hasAvailability = datesForRegion.length > 0
+  const useManual = forceManual || !hasAvailability
   const slotsForAvail = availabilityList.find(a => a.id === selectedAvailId)?.slots ?? []
 
   const handleNewBooking = async () => {
@@ -262,12 +266,12 @@ export default function BoekingenPage() {
       setNewBookingError('Selecteer een regio.')
       return
     }
-    // When there's availability, use it; otherwise use manual input
-    if (hasAvailability && (!selectedAvailId || !selectedSlot)) {
+    // useManual: er is geen beschikbaarheid OF gebruiker heeft 'vrije datum' aangezet
+    if (!useManual && (!selectedAvailId || !selectedSlot)) {
       setNewBookingError('Selecteer een datum en tijdslot.')
       return
     }
-    if (!hasAvailability && (!manualDate || !manualSlot)) {
+    if (useManual && (!manualDate || !manualSlot)) {
       setNewBookingError('Vul een datum en tijdslot in.')
       return
     }
@@ -285,7 +289,7 @@ export default function BoekingenPage() {
       let availId = selectedAvailId
       let timeSlot = selectedSlot
 
-      if (!hasAvailability || !availId) {
+      if (useManual || !availId) {
         timeSlot = manualSlot
         // Create an availability entry on-the-fly
         const availRes = await fetch('/api/admin/availability', {
@@ -578,7 +582,27 @@ export default function BoekingenPage() {
                           {ALL_REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                         </select>
                       </div>
+                      {/* Toggle: kies uit planning vs vrije datum */}
                       {selectedRegion && hasAvailability && (
+                        <div className="flex items-center justify-between text-xs bg-gravida-cream/40 rounded-lg px-3 py-2">
+                          <span className="text-gravida-sage">
+                            {useManual ? '📅 Vrije datum/tijd actief' : '📋 Kies uit planning'}
+                          </span>
+                          <button type="button"
+                            onClick={() => {
+                              setForceManual(v => !v)
+                              setSelectedAvailId(null)
+                              setSelectedSlot('')
+                              setManualDate('')
+                              setManualSlot('')
+                            }}
+                            className="text-gravida-green hover:underline font-medium">
+                            {useManual ? '↺ Terug naar planning' : '✏️ Kies vrije datum/tijd'}
+                          </button>
+                        </div>
+                      )}
+
+                      {selectedRegion && !useManual && hasAvailability && (
                         <div>
                           <label className="label">Datum *</label>
                           <select
@@ -598,7 +622,7 @@ export default function BoekingenPage() {
                           </select>
                         </div>
                       )}
-                      {selectedAvailId && (
+                      {selectedAvailId && !useManual && (
                         <div>
                           <label className="label">Tijdslot *</label>
                           <select
@@ -611,9 +635,11 @@ export default function BoekingenPage() {
                           </select>
                         </div>
                       )}
-                      {selectedRegion && !hasAvailability && (
+                      {selectedRegion && useManual && (
                         <>
-                          <p className="text-xs text-gravida-light-sage">Geen beschikbaarheid gevonden — vul handmatig in:</p>
+                          {!hasAvailability && (
+                            <p className="text-xs text-gravida-light-sage">Geen beschikbaarheid gevonden — vul handmatig in:</p>
+                          )}
                           <div>
                             <label className="label">Datum *</label>
                             <input type="date" className="input-field" value={manualDate} onChange={e => setManualDate(e.target.value)} />
@@ -622,6 +648,9 @@ export default function BoekingenPage() {
                             <label className="label">Tijdslot *</label>
                             <input type="time" className="input-field" value={manualSlot} onChange={e => setManualSlot(e.target.value)} placeholder="bijv. 14:00" />
                           </div>
+                          <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                            ⚠️ Bij vrije datum/tijd wordt automatisch een nieuwe beschikbaarheid aangemaakt voor deze regio op deze datum.
+                          </p>
                         </>
                       )}
                     </div>
