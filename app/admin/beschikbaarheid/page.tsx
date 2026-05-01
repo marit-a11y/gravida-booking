@@ -218,6 +218,24 @@ export default function BeschikbaarheidPage() {
   const [selectedWeekdays, setSelectedWeekdays] = useState<Set<number>>(new Set())
   const [linkWith, setLinkWith]         = useState<Set<number>>(new Set())
 
+  // Bookings voor de geopende dag (zodat we per slot kunnen tonen wie er zit)
+  interface SlotBooking {
+    id: number
+    time_slot: string
+    first_name: string
+    last_name: string
+    address: string
+    city: string
+    zip_code: string
+    phone: string
+    email: string
+    pregnancy_weeks: number | null
+    notes: string | null
+    customer_number: string
+  }
+  const [slotBookings, setSlotBookings] = useState<SlotBooking[]>([])
+  const [slotBookingsLoading, setSlotBookingsLoading] = useState(false)
+
   // Bulk modal
   const [bulkOpen, setBulkOpen]           = useState(false)
   const [bulkMode, setBulkMode]           = useState<'week' | 'month'>('week')
@@ -399,6 +417,22 @@ export default function BeschikbaarheidPage() {
       setLinkWith(new Set())
     }
     setError(''); setModalOpen(true)
+
+    // Boekingen voor deze dag + regio ophalen zodat we per slot kunnen tonen
+    // wie er staat ingepland (naam, adres, telefoon)
+    setSlotBookings([])
+    if ((avail.booked_slots?.length ?? 0) > 0) {
+      setSlotBookingsLoading(true)
+      fetch(`/api/admin/bookings?date=${avail.date}&region=${encodeURIComponent(avail.region)}`)
+        .then(r => r.json())
+        .then(data => {
+          const bookings = (data.bookings ?? [])
+            .filter((b: { status: string }) => b.status !== 'geannuleerd')
+          setSlotBookings(bookings)
+        })
+        .catch(err => console.error('Fetch slot bookings error:', err))
+        .finally(() => setSlotBookingsLoading(false))
+    }
   }
 
   const previewSlots  = generateSlotsForRegion(form.start_time, form.end_time, form.region)
@@ -884,7 +918,7 @@ export default function BeschikbaarheidPage() {
               {editingId && editingAvail && editingAvail.slots.length > 0 && (
                 <div className="bg-gravida-off-white rounded-xl border border-gravida-cream p-3">
                   <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Bezetting</p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 mb-2">
                     {editingAvail.slots.map(slot => {
                       const booked = editingAvail.booked_slots?.includes(slot)
                       const [h, m] = slot.split(':').map(Number)
@@ -900,8 +934,60 @@ export default function BeschikbaarheidPage() {
                       )
                     })}
                   </div>
-                  {(editingAvail.booked_slots?.length ?? 0) === 0 && (
+                  {(editingAvail.booked_slots?.length ?? 0) === 0 ? (
                     <p className="text-xs text-gravida-light-sage mt-1">Nog geen boekingen op deze dag.</p>
+                  ) : (
+                    <div className="mt-3 pt-3 border-t border-gravida-cream/70">
+                      <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">
+                        🚗 Wie staat ingepland?
+                      </p>
+                      {slotBookingsLoading ? (
+                        <p className="text-xs text-gravida-light-sage italic">Laden...</p>
+                      ) : slotBookings.length === 0 ? (
+                        <p className="text-xs text-gravida-light-sage italic">Geen boekingsdetails gevonden.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {slotBookings
+                            .sort((a, b) => a.time_slot.localeCompare(b.time_slot))
+                            .map(b => {
+                              const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${b.address}, ${b.zip_code} ${b.city}`)}`
+                              return (
+                                <div key={b.id} className="bg-white rounded-lg border border-gravida-cream p-2.5 text-xs">
+                                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                                    <div>
+                                      <span className="inline-block bg-red-50 text-red-700 font-mono font-semibold px-1.5 py-0.5 rounded text-[11px] mr-1.5">
+                                        {b.time_slot}
+                                      </span>
+                                      <span className="font-medium text-gravida-green">{b.first_name} {b.last_name}</span>
+                                      {b.pregnancy_weeks && (
+                                        <span className="ml-1.5 text-[10px] text-gravida-light-sage">· {b.pregnancy_weeks}w</span>
+                                      )}
+                                    </div>
+                                    <a href={`/admin/boekingen?id=${b.id}`} target="_blank" rel="noopener noreferrer"
+                                       className="text-[10px] text-gravida-sage hover:text-gravida-green underline shrink-0">
+                                      details →
+                                    </a>
+                                  </div>
+                                  <div className="flex items-start gap-1 text-gravida-sage">
+                                    <span className="shrink-0">📍</span>
+                                    <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                                       className="hover:text-gravida-green hover:underline">
+                                      {b.address}, {b.zip_code} {b.city}
+                                    </a>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1 text-[11px]">
+                                    <a href={`tel:${b.phone}`} className="text-gravida-sage hover:text-gravida-green">📞 {b.phone}</a>
+                                    <a href={`mailto:${b.email}`} className="text-gravida-sage hover:text-gravida-green truncate">✉️ {b.email}</a>
+                                  </div>
+                                  {b.notes && (
+                                    <p className="text-[11px] text-gravida-light-sage italic mt-1 line-clamp-2">💬 {b.notes}</p>
+                                  )}
+                                </div>
+                              )
+                            })}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
