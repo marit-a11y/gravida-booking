@@ -60,6 +60,7 @@ const EMPTY_FORM = {
   zip_code: '',
   pregnancy_weeks: '',
   notes: '',
+  internal_notes: '',
 }
 
 export default function BoekingenPage() {
@@ -320,6 +321,7 @@ export default function BoekingenPage() {
           ...newForm,
           pregnancy_weeks: newForm.pregnancy_weeks || undefined,
           notes: newForm.notes || undefined,
+          internal_notes: newForm.internal_notes || undefined,
         }),
       })
       if (res.ok) {
@@ -692,8 +694,18 @@ export default function BoekingenPage() {
                         <input type="number" className="input-field" value={newForm.pregnancy_weeks} onChange={e => setNewForm(f => ({ ...f, pregnancy_weeks: e.target.value }))} />
                       </div>
                       <div className="col-span-2">
-                        <label className="label">Opmerkingen</label>
-                        <textarea className="input-field" rows={2} value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} />
+                        <label className="label">Opmerking klant</label>
+                        <textarea className="input-field" rows={2}
+                          placeholder="Wat de klant zelf doorgaf — komt mee in de bevestigingsmail"
+                          value={newForm.notes}
+                          onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="label">Interne opmerking</label>
+                        <textarea className="input-field bg-amber-50/40" rows={2}
+                          placeholder="Alleen voor team — niet zichtbaar voor klant"
+                          value={newForm.internal_notes}
+                          onChange={e => setNewForm(f => ({ ...f, internal_notes: e.target.value }))} />
                       </div>
                     </div>
                   </Section>

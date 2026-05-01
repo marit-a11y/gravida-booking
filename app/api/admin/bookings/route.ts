@@ -174,6 +174,7 @@ export async function POST(request: NextRequest) {
       zip_code,
       pregnancy_weeks,
       notes,
+      internal_notes,
     } = body
 
     if (!availability_id || !time_slot || !first_name || !last_name || !email || !phone || !address || !city || !zip_code) {
@@ -192,6 +193,7 @@ export async function POST(request: NextRequest) {
       zip_code: zip_code.trim(),
       pregnancy_weeks: pregnancy_weeks ? parseInt(pregnancy_weeks) : undefined,
       notes: notes?.trim() || undefined,
+      internal_notes: internal_notes?.trim() || undefined,
     })
 
     // Send confirmation + staff notification emails (non-blocking)

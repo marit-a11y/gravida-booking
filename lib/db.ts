@@ -59,6 +59,7 @@ export interface CreateBookingInput {
   zip_code: string
   pregnancy_weeks?: number
   notes?: string
+  internal_notes?: string
 }
 
 // ─── Availability ─────────────────────────────────────────────────────────────
@@ -345,7 +346,7 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
     INSERT INTO bookings (
       customer_number, availability_id, time_slot,
       first_name, last_name, email, phone,
-      address, city, zip_code, pregnancy_weeks, notes,
+      address, city, zip_code, pregnancy_weeks, notes, internal_notes,
       date, region
     ) VALUES (
       ${customerNumber},
@@ -360,6 +361,7 @@ export async function createBooking(input: CreateBookingInput): Promise<Booking>
       ${input.zip_code},
       ${input.pregnancy_weeks ?? null},
       ${input.notes ?? null},
+      ${input.internal_notes ?? null},
       ${date}::date,
       ${region}
     )
