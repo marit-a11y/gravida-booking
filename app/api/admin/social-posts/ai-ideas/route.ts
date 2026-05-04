@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { getEventForDate, getEventsForMonth } from '@/lib/social-themes'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 90
 
 interface IdeaSuggestion {
   title: string
