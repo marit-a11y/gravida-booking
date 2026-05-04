@@ -27,8 +27,9 @@ export async function POST(request: NextRequest) {
       post_type,
       date,           // YYYY-MM-DD optional
       count = 5,
-      mode = 'ideas', // 'ideas' = brainstorm 5 ideeen, 'caption' = volledige caption op basis van titel
+      mode = 'ideas', // 'ideas' = brainstorm 5 ideeen, 'caption' = volledige caption op basis van titel, 'custom' = 5 captions op basis van eigen context
       title,          // bij mode='caption'
+      custom_context, // bij mode='custom' of als extra info bij andere modes
     } = body
 
     // Vind events rond de datum. We onderscheiden 3 zones:
@@ -77,8 +78,47 @@ Brand context — Gravida:
 - Geen overdreven sales taal, wel duidelijke call-to-actions
 `.trim()
 
+    const customBlock = custom_context && typeof custom_context === 'string' && custom_context.trim()
+      ? `\n\n## EIGEN CONTEXT VAN MARIT (heel belangrijk — verwerk dit in elk idee)\n${custom_context.trim()}`
+      : ''
+
     let prompt: string
-    if (mode === 'caption' && title) {
+    if (mode === 'custom' && custom_context) {
+      // 5 verschillende captions voor dezelfde context (verschillende toon/insteek)
+      prompt = `${brand}
+
+Marit heeft een specifieke post in gedachten en heeft hieronder de context beschreven.
+Schrijf ${count} VERSCHILLENDE caption-varianten voor dezelfde post, zodat ze kan kiezen welke het beste past.
+
+${category ? `Categorie: ${category}` : ''}
+${post_type ? `Post type: ${post_type}` : ''}
+${eventContext}
+${customBlock}
+
+VARIATIE-INSTRUCTIE — geef 5 verschillende invalshoeken:
+1. Persoonlijk/warm verhalend
+2. Educatief/informatief
+3. Speels/luchtig
+4. Sfeervol/poëtisch met focus op gevoel
+5. Recht-toe-recht-aan met duidelijke CTA
+
+Elke variant mag in titel iets anders benadrukken. Hou hashtags relevant en consistent.
+
+Geef terug als JSON met exact dit format:
+{
+  "ideas": [
+    {
+      "title": "<korte titel max 60 tekens — varieer per variant>",
+      "caption": "<de caption, 2-6 zinnen, met passende emoji's, eindigend met een vraag of CTA>",
+      "hashtags": "<10-15 relevante hashtags op één regel, beginnend met #>",
+      "post_type": "${post_type ?? 'feed'}",
+      "reasoning": "<1 zin: welke insteek (verhalend / educatief / speels / sfeervol / recht-toe-recht-aan)>"
+    }
+  ]
+}
+
+Alleen JSON, geen verdere uitleg.`
+    } else if (mode === 'caption' && title) {
       prompt = `${brand}
 
 Schrijf een Instagram post voor Gravida.
@@ -87,6 +127,7 @@ Categorie: ${category ?? 'algemeen'}
 Post type: ${post_type ?? 'feed'}
 Titel/onderwerp: ${title}
 ${eventContext}
+${customBlock}
 
 Geef terug als JSON met exact dit format:
 {
@@ -109,6 +150,7 @@ Brainstorm ${count} concrete Instagram post-ideeën voor Gravida.
 ${category ? `Categorie: ${category}` : 'Categorie: vrij — kies wat past bij Gravida'}
 ${post_type ? `Post type: ${post_type}` : 'Post type: kies passend per idee (feed / story / reel / carousel)'}
 ${eventContext}
+${customBlock}
 
 BELANGRIJKE REGEL — TIMING:
 - Refereer alleen aan een feestdag of themadag als die ook ECHT op of vlak vóór de geplande datum valt (zie DATUM-CONTEXT hierboven).

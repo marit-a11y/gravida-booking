@@ -114,6 +114,8 @@ export default function SocialPlannerPage() {
   const [aiIdeas, setAiIdeas] = useState<Array<{
     title: string; caption: string; hashtags: string; post_type: string; reasoning?: string
   }>>([])
+  const [aiCustomContext, setAiCustomContext] = useState('')
+  const [aiContextOpen, setAiContextOpen] = useState(false)
 
   // Events (feestdagen / themadagen) voor zichtbare maand + buffer
   const monthEvents = useMemo(() => {
@@ -328,7 +330,7 @@ export default function SocialPlannerPage() {
   }
 
   // ── AI ideeen genereren (binnen edit-modal) ─────────────────────────────
-  const generateAiIdeas = async (mode: 'ideas' | 'caption') => {
+  const generateAiIdeas = async (mode: 'ideas' | 'caption' | 'custom') => {
     setAiLoading(true); setAiError(''); setAiIdeas([])
     try {
       const date = form.scheduled_for_local
@@ -343,6 +345,7 @@ export default function SocialPlannerPage() {
           post_type: form.post_type || 'feed',
           date,
           title: mode === 'caption' ? form.title : undefined,
+          custom_context: aiCustomContext.trim() || undefined,
           count: 5,
         }),
       })
@@ -822,10 +825,21 @@ export default function SocialPlannerPage() {
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <p className="text-xs font-semibold text-purple-800 uppercase tracking-wide">✨ AI assistent</p>
                   <div className="flex gap-1.5 flex-wrap">
+                    <button type="button" onClick={() => setAiContextOpen(o => !o)}
+                      className={`text-[11px] font-medium px-2.5 py-1 rounded-md border transition-colors
+                        ${aiCustomContext.trim() ? 'bg-purple-100 border-purple-400 text-purple-800' : 'bg-white border-purple-300 text-purple-700 hover:bg-purple-100'}`}>
+                      {aiContextOpen ? '✕ Context sluiten' : aiCustomContext.trim() ? '📝 Eigen context (ingevuld)' : '➕ Eigen context'}
+                    </button>
                     <button type="button" onClick={() => generateAiIdeas('ideas')} disabled={aiLoading}
                       className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50">
                       {aiLoading ? '⏳ Bezig...' : '💡 Genereer 5 ideeën'}
                     </button>
+                    {aiCustomContext.trim() && (
+                      <button type="button" onClick={() => generateAiIdeas('custom')} disabled={aiLoading}
+                        className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-fuchsia-600 text-white hover:bg-fuchsia-700 disabled:opacity-50">
+                        🎯 5 captions o.b.v. context
+                      </button>
+                    )}
                     {form.title && (
                       <button type="button" onClick={() => generateAiIdeas('caption')} disabled={aiLoading}
                         className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-white border border-purple-300 text-purple-700 hover:bg-purple-100 disabled:opacity-50">
@@ -834,6 +848,24 @@ export default function SocialPlannerPage() {
                     )}
                   </div>
                 </div>
+                {aiContextOpen && (
+                  <div className="bg-white rounded-lg border border-purple-200 p-2.5">
+                    <label className="text-[11px] font-medium text-purple-800 block mb-1">
+                      📝 Beschrijf de post die je in gedachten hebt
+                    </label>
+                    <textarea
+                      rows={4}
+                      className="w-full text-xs px-2 py-1.5 border border-purple-200 rounded focus:outline-none focus:border-purple-500"
+                      placeholder="Bijv: Ik heb een foto van 2 gegoten beeldjes als sneak preview. Bonnie, onze supervisor van het bronsteam, is naar het buitenland geweest om in de leer te gaan bij de meesters op dit gebied. Ik wil dit delen als sneak preview van wat eraan komt."
+                      value={aiCustomContext}
+                      onChange={e => setAiCustomContext(e.target.value)}
+                    />
+                    <p className="text-[10px] text-purple-700/70 mt-1">
+                      Tip: hoe specifieker, hoe beter. Noemen wie/wat/waarom geeft de AI iets om mee te werken.
+                      Klik daarna &quot;🎯 5 captions o.b.v. context&quot; voor 5 verschillende invalshoeken.
+                    </p>
+                  </div>
+                )}
                 {aiError && <p className="text-[11px] text-red-600">{aiError}</p>}
                 {aiIdeas.length > 0 && (
                   <div className="space-y-2 max-h-72 overflow-y-auto">
