@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { getEventForDate, getEventsForMonth } from '@/lib/social-themes'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 30
+export const maxDuration = 60
 
 interface IdeaSuggestion {
   title: string
@@ -176,9 +176,12 @@ Alleen JSON, geen verdere uitleg.`
     }
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    // Custom-context modus heeft veel output (5 captions x 5 zinnen + hashtags)
+    // — geef wat extra ruimte, anders gewoon 2000 tokens.
+    const maxTokens = mode === 'custom' ? 3500 : 2000
     const response = await client.messages.create({
       model: 'claude-sonnet-4-5',
-      max_tokens: 2500,
+      max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     })
 
