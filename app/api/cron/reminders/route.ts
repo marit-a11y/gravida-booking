@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
           email: booking.email,
           date: booking.date,
           time_slot: booking.time_slot,
+          region: booking.region,
         })
 
         // Mark reminder as sent

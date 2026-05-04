@@ -19,6 +19,24 @@ function formatDutchDate(dateStr: string): string {
   return `${DUTCH_DAYS[dt.getDay()]} ${d} ${DUTCH_MONTHS[m - 1]} ${y}`
 }
 
+// ─── Scan-type detectie ──────────────────────────────────────────────────────
+// Gravida heeft 3 soorten boekingen:
+//  - Thuisscan (default): NH&Flevoland, ZH, U/Geld/Ov, Brabant, Limburg,
+//    Gron/Fr/Drenthe, Curacao
+//  - Studio/showroom in Haarlem: 'Haarlem studioscan', 'Family scan Haarlem',
+//    'Showroom bezoek Haarlem'
+// De copy in mails moet hierop aangepast worden — anders krijgt iemand met
+// een studioscan een mail over "ik kom bij je langs".
+type ScanType = 'thuis' | 'studio' | 'showroom'
+
+export function detectScanType(region: string | null | undefined): ScanType {
+  if (!region) return 'thuis'
+  const r = region.toLowerCase()
+  if (r.includes('showroom')) return 'showroom'
+  if (r.includes('studioscan') || r.includes('studio scan') || r.includes('family scan')) return 'studio'
+  return 'thuis'
+}
+
 // ─── Shared layout wrapper ────────────────────────────────────────────────────
 
 function layout(content: string): string {
@@ -83,15 +101,39 @@ function customerEmailHtml(params: {
   const p = (text: string) =>
     `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
 
+  const scanType = detectScanType(params.region)
+
+  // Per scan-type: andere intro, andere praktische uitleg, andere afsluiting
+  let intro: string
+  let practical: string
+  let scheduling: string
+  let closing: string
+  if (scanType === 'studio') {
+    intro = 'Wat leuk dat je een 3D scan in onze studio in Haarlem hebt geboekt. Ik kijk ernaar uit om je te zien.'
+    practical = 'De studio is rustig en sfeervol ingericht — je hoeft thuis niets voor te bereiden. Eet en drink gerust iets voor je komt zodat de baby actief is. Reken op ongeveer een half uur voor de scan zelf, plus tijd om de beelden samen te bekijken.'
+    scheduling = 'Mocht je toch nog willen schuiven met de tijd, laat het me dan even op tijd weten zodat we het in de planning kunnen aanpassen.'
+    closing = 'Tot snel in de studio,'
+  } else if (scanType === 'showroom') {
+    intro = 'Wat leuk dat je langskomt in onze showroom in Haarlem. Ik kijk ernaar uit om je te ontvangen.'
+    practical = 'In de showroom kunnen we samen rustig onze beeldjes bekijken en bespreken wat het beste bij jou past. Reken op ongeveer een half uur voor je bezoek.'
+    scheduling = 'Mocht je toch nog willen schuiven met de tijd, laat het me dan even op tijd weten.'
+    closing = 'Tot snel,'
+  } else {
+    intro = 'Wat leuk dat je een scan aan huis hebt geboekt. Ik kijk ernaar uit om bij je langs te komen.'
+    practical = 'Omdat ik bij jou thuis scan, is het fijn als je alvast een plekje in huis uitkiest waar we rustig kunnen werken. Ik moet tijdens het scannen goed om je heen kunnen lopen, dus een beetje ruimte is belangrijk. Qua licht werkt een plek met gelijkmatig daglicht het mooist. Liefst niet recht voor een raam, omdat dat vaak te veel tegenlicht geeft.'
+    scheduling = 'Mocht het voor de planning in de regio handiger zijn om iets met de tijd te schuiven, dan neem ik vooraf nog even contact met je op. Uiteraard altijd in overleg.'
+    closing = 'Tot snel bij jou thuis,'
+  }
+
   return layout(`
     ${p(`Hi ${params.first_name},`)}
-    ${p('Wat leuk dat je een scan aan huis hebt geboekt. Ik kijk ernaar uit om bij je langs te komen.')}
+    ${p(intro)}
     ${p(`Hierbij bevestig ik je afspraak op <strong>${dateFormatted}</strong> om <strong>${params.time_slot}</strong>.`)}
-    ${p('Omdat ik bij jou thuis scan, is het fijn als je alvast een plekje in huis uitkiest waar we rustig kunnen werken. Ik moet tijdens het scannen goed om je heen kunnen lopen, dus een beetje ruimte is belangrijk. Qua licht werkt een plek met gelijkmatig daglicht het mooist. Liefst niet recht voor een raam, omdat dat vaak te veel tegenlicht geeft.')}
-    ${p('Mocht het voor de planning in de regio handiger zijn om iets met de tijd te schuiven, dan neem ik vooraf nog even contact met je op. Uiteraard altijd in overleg.')}
+    ${p(practical)}
+    ${p(scheduling)}
     ${p('Twijfel je nog over kleding of heb je ergens vragen over, stuur me gerust even een berichtje. Ik denk graag met je mee.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
-      Tot snel bij jou thuis,<br/>
+      ${closing}<br/>
       <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
@@ -171,19 +213,35 @@ function reminderEmailHtml(params: {
   first_name: string
   date: string
   time_slot: string
+  region?: string | null
 }): string {
   const dateFormatted = formatDutchDate(params.date)
+  const scanType = detectScanType(params.region)
 
   const p = (text: string) =>
     `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
 
+  // Intro + closing variëren per scan-type
+  let intro: string
+  let closing: string
+  if (scanType === 'studio') {
+    intro = `Fijn dat je volgende week een 3D scan in de studio in Haarlem hebt geboekt! Ik wil je er graag alvast aan herinneren dat onze afspraak is op <strong>${dateFormatted}</strong> om <strong>${params.time_slot}</strong>.`
+    closing = 'Tot volgende week in de studio,'
+  } else if (scanType === 'showroom') {
+    intro = `Fijn dat je volgende week langs komt in de showroom in Haarlem! Ik wil je er graag alvast aan herinneren dat onze afspraak is op <strong>${dateFormatted}</strong> om <strong>${params.time_slot}</strong>.`
+    closing = 'Tot volgende week,'
+  } else {
+    intro = `Fijn dat je volgende week een scan aan huis hebt geboekt! Ik wil je er graag alvast aan herinneren dat onze afspraak is op <strong>${dateFormatted}</strong> om <strong>${params.time_slot}</strong>.`
+    closing = 'Tot snel bij jou thuis,'
+  }
+
   return layout(`
     ${p(`Hi ${params.first_name},`)}
-    ${p(`Fijn dat je volgende week een scan aan huis hebt geboekt! Ik wil je er graag alvast aan herinneren dat onze afspraak is op <strong>${dateFormatted}</strong> om <strong>${params.time_slot}</strong>.`)}
+    ${p(intro)}
     ${p('Heb je in de tussentijd iets veranderd of wil je de afspraak annuleren? Stuur me dan even een berichtje, dan zoeken we samen naar een oplossing.')}
     ${p('Tot volgende week!')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
-      Tot snel bij jou thuis,<br/>
+      ${closing}<br/>
       <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
@@ -194,6 +252,7 @@ export async function sendReminderEmail(params: {
   email: string
   date: string
   time_slot: string
+  region?: string | null
 }): Promise<void> {
   if (!process.env.RESEND_API_KEY) return
   const dateFormatted = formatDutchDate(params.date)
