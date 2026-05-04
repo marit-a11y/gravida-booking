@@ -1014,8 +1014,8 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
     bijzonderheidBlokken.push(`
       <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
         Op jouw scan zagen we één of meerdere moedervlekken. Standaard worden moedervlekken weggewerkt tijdens de bewerking.
-        Wil je dat jouw moedervlek(ken) zichtbaar blijven? Geef het ons dan even aan — we verdikken deze digitaal
-        zodat de kans groter is dat ze alle bewerkingsstappen intact blijven.
+        Wil je dat jouw moedervlek(ken) zichtbaar blijven? Laat het ons dan even weten. We benadrukken ze dan
+        digitaal, zodat de kans groter is dat ze tijdens alle bewerkingsstappen zichtbaar blijven.
       </p>`)
   }
 
@@ -1023,8 +1023,8 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
     bijzonderheidBlokken.push(`
       <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
         Op jouw scan zagen we één of meerdere tattoo's. Standaard worden tattoos weggewerkt tijdens de bewerking.
-        Wil je dat jouw tattoo('s) zichtbaar blijven? Geef het ons dan even aan — we versterken de contouren digitaal
-        zodat de kans groter is dat ze alle bewerkingsstappen intact blijven.
+        Wil je dat jouw tattoo('s) zichtbaar blijven? Laat het ons dan even weten. We versterken de contouren dan
+        digitaal, zodat de kans groter is dat ze tijdens alle bewerkingsstappen zichtbaar blijven.
       </p>`)
   }
 
@@ -1032,8 +1032,8 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
     bijzonderheidBlokken.push(`
       <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
         Op jouw scan zagen we sieraden of piercings. Standaard worden deze weggewerkt tijdens de bewerking.
-        Wil je dat jouw sieraden of piercings zichtbaar blijven? Geef het ons dan even aan — we versterken
-        deze digitaal zodat de kans groter is dat ze alle bewerkingsstappen intact blijven.
+        Wil je dat jouw sieraden of piercings zichtbaar blijven? Laat het ons dan even weten. We versterken
+        ze dan digitaal, zodat de kans groter is dat ze tijdens alle bewerkingsstappen zichtbaar blijven.
       </p>`)
   }
 
@@ -1065,7 +1065,7 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
     </p>
 
     <p style="margin:0 0 16px;font-size:15px;color:#3d4d3e;line-height:1.75;">
-      Goed nieuws — je scans zijn uitgezocht en goedgekeurd! Complimenten voor de scanner en uiteraard voor het model. 😊
+      Goed nieuws! Je scans zijn uitgezocht en goedgekeurd. Complimenten voor degene die jou heeft gescand en uiteraard voor het model. 😊
     </p>
 
     <p style="margin:0 0 24px;font-size:15px;color:#3d4d3e;line-height:1.75;">
@@ -1087,7 +1087,7 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
     ${p.extra_wensen ? `
     <hr style="border:none;border-top:1px solid #e8e6e0;margin:20px 0;"/>
     <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#7a8e7c;text-transform:uppercase;letter-spacing:1px;">
-      Notitie van ons
+      Overige notitie(s) van het digitaal team:
     </p>
     <p style="margin:0;font-size:15px;color:#3d4d3e;line-height:1.75;">${p.extra_wensen}</p>
     ` : ''}
@@ -1095,7 +1095,7 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
     <hr style="border:none;border-top:1px solid #e8e6e0;margin:24px 0;"/>
 
     <p style="margin:0 0 16px;font-size:15px;color:#3d4d3e;line-height:1.75;">
-      Zodra je akkoord geeft — eventueel met je aanvullende wensen — gaan we voor je aan de slag
+      Zodra je akkoord geeft, eventueel met je aanvullende wensen, gaan we voor je aan de slag
       met de bewerking en productie van je beeldje.
     </p>
 
