@@ -815,18 +815,21 @@ export async function sendDiyRentalUpdateStaffEmail(params: {
 
 function diyRentalShippedEmailHtml(params: {
   first_name: string
-  rental_week: string
+  rental_id: number
   customer_number?: string | null
   tracking_url?: string | null
 }): string {
-  const weekFormatted = formatDiyWeek(params.rental_week)
   const p = (text: string) =>
     `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  const SCAN_INSTRUCTIONS_URL = 'https://www.canva.com/design/DAG4lcMpzJE/8awIbZlbFeTYqChjOdqLRA/view?utm_content=DAG4lcMpzJE&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hefd454b0ed'
+  const VIDEO_URL = 'https://drive.google.com/file/d/1fV2bDR3jxXnEOjcmv21e2mqUouQl8w0n/view?usp=sharing'
+  const SUPPORT_CALL_URL = `https://dashboard.gravida.nl/diy-support-call?id=${params.rental_id}`
 
   const trackingBlock = params.tracking_url ? `
     <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:8px 0 24px;">
       <tr><td style="padding:18px 22px;text-align:center;">
-        <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Track & trace</p>
+        <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Track &amp; trace</p>
         <a href="${params.tracking_url}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
           Volg je pakket →
         </a>
@@ -838,24 +841,30 @@ function diyRentalShippedEmailHtml(params: {
       📦 Je scanner is onderweg!
     </p>
     ${p(`Hi ${params.first_name},`)}
-    ${p(`Goed nieuws! De DIY 3D scan kit voor jouw reservering (${weekFormatted}) is vandaag verstuurd. Je ontvangt 'm naar verwachting <strong>morgen</strong>.`)}
+    ${p('Goed nieuws, je DIY 3D-scankit is naar je onderweg.')}
     ${trackingBlock}
-    ${p('Zodra het pakket binnen is kun je gelijk aan de slag. In de doos vind je een handleiding met stap-voor-stap uitleg, plus een retourlabel voor als je klaar bent.')}
-    ${p('Even kort de planning herhalen:')}
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
-      <tr><td style="padding:18px 22px;">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          <tr><td style="padding:4px 0;font-size:13px;color:#8a9e8c;width:120px;">📦 Verzonden</td><td style="padding:4px 0;font-size:14px;color:#1e2d1f;">vandaag</td></tr>
-          <tr><td style="padding:4px 0;font-size:13px;color:#8a9e8c;">📬 Bezorgd</td><td style="padding:4px 0;font-size:14px;color:#1e2d1f;">morgen</td></tr>
-          <tr><td style="padding:4px 0;font-size:13px;color:#8a9e8c;">📷 Scannen</td><td style="padding:4px 0;font-size:14px;color:#1e2d1f;">donderdag t/m zondag</td></tr>
-          <tr><td style="padding:4px 0;font-size:13px;color:#8a9e8c;">↩️ Retour sturen</td><td style="padding:4px 0;font-size:14px;color:#1e2d1f;">uiterlijk maandag</td></tr>
-        </table>
-      </td></tr>
-    </table>
-    ${p('Heb je tijdens het scannen een vraag of werkt er iets niet zoals verwacht? Stuur ons gerust een berichtje, we helpen je graag verder.')}
+    ${p(`Graag verwijs ik je naar onderstaande link, voor duidelijke scaninstructies:`)}
+    <p style="margin:0 0 18px;font-size:15px;line-height:1.75;">
+      <a href="${SCAN_INSTRUCTIONS_URL}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
+        📄 Scaninstructies
+      </a>
+    </p>
+    ${p('Daarnaast kun je onderstaande instructievideo bekijken waarin we stap voor stap laten zien hoe het scanproces werkt.')}
+    <p style="margin:0 0 18px;font-size:15px;line-height:1.75;">
+      <a href="${VIDEO_URL}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
+        🎬 Instructievideo
+      </a>
+    </p>
+    ${p('Waarschijnlijk wil je meteen zelf met de scanner aan de slag. Dat begrijpen we helemaal. Mocht je toch ondersteuning willen, dan kijken we graag met je mee. Vraag via onderstaande knop een call aan:')}
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.75;">
+      <a href="${SUPPORT_CALL_URL}" style="display:inline-block;background:#7c4a8e;color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
+        📞 Boek een support call
+      </a>
+    </p>
+    ${p('Je kunt ons daarnaast altijd bereiken via de contactgegevens hieronder.')}
     ${params.customer_number ? p(`Je klantnummer is <strong>${params.customer_number}</strong> — handig om bij de hand te hebben als je contact opneemt.`) : ''}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
-      Veel succes en plezier!<br/>
+      Heel veel plezier met het maken van je scan!<br/>
       <strong style="color:#1e2d1f;">Team Gravida</strong>
     </p>
   `)
@@ -864,7 +873,7 @@ function diyRentalShippedEmailHtml(params: {
 export async function sendDiyRentalShippedEmail(params: {
   first_name: string
   email: string
-  rental_week: string
+  rental_id: number
   customer_number?: string | null
   tracking_url?: string | null
 }): Promise<void> {
@@ -877,6 +886,69 @@ export async function sendDiyRentalShippedEmail(params: {
     to: params.email,
     subject: '📦 Je DIY 3D scan kit is onderweg!',
     html: diyRentalShippedEmailHtml(params),
+  })
+}
+
+// ─── DIY Support call staff notificatie ───────────────────────────────────────
+
+export async function sendDiySupportCallStaffEmail(params: {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  customer_number: string | null
+  message: string
+  rental_id: number
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const staffEmail = (process.env.STAFF_EMAIL ?? '').trim()
+  if (!staffEmail) return
+
+  const messageHtml = params.message
+    ? params.message
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/\n/g, '<br/>')
+    : '(geen bericht meegegeven)'
+
+  const html = layout(`
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:600;color:#1e2d1f;">
+      📞 Support call aangevraagd
+    </h1>
+    <p style="margin:0 0 24px;font-size:15px;color:#5a6e5c;">
+      ${params.first_name} ${params.last_name} heeft via de DIY-mail een support call aangevraagd.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:22px 28px;">
+        <p style="margin:0 0 14px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Klantgegevens</p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:5px 0;font-size:13px;color:#8a9e8c;width:140px;">👤 Naam</td><td style="padding:5px 0;font-size:14px;color:#1e2d1f;">${params.first_name} ${params.last_name}</td></tr>
+          <tr><td style="padding:5px 0;font-size:13px;color:#8a9e8c;">📧 E-mail</td><td style="padding:5px 0;font-size:14px;"><a href="mailto:${params.email}" style="color:${BRAND_GREEN};">${params.email}</a></td></tr>
+          <tr><td style="padding:5px 0;font-size:13px;color:#8a9e8c;">📞 Telefoon</td><td style="padding:5px 0;font-size:14px;"><a href="tel:${params.phone}" style="color:${BRAND_GREEN};">${params.phone}</a></td></tr>
+          ${params.customer_number ? `<tr><td style="padding:5px 0;font-size:13px;color:#8a9e8c;">🔑 Klantnr.</td><td style="padding:5px 0;font-size:14px;color:#1e2d1f;">${params.customer_number}</td></tr>` : ''}
+        </table>
+      </td></tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:18px 22px;">
+        <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#7c4a8e;text-transform:uppercase;letter-spacing:1px;">💬 Bericht klant</p>
+        <p style="margin:0;font-size:14px;color:#3d4d3e;line-height:1.7;">${messageHtml}</p>
+      </td></tr>
+    </table>
+
+    <a href="https://dashboard.gravida.nl/admin/diy-scanners"
+       style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-size:14px;font-weight:500;">
+      Open reservering →
+    </a>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: staffEmail,
+    replyTo: params.email,
+    subject: `📞 Support call aangevraagd: ${params.first_name} ${params.last_name}`,
+    html,
   })
 }
 

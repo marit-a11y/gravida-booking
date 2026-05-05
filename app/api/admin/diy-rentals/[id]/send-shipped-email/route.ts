@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     await sendDiyRentalShippedEmail({
       first_name: rental.first_name,
       email: rental.email,
-      rental_week: rental.rental_week,
+      rental_id: rental.id,
       customer_number: rental.customer_number,
       tracking_url: trackingUrl,
     })

@@ -29,6 +29,8 @@ interface Rental {
   customer_number: string | null
   notes: string | null
   internal_notes: string | null
+  support_call_requested_at: string | null
+  support_call_message: string | null
   created_at: string
 }
 
@@ -323,7 +325,12 @@ export default function DiyScannerPage() {
               <div key={r.id} className="border border-gravida-cream rounded-xl p-4 space-y-2" onClick={() => setDetailRental(r)}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">{r.first_name} {r.last_name}</p>
+                    <p className="font-medium flex items-center gap-1.5">
+                      {r.first_name} {r.last_name}
+                      {r.support_call_requested_at && (
+                        <span title="Support call aangevraagd" className="text-purple-600">📞</span>
+                      )}
+                    </p>
                     {r.customer_number && <p className="font-mono text-xs text-gravida-light-sage">#{r.customer_number}</p>}
                   </div>
                   <select
@@ -366,7 +373,12 @@ export default function DiyScannerPage() {
                 {rentals.map(r => (
                   <tr key={r.id} className="hover:bg-gravida-off-white transition-colors">
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="font-medium">{r.first_name} {r.last_name}</div>
+                      <div className="font-medium flex items-center gap-1.5">
+                        {r.first_name} {r.last_name}
+                        {r.support_call_requested_at && (
+                          <span title="Support call aangevraagd" className="text-purple-600">📞</span>
+                        )}
+                      </div>
                       {r.customer_number && <div className="font-mono text-xs text-gravida-light-sage">#{r.customer_number}</div>}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-gravida-sage">{formatWeek(r.rental_week)}</td>
@@ -426,6 +438,25 @@ export default function DiyScannerPage() {
             </div>
             {!editMode ? (
             <div className="p-6 space-y-4">
+              {detailRental.support_call_requested_at && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                  <div className="flex items-start gap-2">
+                    <span className="text-xl shrink-0">📞</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-purple-800">Support call aangevraagd</p>
+                      <p className="text-[11px] text-purple-700/80">
+                        {new Date(detailRental.support_call_requested_at).toLocaleString('nl-NL')}
+                      </p>
+                      {detailRental.support_call_message && (
+                        <p className="text-xs text-purple-900 mt-2 whitespace-pre-wrap">{detailRental.support_call_message}</p>
+                      )}
+                      <a href={`tel:${detailRental.phone}`} className="inline-block mt-2 text-xs font-medium px-3 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700">
+                        📞 Bel {detailRental.first_name}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div>
                 <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Klantgegevens</p>
                 <div className="space-y-1">

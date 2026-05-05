@@ -47,6 +47,10 @@ export async function GET() {
     await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS internal_notes TEXT`
     await sql`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS internal_notes TEXT`
 
+    // Support call request (klant kan via mail-knop een call aanvragen)
+    await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS support_call_requested_at TIMESTAMPTZ`
+    await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS support_call_message TEXT`
+
     // Seed scanners if empty
     const existing = await sql`SELECT COUNT(*) as count FROM diy_scanners`
     if (parseInt(existing.rows[0].count, 10) === 0) {

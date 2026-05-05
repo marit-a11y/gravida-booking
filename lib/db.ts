@@ -732,6 +732,8 @@ export interface DiyRental {
   customer_number: string | null
   notes: string | null
   internal_notes: string | null
+  support_call_requested_at: string | null
+  support_call_message: string | null
   created_at: string
 }
 
@@ -778,7 +780,7 @@ export async function getDiyRentals(filters?: { status?: string }): Promise<DiyR
     const result = await sql<DiyRental>`
       SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
              r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
-             r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.customer_number, r.notes, r.internal_notes, r.created_at::text
+             r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.customer_number, r.notes, r.internal_notes, r.support_call_requested_at::text, r.support_call_message, r.created_at::text
       FROM diy_rentals r
       LEFT JOIN diy_scanners s ON r.scanner_id = s.id
       WHERE r.status = ${status}
@@ -789,7 +791,7 @@ export async function getDiyRentals(filters?: { status?: string }): Promise<DiyR
   const result = await sql<DiyRental>`
     SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
            r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
-           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.customer_number, r.notes, r.internal_notes, r.created_at::text
+           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.customer_number, r.notes, r.internal_notes, r.support_call_requested_at::text, r.support_call_message, r.created_at::text
     FROM diy_rentals r
     LEFT JOIN diy_scanners s ON r.scanner_id = s.id
     ORDER BY r.rental_week DESC, r.created_at DESC
@@ -801,7 +803,7 @@ export async function getDiyRentalById(id: number): Promise<DiyRental | null> {
   const result = await sql<DiyRental>`
     SELECT r.id, r.scanner_id, s.name as scanner_name, r.rental_week::text,
            r.first_name, r.last_name, r.email, r.phone, r.address, r.city, r.zip_code,
-           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.customer_number, r.notes, r.internal_notes, r.created_at::text
+           r.status, r.deposit_amount, r.deposit_status, r.mollie_payment_id, r.payment_status, r.customer_number, r.notes, r.internal_notes, r.support_call_requested_at::text, r.support_call_message, r.created_at::text
     FROM diy_rentals r
     LEFT JOIN diy_scanners s ON r.scanner_id = s.id
     WHERE r.id = ${id}
@@ -847,7 +849,7 @@ export async function createDiyRental(input: CreateDiyRentalInput): Promise<DiyR
     )
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
               address, city, zip_code, status, deposit_amount, deposit_status,
-              mollie_payment_id, payment_status, customer_number, notes, internal_notes, created_at::text
+              mollie_payment_id, payment_status, customer_number, notes, internal_notes, support_call_requested_at::text, support_call_message, created_at::text
   `
   return result.rows[0]
 }
@@ -890,7 +892,7 @@ export async function updateDiyRental(
     WHERE id = ${id}
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
               address, city, zip_code, status, deposit_amount, deposit_status,
-              mollie_payment_id, payment_status, customer_number, notes, internal_notes, created_at::text
+              mollie_payment_id, payment_status, customer_number, notes, internal_notes, support_call_requested_at::text, support_call_message, created_at::text
   `
   return result.rows[0] ?? null
 }
@@ -909,7 +911,7 @@ export async function updateDiyRentalPayment(
     WHERE id = ${id}
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
               address, city, zip_code, status, deposit_amount, deposit_status,
-              mollie_payment_id, payment_status, customer_number, notes, internal_notes, created_at::text
+              mollie_payment_id, payment_status, customer_number, notes, internal_notes, support_call_requested_at::text, support_call_message, created_at::text
   `
   return result.rows[0] ?? null
 }
