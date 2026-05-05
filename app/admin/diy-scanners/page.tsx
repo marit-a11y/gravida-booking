@@ -187,6 +187,34 @@ export default function DiyScannerPage() {
     } finally { setUpdatingRental(null) }
   }
 
+  const sendShippedEmail = async () => {
+    if (!detailRental) return
+    const trackingUrl = prompt(
+      'Optioneel — plak hier een track & trace link voor in de mail (laat leeg als je geen link hebt):',
+      ''
+    )
+    if (trackingUrl === null) return  // cancel
+    setUpdatingRental(detailRental.id)
+    try {
+      const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}/send-shipped-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tracking_url: trackingUrl.trim() || null,
+          set_status: true,
+        }),
+      })
+      if (res.ok) {
+        alert('📦 Verzend-mail verstuurd en status op "verzonden" gezet.')
+        setRentals(prev => prev.map(r => r.id === detailRental.id ? { ...r, status: 'verzonden' } : r))
+        setDetailRental(prev => prev ? { ...prev, status: 'verzonden' } : null)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert('Fout: ' + (data.error ?? 'mail kon niet worden verstuurd'))
+      }
+    } finally { setUpdatingRental(null) }
+  }
+
   const openNewModal = async () => {
     setShowNewModal(true)
     setNewForm({ rental_week: '', first_name: '', last_name: '', email: '', phone: '', address: '', city: '', zip_code: '', notes: '' })
@@ -439,6 +467,17 @@ export default function DiyScannerPage() {
                   ))}
                 </div>
               </div>
+              {/* Verzonden mail knop — toon alleen als nog niet verzonden */}
+              {detailRental.status !== 'verzonden' && detailRental.status !== 'geannuleerd' && (
+                <button
+                  onClick={sendShippedEmail}
+                  disabled={updatingRental === detailRental.id}
+                  className="w-full py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 transition-colors disabled:opacity-50"
+                  title="Stuurt klant een mail dat de scanner vandaag is verstuurd, en zet status op 'verzonden'"
+                >
+                  {updatingRental === detailRental.id ? 'Bezig...' : '📦 Markeer verzonden + stuur mail'}
+                </button>
+              )}
               <div>
                 <label className="label">Borg</label>
                 <div className="flex gap-2">

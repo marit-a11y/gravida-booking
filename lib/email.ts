@@ -811,6 +811,75 @@ export async function sendDiyRentalUpdateStaffEmail(params: {
   })
 }
 
+// ─── DIY Scanner verzonden mail (klant) ────────────────────────────────────────
+
+function diyRentalShippedEmailHtml(params: {
+  first_name: string
+  rental_week: string
+  customer_number?: string | null
+  tracking_url?: string | null
+}): string {
+  const weekFormatted = formatDiyWeek(params.rental_week)
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  const trackingBlock = params.tracking_url ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:8px 0 24px;">
+      <tr><td style="padding:18px 22px;text-align:center;">
+        <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Track & trace</p>
+        <a href="${params.tracking_url}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
+          Volg je pakket →
+        </a>
+      </td></tr>
+    </table>` : ''
+
+  return layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
+      📦 Je scanner is onderweg!
+    </p>
+    ${p(`Hi ${params.first_name},`)}
+    ${p(`Goed nieuws! De DIY 3D scan kit voor jouw reservering (${weekFormatted}) is vandaag verstuurd. Je ontvangt 'm naar verwachting <strong>morgen</strong>.`)}
+    ${trackingBlock}
+    ${p('Zodra het pakket binnen is kun je gelijk aan de slag. In de doos vind je een handleiding met stap-voor-stap uitleg, plus een retourlabel voor als je klaar bent.')}
+    ${p('Even kort de planning herhalen:')}
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e8e6e0;border-radius:12px;margin-bottom:20px;">
+      <tr><td style="padding:18px 22px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style="padding:4px 0;font-size:13px;color:#8a9e8c;width:120px;">📦 Verzonden</td><td style="padding:4px 0;font-size:14px;color:#1e2d1f;">vandaag</td></tr>
+          <tr><td style="padding:4px 0;font-size:13px;color:#8a9e8c;">📬 Bezorgd</td><td style="padding:4px 0;font-size:14px;color:#1e2d1f;">morgen</td></tr>
+          <tr><td style="padding:4px 0;font-size:13px;color:#8a9e8c;">📷 Scannen</td><td style="padding:4px 0;font-size:14px;color:#1e2d1f;">donderdag t/m zondag</td></tr>
+          <tr><td style="padding:4px 0;font-size:13px;color:#8a9e8c;">↩️ Retour sturen</td><td style="padding:4px 0;font-size:14px;color:#1e2d1f;">uiterlijk maandag</td></tr>
+        </table>
+      </td></tr>
+    </table>
+    ${p('Heb je tijdens het scannen een vraag of werkt er iets niet zoals verwacht? Stuur ons gerust een berichtje, we helpen je graag verder.')}
+    ${params.customer_number ? p(`Je klantnummer is <strong>${params.customer_number}</strong> — handig om bij de hand te hebben als je contact opneemt.`) : ''}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Veel succes en plezier!<br/>
+      <strong style="color:#1e2d1f;">Team Gravida</strong>
+    </p>
+  `)
+}
+
+export async function sendDiyRentalShippedEmail(params: {
+  first_name: string
+  email: string
+  rental_week: string
+  customer_number?: string | null
+  tracking_url?: string | null
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('RESEND_API_KEY not set — skipping email')
+    return
+  }
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject: '📦 Je DIY 3D scan kit is onderweg!',
+    html: diyRentalShippedEmailHtml(params),
+  })
+}
+
 // ─── Gift Card emails ─────────────────────────────────────────────────────────
 
 const GIFT_CARD_TYPE_LABELS: Record<string, string> = {
