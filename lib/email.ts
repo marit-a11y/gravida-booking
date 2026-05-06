@@ -69,8 +69,12 @@ function layout(content: string): string {
         <!-- Footer -->
         <tr>
           <td style="background:${BRAND_LIGHT};padding:20px 40px;border-top:1px solid #e8e6e0;">
+            <p style="margin:0 0 4px;font-size:12px;color:#8a9e8c;line-height:1.6;">
+              <strong style="color:#5a6e5c;">Gravida</strong> · <a href="https://www.gravida.nl" style="color:#8a9e8c;">www.gravida.nl</a>
+            </p>
             <p style="margin:0;font-size:12px;color:#8a9e8c;line-height:1.6;">
-              Gravida · <a href="https://www.gravida.nl" style="color:#8a9e8c;">www.gravida.nl</a>
+              📞 <a href="tel:+31687062504" style="color:#8a9e8c;">06 8706 2504</a> ·
+              ✉️ <a href="mailto:boekingen@gravida.nl" style="color:#8a9e8c;">boekingen@gravida.nl</a>
             </p>
           </td>
         </tr>
