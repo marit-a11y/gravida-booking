@@ -17,13 +17,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     const e = existing.rows[0]
 
-    const summary     = body.summary     !== undefined ? body.summary     : e.summary
-    const description = body.description !== undefined ? body.description : e.description
-    const type        = body.type        !== undefined ? body.type        : e.type
-    const priority    = body.priority    !== undefined ? body.priority    : e.priority
-    const status      = body.status      !== undefined ? body.status      : e.status
-    const assigned_by = body.assigned_by !== undefined ? body.assigned_by : e.assigned_by
-    const due_date    = body.due_date    !== undefined ? body.due_date    : e.due_date
+    const summary         = body.summary         !== undefined ? body.summary         : e.summary
+    const description     = body.description     !== undefined ? body.description     : e.description
+    const type            = body.type            !== undefined ? body.type            : e.type
+    const priority        = body.priority        !== undefined ? body.priority        : e.priority
+    const status          = body.status          !== undefined ? body.status          : e.status
+    const assigned_by     = body.assigned_by     !== undefined ? body.assigned_by     : e.assigned_by
+    const assigned_to     = body.assigned_to     !== undefined ? body.assigned_to     : e.assigned_to
+    const due_date        = body.due_date        !== undefined ? body.due_date        : e.due_date
+    const screenshot_urls = body.screenshot_urls !== undefined ? body.screenshot_urls : e.screenshot_urls
+
+    const screenshots = Array.isArray(screenshot_urls) ? screenshot_urls : []
 
     const result = await sql`
       UPDATE tasks SET
@@ -33,11 +37,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         priority = ${priority},
         status = ${status},
         assigned_by = ${assigned_by},
+        assigned_to = ${assigned_to},
         due_date = ${due_date},
+        screenshot_urls = ${JSON.stringify(screenshots)}::jsonb,
         updated_at = NOW()
       WHERE id = ${id}
-      RETURNING id, summary, description, type, priority, status, assigned_by,
-                due_date::text, created_at::text, updated_at::text
+      RETURNING id, summary, description, type, priority, status, assigned_by, assigned_to,
+                due_date::text, screenshot_urls, created_at::text, updated_at::text
     `
     return NextResponse.json({ task: result.rows[0] })
   } catch (err) {

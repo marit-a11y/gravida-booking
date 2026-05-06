@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const result = await sql`
       SELECT id, summary, description, type, priority, status, assigned_by,
-             due_date::text, created_at::text, updated_at::text
+             due_date::text, screenshot_urls, assigned_to, created_at::text, updated_at::text
       FROM tasks
       ORDER BY
         CASE status
@@ -37,14 +37,16 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { summary, description, type, priority, status, assigned_by, due_date } = body
+    const { summary, description, type, priority, status, assigned_by, assigned_to, due_date, screenshot_urls } = body
 
     if (!summary?.trim()) {
       return NextResponse.json({ error: 'Samenvatting is verplicht' }, { status: 400 })
     }
 
+    const screenshots = Array.isArray(screenshot_urls) ? screenshot_urls : []
+
     const result = await sql`
-      INSERT INTO tasks (summary, description, type, priority, status, assigned_by, due_date)
+      INSERT INTO tasks (summary, description, type, priority, status, assigned_by, assigned_to, due_date, screenshot_urls)
       VALUES (
         ${summary.trim()},
         ${description?.trim() || null},
@@ -52,10 +54,12 @@ export async function POST(request: NextRequest) {
         ${priority || 'medium'},
         ${status || 'open'},
         ${assigned_by?.trim() || null},
-        ${due_date || null}
+        ${assigned_to?.trim() || null},
+        ${due_date || null},
+        ${JSON.stringify(screenshots)}::jsonb
       )
       RETURNING id, summary, description, type, priority, status, assigned_by,
-                due_date::text, created_at::text, updated_at::text
+                due_date::text, screenshot_urls, assigned_to, created_at::text, updated_at::text
     `
     return NextResponse.json({ task: result.rows[0] }, { status: 201 })
   } catch (err) {

@@ -10,7 +10,9 @@ interface Task {
   priority: 'low' | 'medium' | 'high' | 'critical'
   status: 'open' | 'in_progress' | 'ready_for_testing' | 'completed' | 'deferred'
   assigned_by: string | null
+  assigned_to: string | null
   due_date: string | null
+  screenshot_urls: string[] | null
   created_at: string
   updated_at: string
 }
@@ -45,7 +47,9 @@ const EMPTY_FORM = {
   priority: 'medium' as Task['priority'],
   status: 'open' as Task['status'],
   assigned_by: 'Marit' as string | null,
+  assigned_to: '' as string | null,
   due_date: '',
+  screenshot_urls: [] as string[],
 }
 
 function formatShortDate(iso: string | null): string {
@@ -73,6 +77,7 @@ export default function TaskTrackerPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -136,10 +141,38 @@ export default function TaskTrackerPage() {
       priority: t.priority,
       status: t.status,
       assigned_by: t.assigned_by ?? '',
+      assigned_to: t.assigned_to ?? '',
       due_date: t.due_date ? t.due_date.slice(0, 10) : '',
+      screenshot_urls: t.screenshot_urls ?? [],
     })
     setError('')
     setModalOpen(true)
+  }
+
+  const handleScreenshotUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    setUploading(true); setError('')
+    const newUrls: string[] = []
+    for (const file of Array.from(files)) {
+      const fd = new FormData()
+      fd.append('file', file)
+      try {
+        const res = await fetch('/api/admin/tasks/upload', { method: 'POST', body: fd })
+        const data = await res.json()
+        if (res.ok && data.url) newUrls.push(data.url)
+        else setError(data.error ?? `Upload mislukt: ${file.name}`)
+      } catch {
+        setError(`Verbindingsfout bij ${file.name}`)
+      }
+    }
+    if (newUrls.length > 0) {
+      setForm(f => ({ ...f, screenshot_urls: [...f.screenshot_urls, ...newUrls] }))
+    }
+    setUploading(false)
+  }
+
+  const removeScreenshot = (url: string) => {
+    setForm(f => ({ ...f, screenshot_urls: f.screenshot_urls.filter(u => u !== url) }))
   }
 
   const handleSave = async () => {
@@ -149,6 +182,7 @@ export default function TaskTrackerPage() {
       const payload = {
         ...form,
         assigned_by: form.assigned_by || null,
+        assigned_to: form.assigned_to || null,
         due_date: form.due_date || null,
       }
       const res = await fetch(editing ? `/api/admin/tasks/${editing.id}` : '/api/admin/tasks', {
@@ -241,6 +275,7 @@ export default function TaskTrackerPage() {
                 <th className="text-left px-4 py-3 font-medium text-gravida-light-sage text-xs whitespace-nowrap">STATUS</th>
                 <th className="text-left px-4 py-3 font-medium text-gravida-light-sage text-xs whitespace-nowrap">AANGEMAAKT</th>
                 <th className="text-left px-4 py-3 font-medium text-gravida-light-sage text-xs whitespace-nowrap">DOOR</th>
+                <th className="text-left px-4 py-3 font-medium text-gravida-light-sage text-xs whitespace-nowrap">TOEGEWEZEN</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gravida-cream">
@@ -255,7 +290,14 @@ export default function TaskTrackerPage() {
                       TT-{String(t.id).padStart(3, '0')}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gravida-green">{t.summary}</div>
+                      <div className="font-medium text-gravida-green flex items-center gap-1.5">
+                        {t.summary}
+                        {(t.screenshot_urls && t.screenshot_urls.length > 0) && (
+                          <span title={`${t.screenshot_urls.length} screenshot(s)`} className="text-[10px] bg-gravida-cream px-1 py-0.5 rounded">
+                            📎{t.screenshot_urls.length}
+                          </span>
+                        )}
+                      </div>
                       {overdue && (
                         <div className="text-xs text-red-600 mt-0.5">
                           ⚠ Verlopen — deadline {formatShortDate(t.due_date)}
@@ -290,6 +332,18 @@ export default function TaskTrackerPage() {
                             {t.assigned_by.charAt(0).toUpperCase()}
                           </span>
                           <span className="text-xs text-gravida-sage">{t.assigned_by}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gravida-light-sage italic">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {t.assigned_to ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className={`w-6 h-6 rounded-full text-white flex items-center justify-center text-[10px] font-semibold ${avatarColor(t.assigned_to)}`}>
+                            {t.assigned_to.charAt(0).toUpperCase()}
+                          </span>
+                          <span className="text-xs text-gravida-sage">{t.assigned_to}</span>
                         </div>
                       ) : (
                         <span className="text-xs text-gravida-light-sage italic">—</span>
@@ -364,11 +418,50 @@ export default function TaskTrackerPage() {
                     {ASSIGNEES.map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="label">Toegewezen aan</label>
+                  <select className="input-field" value={form.assigned_to ?? ''}
+                    onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}>
+                    <option value="">— niemand —</option>
+                    {ASSIGNEES.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
                 <div className="col-span-2">
                   <label className="label">Deadline (optioneel)</label>
                   <input type="date" className="input-field"
                     value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
                 </div>
+              </div>
+
+              {/* Screenshots */}
+              <div>
+                <label className="label flex items-center justify-between">
+                  <span>📎 Screenshots</span>
+                  <span className="text-[10px] font-normal text-gravida-light-sage">
+                    {uploading ? 'Uploaden...' : `${form.screenshot_urls.length} bestand(en)`}
+                  </span>
+                </label>
+                <label className={`block cursor-pointer text-center py-2 px-4 rounded-lg border-2 border-dashed border-gravida-cream hover:border-gravida-sage transition-colors text-xs mb-2 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  📷 Voeg afbeelding(en) toe (jpg/png/webp/gif, max 10 MB)
+                  <input type="file" className="hidden" accept="image/*" multiple
+                    onChange={(e) => { handleScreenshotUpload(e.target.files); e.target.value = '' }}
+                  />
+                </label>
+                {form.screenshot_urls.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {form.screenshot_urls.map((url, i) => (
+                      <div key={i} className="relative group">
+                        <a href={url} target="_blank" rel="noopener noreferrer">
+                          <img src={url} alt={`screenshot ${i+1}`}
+                            className="w-full h-24 object-cover rounded-lg border border-gravida-cream" />
+                        </a>
+                        <button type="button" onClick={() => removeScreenshot(url)}
+                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                          title="Verwijderen">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {error && <p className="text-red-600 text-sm">{error}</p>}
