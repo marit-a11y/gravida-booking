@@ -15,6 +15,7 @@ const navItems = [
   { href: '/admin/cadeaubonnen',    label: 'Cadeaubonnen',   icon: '🎁' },
   { href: '/admin/social',          label: 'Social planner', icon: '📅' },
   { href: '/admin/whatsapp-test',   label: 'WhatsApp test',  icon: '💬' },
+  { href: '/admin/task-tracker',    label: 'Task tracker',   icon: '🐞' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
