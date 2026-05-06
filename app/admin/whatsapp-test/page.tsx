@@ -96,11 +96,12 @@ export default function WhatsappTestPage() {
         <h2 className="section-title mb-3">📤 Stuur test-bericht</h2>
         <div className="space-y-3">
           <div>
-            <label className="label">Naar nummer (optioneel — overschrijft WHATSAPP_TO env var)</label>
-            <input className="input-field" placeholder="31612345678 (zonder +)"
+            <label className="label">Naar nummer(s) (optioneel — overschrijft WHATSAPP_TO env var)</label>
+            <input className="input-field" placeholder="31612345678 of 31612345678,31698765432 (zonder +, komma voor meerdere)"
               value={overrideTo} onChange={e => setOverrideTo(e.target.value)} />
             <p className="text-[11px] text-gravida-light-sage mt-1">
-              Leeg laten = gebruikt het nummer uit de env var. Belangrijk: het ontvangende nummer moet als <strong>verified test recipient</strong> staan in Meta WhatsApp Manager → Phone numbers (anders weigert Meta de levering).
+              Leeg laten = gebruikt het nummer uit de env var. Meerdere nummers? Komma-gescheiden.
+              Belangrijk: elk ontvangend nummer moet als <strong>verified test recipient</strong> staan in Meta WhatsApp Manager → Phone numbers.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
