@@ -67,6 +67,7 @@ export default function DiyScannerPage() {
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('alle')
   const [sortOrder, setSortOrder] = useState<'week_asc' | 'week_desc' | 'created_desc'>('week_asc')
+  const [searchQuery, setSearchQuery] = useState('')
   const [updatingScanner, setUpdatingScanner] = useState<number | null>(null)
   const [updatingRental, setUpdatingRental] = useState<number | null>(null)
   const [detailRental, setDetailRental] = useState<Rental | null>(null)
@@ -296,6 +297,11 @@ export default function DiyScannerPage() {
       <div className="card mb-6">
         <div className="flex flex-col sm:flex-row sm:items-end gap-4">
           <div className="flex-1">
+            <label className="label">🔍 Zoeken</label>
+            <input className="input-field" placeholder="Naam, e-mail, klantnummer..."
+              value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          </div>
+          <div className="flex-1">
             <label className="label">Status</label>
             <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               {RENTAL_STATUSES.map(s => (
@@ -311,9 +317,6 @@ export default function DiyScannerPage() {
               <option value="created_desc">🆕 Recent geboekt eerst</option>
             </select>
           </div>
-          <p className="text-sm text-gravida-sage sm:pb-2 whitespace-nowrap">
-            {loading ? 'Laden...' : `${rentals.length} reservering${rentals.length !== 1 ? 'en' : ''}`}
-          </p>
         </div>
       </div>
 
@@ -327,14 +330,33 @@ export default function DiyScannerPage() {
         ) : rentals.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-gravida-light-sage">Geen reserveringen gevonden.</div>
         ) : (() => {
-          // Apply sort
-          const sortedRentals = [...rentals].sort((a, b) => {
+          // Apply search + sort
+          const q = searchQuery.trim().toLowerCase()
+          const filtered = q
+            ? rentals.filter(r =>
+                r.first_name.toLowerCase().includes(q) ||
+                r.last_name.toLowerCase().includes(q) ||
+                `${r.first_name} ${r.last_name}`.toLowerCase().includes(q) ||
+                r.email.toLowerCase().includes(q) ||
+                (r.customer_number ?? '').toLowerCase().includes(q) ||
+                (r.phone ?? '').toLowerCase().includes(q) ||
+                (r.city ?? '').toLowerCase().includes(q)
+              )
+            : rentals
+          const sortedRentals = [...filtered].sort((a, b) => {
             if (sortOrder === 'created_desc') {
               return (b.created_at ?? '').localeCompare(a.created_at ?? '')
             }
             const cmp = (a.rental_week ?? '').localeCompare(b.rental_week ?? '')
             return sortOrder === 'week_desc' ? -cmp : cmp
           })
+          if (sortedRentals.length === 0) {
+            return (
+              <div className="h-48 flex items-center justify-center text-gravida-light-sage text-sm">
+                Geen reserveringen gevonden voor &quot;{searchQuery}&quot;.
+              </div>
+            )
+          }
           return (
           <>
           {/* Mobile cards */}
