@@ -44,14 +44,17 @@ export function isWhatsAppConfigured(): boolean {
  * @param templateName  Name of the approved template in Meta Business
  * @param params        Body parameters in order they appear in the template
  * @param language      Language code, default 'nl'
- * @param to            Recipient (defaults to env var). Mag komma-gescheiden zijn
- *                      voor meerdere ontvangers (bv. "31612345678,31698765432").
+ * @param to            Recipient (defaults to env var). Mag komma-gescheiden zijn.
+ * @param buttonParam   Optional: dynamic URL parameter voor de eerste URL-button.
+ *                      Wordt alleen meegestuurd als `WHATSAPP_DYNAMIC_BUTTON=true`,
+ *                      anders genegeerd (zodat statische URL-templates blijven werken).
  */
 export async function sendWhatsAppTemplate(
   templateName: string,
   params: string[],
   language = 'nl',
   to?: string,
+  buttonParam?: string,
 ): Promise<{ ok: boolean; error?: string; response?: unknown; results?: Array<{ to: string; ok: boolean; error?: string }> }> {
   if (!isWhatsAppConfigured()) {
     console.warn('WhatsApp env vars not set — skipping')
@@ -71,20 +74,32 @@ export async function sendWhatsAppTemplate(
     return { ok: false, error: 'Geen geldige recipient(s) in WHATSAPP_TO' }
   }
 
+  const useDynamicButton = process.env.WHATSAPP_DYNAMIC_BUTTON === 'true'
+
   const sendOne = async (recipient: string) => {
-    const body: WhatsAppTemplateMessage = {
+    const components: Array<Record<string, unknown>> = [
+      {
+        type: 'body',
+        parameters: params.map(p => ({ type: 'text', text: p })),
+      },
+    ]
+    if (useDynamicButton && buttonParam) {
+      components.push({
+        type: 'button',
+        sub_type: 'url',
+        index: '0',
+        parameters: [{ type: 'text', text: buttonParam }],
+      })
+    }
+
+    const body = {
       messaging_product: 'whatsapp',
       to: recipient,
       type: 'template',
       template: {
         name: templateName,
         language: { code: language },
-        components: [
-          {
-            type: 'body',
-            parameters: params.map(p => ({ type: 'text', text: p })),
-          },
-        ],
+        components,
       },
     }
 

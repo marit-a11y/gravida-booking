@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { Suspense, useEffect, useState, useCallback, useMemo } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { getEventsForMonth, getEventForDate, CONTENT_IDEAS, type ThemeEvent, type CategoryIdea } from '@/lib/social-themes'
 import { nlLocalToIso, isoToNlLocal, formatNlTime, getNlDateKey, getNlHourMinute } from '@/lib/nl-time'
 
@@ -88,7 +89,18 @@ const EMPTY_FORM: Partial<SocialPost> & { scheduled_for_local?: string; image_ur
   image_urls_text: '',
 }
 
-export default function SocialPlannerPage() {
+export default function SocialPlannerPageWrapper() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-gravida-light-sage">Laden...</div>}>
+      <SocialPlannerPage />
+    </Suspense>
+  )
+}
+
+function SocialPlannerPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const deepLinkPostId = searchParams.get('post')
   const today = new Date()
   const [view, setView] = useState<'calendar' | 'list'>('calendar')
   const [calYear, setCalYear] = useState(today.getFullYear())
@@ -188,6 +200,33 @@ export default function SocialPlannerPage() {
   }, [calYear, calMonth])
 
   useEffect(() => { load() }, [load])
+
+  // Deep link: open de specifieke post als ?post=ID in de URL staat.
+  // Wacht tot posts geladen zijn, dan open modal en strip ?post= uit URL.
+  useEffect(() => {
+    if (!deepLinkPostId || loading) return
+    const id = parseInt(deepLinkPostId, 10)
+    if (isNaN(id)) return
+    const post = posts.find(p => p.id === id)
+    if (post) {
+      openEditModal(post)
+      // Schoon de URL op zodat refresh niet opnieuw triggert
+      router.replace('/admin/social', { scroll: false })
+    } else {
+      // Post niet gevonden in zichtbare maand → fetch 'm direct
+      fetch(`/api/admin/social-posts/${id}`).then(r => r.ok ? r.json() : null).then(data => {
+        if (data?.post) {
+          // Spring naar de juiste maand
+          const d = new Date(data.post.scheduled_for)
+          setCalYear(d.getFullYear())
+          setCalMonth(d.getMonth())
+          openEditModal(data.post)
+          router.replace('/admin/social', { scroll: false })
+        }
+      }).catch(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkPostId, loading, posts])
 
   const prevMonth = () => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) } else setCalMonth(m => m - 1) }
   const nextMonth = () => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) } else setCalMonth(m => m + 1) }

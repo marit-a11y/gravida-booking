@@ -60,7 +60,13 @@ export async function GET(request: NextRequest) {
       const t = new Date(post.scheduled_for)
       const time = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`
       const titleOrCategory = post.title || post.category || 'onbekend'
-      const result = await sendWhatsAppTemplate(templateName, [time, titleOrCategory, post.post_type])
+      const result = await sendWhatsAppTemplate(
+        templateName,
+        [time, titleOrCategory, post.post_type],
+        'nl',
+        undefined,
+        String(post.id),  // dynamic button URL param (opt-in via WHATSAPP_DYNAMIC_BUTTON)
+      )
       if (result.ok) sent++
       else errors.push(`#${post.id}: ${result.error}`)
     }

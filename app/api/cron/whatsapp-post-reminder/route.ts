@@ -60,7 +60,13 @@ export async function GET(request: NextRequest) {
       const t = new Date(post.scheduled_for)
       const time = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`
       const titleOrCategory = post.title || post.category || 'post'
-      const result = await sendWhatsAppTemplate(templateName, [titleOrCategory, time, post.post_type])
+      const result = await sendWhatsAppTemplate(
+        templateName,
+        [titleOrCategory, time, post.post_type],
+        'nl',
+        undefined,
+        String(post.id),  // dynamic button URL param (alleen gebruikt als WHATSAPP_DYNAMIC_BUTTON=true)
+      )
       if (result.ok) {
         await sql`UPDATE social_posts SET reminder_sent = true WHERE id = ${post.id}`
         sent++
