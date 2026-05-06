@@ -74,7 +74,7 @@ function layout(content: string): string {
             </p>
             <p style="margin:0;font-size:12px;color:#8a9e8c;line-height:1.6;">
               📞 <a href="tel:+31687062504" style="color:#8a9e8c;">06 8706 2504</a> ·
-              ✉️ <a href="mailto:boekingen@gravida.nl" style="color:#8a9e8c;">boekingen@gravida.nl</a>
+              ✉️ <a href="mailto:hi@gravida.nl" style="color:#8a9e8c;">hi@gravida.nl</a>
             </p>
           </td>
         </tr>
