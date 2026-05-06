@@ -239,7 +239,6 @@ function reminderEmailHtml(params: {
     ${p(`Hi ${params.first_name},`)}
     ${p(intro)}
     ${p('Heb je in de tussentijd iets veranderd of wil je de afspraak annuleren? Stuur me dan even een berichtje, dan zoeken we samen naar een oplossing.')}
-    ${p('Tot volgende week!')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       ${closing}<br/>
       <strong style="color:#1e2d1f;">Laila</strong>
