@@ -16,6 +16,7 @@ const navItems = [
   { href: '/admin/social',          label: 'Social planner', icon: '📅' },
   { href: '/admin/whatsapp-test',   label: 'WhatsApp test',  icon: '💬' },
   { href: '/admin/task-tracker',    label: 'Task tracker',   icon: '🐞' },
+  { href: '/admin/inbox',           label: 'Inbox',          icon: '📥', inboxBadge: true },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [uitzoekCount, setUitzoekCount] = useState(0)
+  const [inboxCount, setInboxCount] = useState(0)
 
   // Poll for pending scan reviews
   useEffect(() => {
@@ -39,6 +41,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     fetchCount()
     const interval = setInterval(fetchCount, 30_000)
+    return () => clearInterval(interval)
+  }, [pathname])
+
+  // Poll for unread inbox items
+  useEffect(() => {
+    if (pathname === '/admin/login') return
+    const me = (typeof window !== 'undefined' && localStorage.getItem('inbox_me')) || 'Marit'
+    const fetchInbox = async () => {
+      try {
+        const res = await fetch(`/api/admin/inbox?recipient=${encodeURIComponent(me)}&unread=1`, { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          setInboxCount(data.unread_count ?? 0)
+        }
+      } catch { /* ignore */ }
+    }
+    fetchInbox()
+    const interval = setInterval(fetchInbox, 30_000)
     return () => clearInterval(interval)
   }, [pathname])
 
@@ -70,7 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="flex-1 px-3 py-4 space-y-1">
           {navItems.map((item) => {
             const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-            const count = item.badge ? uitzoekCount : 0
+            const count = item.inboxBadge ? inboxCount : (item.badge ? uitzoekCount : 0)
             return (
               <Link
                 key={item.href}
@@ -150,7 +170,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="absolute top-[60px] left-0 right-0 bg-gravida-green px-3 py-3 space-y-1 shadow-xl">
             {navItems.map((item) => {
               const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-              const count = item.badge ? uitzoekCount : 0
+              const count = item.inboxBadge ? inboxCount : (item.badge ? uitzoekCount : 0)
               return (
                 <Link
                   key={item.href}

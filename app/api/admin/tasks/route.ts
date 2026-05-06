@@ -61,7 +61,26 @@ export async function POST(request: NextRequest) {
       RETURNING id, summary, description, type, priority, status, assigned_by,
                 due_date::text, screenshot_urls, assigned_to, created_at::text, updated_at::text
     `
-    return NextResponse.json({ task: result.rows[0] }, { status: 201 })
+
+    // Inbox-item voor toegewezen persoon (niet zelf)
+    const task = result.rows[0]
+    if (task.assigned_to && task.assigned_to !== task.assigned_by) {
+      const summaryShort = String(task.summary).slice(0, 200)
+      await sql`
+        INSERT INTO inbox_items (recipient, sender, type, title, body, link, related_task_id)
+        VALUES (
+          ${task.assigned_to},
+          ${task.assigned_by},
+          'task_assigned',
+          ${'📋 Nieuwe taak: ' + summaryShort},
+          ${task.description ?? null},
+          ${'/admin/task-tracker'},
+          ${task.id}
+        )
+      `.catch(err => console.error('Inbox notify error (task create):', err))
+    }
+
+    return NextResponse.json({ task }, { status: 201 })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: 'Aanmaken mislukt: ' + msg }, { status: 500 })

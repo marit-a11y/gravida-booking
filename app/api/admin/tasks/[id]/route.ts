@@ -45,7 +45,27 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       RETURNING id, summary, description, type, priority, status, assigned_by, assigned_to,
                 due_date::text, screenshot_urls, created_at::text, updated_at::text
     `
-    return NextResponse.json({ task: result.rows[0] })
+    const task = result.rows[0]
+
+    // Inbox: notify als assigned_to gewijzigd is naar iemand anders dan voorheen
+    const wasAssignedTo = e.assigned_to ?? null
+    if (task.assigned_to && task.assigned_to !== wasAssignedTo && task.assigned_to !== task.assigned_by) {
+      const summaryShort = String(task.summary).slice(0, 200)
+      await sql`
+        INSERT INTO inbox_items (recipient, sender, type, title, body, link, related_task_id)
+        VALUES (
+          ${task.assigned_to},
+          ${task.assigned_by},
+          'task_assigned',
+          ${'📋 Taak toegewezen: ' + summaryShort},
+          ${task.description ?? null},
+          ${'/admin/task-tracker'},
+          ${task.id}
+        )
+      `.catch(err => console.error('Inbox notify error (task update):', err))
+    }
+
+    return NextResponse.json({ task })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: 'Updaten mislukt: ' + msg }, { status: 500 })
