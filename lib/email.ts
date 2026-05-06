@@ -4,7 +4,7 @@ import { generateGiftCardPdf } from './gift-card-pdf'
 // Lazily initialized so the module can be imported at build time without an API key
 function getResend() { return new Resend(process.env.RESEND_API_KEY) }
 
-const FROM = (process.env.EMAIL_FROM ?? 'Gravida <boekingen@gravida.nl>').trim()
+const FROM = (process.env.EMAIL_FROM ?? 'Gravida <hi@gravida.nl>').trim()
 const BRAND_GREEN = '#3d5c41'
 const BRAND_LIGHT = '#f5f4f0'
 
