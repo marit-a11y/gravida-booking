@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 const navItems = [
+  { href: '/admin/inbox',           label: 'Inbox',          icon: '📥', inboxBadge: true },
   { href: '/admin', label: 'Dashboard', icon: '◈' },
   { href: '/admin/beschikbaarheid', label: 'Beschikbaarheid', icon: '◷' },
   { href: '/admin/boekingen', label: 'Boekingen', icon: '◻' },
@@ -16,7 +17,6 @@ const navItems = [
   { href: '/admin/social',          label: 'Social planner', icon: '📅' },
   { href: '/admin/whatsapp-test',   label: 'WhatsApp test',  icon: '💬' },
   { href: '/admin/task-tracker',    label: 'Task tracker',   icon: '🐞' },
-  { href: '/admin/inbox',           label: 'Inbox',          icon: '📥', inboxBadge: true },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
