@@ -66,6 +66,7 @@ export default function DiyScannerPage() {
   const [rentals, setRentals] = useState<Rental[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('alle')
+  const [sortOrder, setSortOrder] = useState<'week_asc' | 'week_desc' | 'created_desc'>('week_asc')
   const [updatingScanner, setUpdatingScanner] = useState<number | null>(null)
   const [updatingRental, setUpdatingRental] = useState<number | null>(null)
   const [detailRental, setDetailRental] = useState<Rental | null>(null)
@@ -293,7 +294,7 @@ export default function DiyScannerPage() {
 
       {/* Filters */}
       <div className="card mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-4">
           <div className="flex-1">
             <label className="label">Status</label>
             <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
@@ -302,7 +303,15 @@ export default function DiyScannerPage() {
               ))}
             </select>
           </div>
-          <p className="text-sm text-gravida-sage sm:mt-5">
+          <div className="flex-1">
+            <label className="label">Sortering</label>
+            <select className="input-field" value={sortOrder} onChange={e => setSortOrder(e.target.value as typeof sortOrder)}>
+              <option value="week_asc">📅 Week — eerstvolgende eerst (oud → nieuw)</option>
+              <option value="week_desc">📅 Week — laatste eerst (nieuw → oud)</option>
+              <option value="created_desc">🆕 Recent geboekt eerst</option>
+            </select>
+          </div>
+          <p className="text-sm text-gravida-sage sm:pb-2 whitespace-nowrap">
             {loading ? 'Laden...' : `${rentals.length} reservering${rentals.length !== 1 ? 'en' : ''}`}
           </p>
         </div>
@@ -317,11 +326,20 @@ export default function DiyScannerPage() {
           </div>
         ) : rentals.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-gravida-light-sage">Geen reserveringen gevonden.</div>
-        ) : (
+        ) : (() => {
+          // Apply sort
+          const sortedRentals = [...rentals].sort((a, b) => {
+            if (sortOrder === 'created_desc') {
+              return (b.created_at ?? '').localeCompare(a.created_at ?? '')
+            }
+            const cmp = (a.rental_week ?? '').localeCompare(b.rental_week ?? '')
+            return sortOrder === 'week_desc' ? -cmp : cmp
+          })
+          return (
           <>
           {/* Mobile cards */}
           <div className="sm:hidden p-4 space-y-3">
-            {rentals.map(r => (
+            {sortedRentals.map(r => (
               <div key={r.id} className="border border-gravida-cream rounded-xl p-4 space-y-2" onClick={() => setDetailRental(r)}>
                 <div className="flex items-center justify-between">
                   <div>
@@ -370,7 +388,7 @@ export default function DiyScannerPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gravida-cream">
-                {rentals.map(r => (
+                {sortedRentals.map(r => (
                   <tr key={r.id} className="hover:bg-gravida-off-white transition-colors">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="font-medium flex items-center gap-1.5">
@@ -416,7 +434,8 @@ export default function DiyScannerPage() {
             </table>
           </div>
           </>
-        )}
+          )
+        })()}
       </div>
 
       {/* Detail modal */}
