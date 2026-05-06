@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { getEventsForMonth, getEventForDate, CONTENT_IDEAS, type ThemeEvent, type CategoryIdea } from '@/lib/social-themes'
+import { nlLocalToIso, isoToNlLocal, formatNlTime, getNlDateKey, getNlHourMinute } from '@/lib/nl-time'
 
 interface SocialPost {
   id: number
@@ -66,8 +67,11 @@ const STATUSES = [
 ]
 
 function pad(n: number) { return String(n).padStart(2, '0') }
+// Tijd in NL terugbouwen naar "YYYY-MM-DDTHH:MM" voor het datetime-local input.
+// We gebruiken altijd Europe/Amsterdam, niet de browser-tijdzone, zodat een
+// post om 20:00 ook echt 20:00 NL is — ook als je in het buitenland inlogt.
 function isoLocalDateTime(d: Date) {
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return isoToNlLocal(d)
 }
 
 const EMPTY_FORM: Partial<SocialPost> & { scheduled_for_local?: string; image_urls_text?: string } = {
@@ -202,40 +206,43 @@ export default function SocialPlannerPage() {
     gridDays.push(d)
   }
 
-  // Group posts by date for calendar
+  // Group posts by date for calendar — gebruik NL-tijd, niet browser-tijd
   const postsByDate = new Map<string, SocialPost[]>()
   for (const p of filteredPosts) {
-    const d = new Date(p.scheduled_for)
-    const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    const key = getNlDateKey(p.scheduled_for)
     const arr = postsByDate.get(key) ?? []
     arr.push(p)
     postsByDate.set(key, arr)
   }
 
-  // Group posts by date for list view (only posts in the current month)
+  // Group posts by date for list view (only posts in the current month) — NL tijd
   const monthPosts = filteredPosts
     .filter(p => {
-      const d = new Date(p.scheduled_for)
-      return d.getFullYear() === calYear && d.getMonth() === calMonth
+      const key = getNlDateKey(p.scheduled_for)  // "YYYY-MM-DD"
+      const [y, m] = key.split('-').map(Number)
+      return y === calYear && m - 1 === calMonth
     })
     .sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))
 
   const monthPostsByDate = new Map<string, SocialPost[]>()
   for (const p of monthPosts) {
-    const d = new Date(p.scheduled_for)
-    const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+    const key = getNlDateKey(p.scheduled_for)
     const arr = monthPostsByDate.get(key) ?? []
     arr.push(p)
     monthPostsByDate.set(key, arr)
   }
 
   const openNewModal = (date?: Date, presetCategory?: string) => {
-    const d = date ?? new Date()
-    d.setHours(10, 0, 0, 0)
+    // Bouw de default datetime-local string in NL-tijd (10:00).
+    // Als er een date is doorgegeven (uit kalender-grid), pak Y/M/D direct.
+    // Anders: vandaag in NL-datum.
+    const dateKey = date
+      ? `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`
+      : getNlDateKey(new Date())
     setEditingPost(null)
     setForm({
       ...EMPTY_FORM,
-      scheduled_for_local: isoLocalDateTime(d),
+      scheduled_for_local: `${dateKey}T10:00`,
       image_urls: [],
       image_urls_text: '',
       category: presetCategory ?? '',
@@ -261,7 +268,9 @@ export default function SocialPlannerPage() {
     try {
       const image_urls = (form.image_urls_text ?? '').split('\n').map(s => s.trim()).filter(Boolean)
       const payload = {
-        scheduled_for: new Date(form.scheduled_for_local).toISOString(),
+        // Interpreteer de gekozen datum/tijd ALTIJD als Europe/Amsterdam,
+        // ongeacht waar de gebruiker zich bevindt
+        scheduled_for: nlLocalToIso(form.scheduled_for_local),
         platform: form.platform,
         post_type: form.post_type,
         category: form.category || null,
@@ -375,12 +384,11 @@ export default function SocialPlannerPage() {
 
   // Vanaf categorie-idee een nieuwe post-modal openen
   const useCategoryIdea = (idea: CategoryIdea, category: string) => {
-    const d = new Date()
-    d.setHours(10, 0, 0, 0)
     setEditingPost(null)
     setForm({
       ...EMPTY_FORM,
-      scheduled_for_local: isoLocalDateTime(d),
+      // Default: vandaag (NL) om 10:00
+      scheduled_for_local: `${getNlDateKey(new Date())}T10:00`,
       image_urls: [],
       image_urls_text: '',
       category,
@@ -651,8 +659,7 @@ export default function SocialPlannerPage() {
                   )}
                   <div className="flex flex-col gap-1">
                     {dayPosts.slice(0, 3).map(p => {
-                      const t = new Date(p.scheduled_for)
-                      const time = `${pad(t.getHours())}:${pad(t.getMinutes())}`
+                      const time = formatNlTime(p.scheduled_for)
                       const thumb = p.image_urls?.[0]
                       const ti = typeInfo(p.post_type)
                       const ci = categoryInfo(p.category)
@@ -722,7 +729,7 @@ export default function SocialPlannerPage() {
                   return dayPosts.map((p, postIdx) => {
                     const cat = categoryInfo(p.category)
                     const ti = typeInfo(p.post_type)
-                    const time = `${pad(new Date(p.scheduled_for).getHours())}:${pad(new Date(p.scheduled_for).getMinutes())}`
+                    const time = formatNlTime(p.scheduled_for)
                     const isFirstOfDay = postIdx === 0
                     return (
                       <tr key={p.id} className={`border-t border-gravida-cream hover:opacity-80 transition-opacity ${ti.rowBg}`}>
@@ -985,7 +992,7 @@ export default function SocialPlannerPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="label">Datum &amp; tijd *</label>
+                  <label className="label">Datum &amp; tijd * <span className="text-[10px] font-normal text-gravida-light-sage ml-1">(altijd Nederlandse tijd 🇳🇱)</span></label>
                   <input type="datetime-local" className="input-field"
                     value={form.scheduled_for_local ?? ''}
                     onChange={e => setForm(f => ({ ...f, scheduled_for_local: e.target.value }))}
