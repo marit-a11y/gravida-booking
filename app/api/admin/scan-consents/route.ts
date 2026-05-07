@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       booking_id, diy_rental_id,
       material, finish, size, size_other,
       with_arms, weighted, internal_notes,
+      digital_wishes,
     } = body
 
     if (!booking_id && !diy_rental_id) {
@@ -50,6 +51,14 @@ export async function POST(request: NextRequest) {
 
     if (existing.rows.length > 0) {
       const id = existing.rows[0].id
+      // Behoud bestaande klant-antwoorden bij digital_wishes update.
+      // Als klant nog niet ingevuld heeft, mag admin de wensen aanpassen.
+      const existingConsent = await sql`SELECT submitted_at, digital_wishes FROM scan_consents WHERE id = ${id}`
+      const isSubmitted = existingConsent.rows[0]?.submitted_at !== null
+      const newWishes = digital_wishes !== undefined && !isSubmitted
+        ? digital_wishes
+        : existingConsent.rows[0]?.digital_wishes ?? null
+
       await sql`
         UPDATE scan_consents SET
           material = ${material ?? null},
@@ -59,6 +68,7 @@ export async function POST(request: NextRequest) {
           with_arms = ${with_arms ?? null},
           weighted = ${weighted ?? null},
           internal_notes = ${internal_notes ?? null},
+          digital_wishes = ${newWishes},
           updated_at = NOW()
         WHERE id = ${id}
       `
@@ -70,7 +80,7 @@ export async function POST(request: NextRequest) {
         INSERT INTO scan_consents (
           booking_id, diy_rental_id, token,
           material, finish, size, size_other,
-          with_arms, weighted, internal_notes
+          with_arms, weighted, internal_notes, digital_wishes
         ) VALUES (
           ${booking_id ?? null},
           ${diy_rental_id ?? null},
@@ -81,7 +91,8 @@ export async function POST(request: NextRequest) {
           ${size_other ?? null},
           ${with_arms ?? null},
           ${weighted ?? null},
-          ${internal_notes ?? null}
+          ${internal_notes ?? null},
+          ${digital_wishes ?? null}
         )
         RETURNING *
       `

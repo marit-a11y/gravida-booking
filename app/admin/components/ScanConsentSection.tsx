@@ -41,6 +41,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
   const [withArms, setWithArms] = useState<boolean | null>(null)
   const [weighted, setWeighted] = useState<boolean | null>(null)
   const [internalNotes, setInternalNotes] = useState('')
+  const [digitalWishesAdmin, setDigitalWishesAdmin] = useState('')
 
   const idQuery = bookingId
     ? `booking_id=${bookingId}`
@@ -60,6 +61,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
           setWithArms(data.consent.with_arms)
           setWeighted(data.consent.weighted)
           setInternalNotes(data.consent.internal_notes ?? '')
+          setDigitalWishesAdmin(data.consent.digital_wishes ?? '')
         }
       })
       .finally(() => setLoading(false))
@@ -80,6 +82,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
           with_arms: withArms,
           weighted,
           internal_notes: internalNotes || null,
+          digital_wishes: digitalWishesAdmin || null,
         }),
       })
       if (res.ok) {
@@ -146,6 +149,9 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
           {consent.size && <div><span className="text-gravida-light-sage">Grootte:</span> {consent.size === 'Anders, namelijk...' ? consent.size_other : consent.size}</div>}
           {consent.with_arms !== null && <div><span className="text-gravida-light-sage">Met armen:</span> {consent.with_arms ? 'Ja' : 'Nee'}</div>}
           {consent.weighted !== null && <div><span className="text-gravida-light-sage">Verzwaren:</span> {consent.weighted ? 'Ja' : 'Nee'}</div>}
+          {consent.digital_wishes && !consent.submitted_at && (
+            <div className="italic text-gravida-sage mt-1">💬 Wensen digitaal: {consent.digital_wishes}</div>
+          )}
           {consent.internal_notes && <div className="italic text-amber-700 mt-1">📌 {consent.internal_notes}</div>}
         </div>
         <div className="mt-2 pt-2 border-t border-gravida-cream/70 flex flex-wrap gap-2 text-[11px]">
@@ -251,9 +257,21 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
       </div>
 
       <div>
+        <label className="text-[11px] text-gravida-light-sage block mb-1">
+          Wensen voor digitaal werk (vooringevuld in formulier voor klant)
+        </label>
+        <textarea rows={2} className="w-full text-sm border border-gravida-cream rounded px-2 py-1.5"
+          placeholder="Bijv. moedervlek mag blijven, navelpiercing weghalen, tatoeage versterken..."
+          value={digitalWishesAdmin} onChange={e => setDigitalWishesAdmin(e.target.value)} />
+        <p className="text-[10px] text-gravida-light-sage mt-1">
+          Dit verschijnt vooringevuld in het toestemmingsformulier dat de klant ontvangt — ze kunnen het zelf nog aanpassen.
+        </p>
+      </div>
+
+      <div>
         <label className="text-[11px] text-gravida-light-sage block mb-1">Interne notitie (alleen voor team)</label>
         <textarea rows={2} className="w-full text-sm border border-gravida-cream rounded px-2 py-1.5"
-          placeholder="Bijv. moedervlek, opmerking over pose, etc."
+          placeholder="Bijv. klant twijfelde over materiaal, gespreksnotitie..."
           value={internalNotes} onChange={e => setInternalNotes(e.target.value)} />
       </div>
 
