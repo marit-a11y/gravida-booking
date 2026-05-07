@@ -39,6 +39,8 @@ export async function GET() {
     await sql`CREATE INDEX IF NOT EXISTS idx_scan_consents_token ON scan_consents(token)`
     // Extra kolom: overige afspraken/opmerkingen die met klant gedeeld worden
     await sql`ALTER TABLE scan_consents ADD COLUMN IF NOT EXISTS shared_notes TEXT`
+    // Google Drive (of andere cloud) link naar het scanbestand
+    await sql`ALTER TABLE scan_consents ADD COLUMN IF NOT EXISTS scan_file_url TEXT`
     return NextResponse.json({ ok: true, message: 'scan_consents tabel klaar' })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })

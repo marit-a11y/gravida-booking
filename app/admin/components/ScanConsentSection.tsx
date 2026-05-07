@@ -18,6 +18,7 @@ interface Consent {
   shipping_insured: boolean | null
   digital_wishes: string | null
   shared_notes: string | null
+  scan_file_url: string | null
   sent_at: string | null
   submitted_at: string | null
 }
@@ -44,6 +45,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
   const [internalNotes, setInternalNotes] = useState('')
   const [digitalWishesAdmin, setDigitalWishesAdmin] = useState('')
   const [sharedNotes, setSharedNotes] = useState('')
+  const [scanFileUrl, setScanFileUrl] = useState('')
 
   const idQuery = bookingId
     ? `booking_id=${bookingId}`
@@ -65,6 +67,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
           setInternalNotes(data.consent.internal_notes ?? '')
           setDigitalWishesAdmin(data.consent.digital_wishes ?? '')
           setSharedNotes(data.consent.shared_notes ?? '')
+          setScanFileUrl(data.consent.scan_file_url ?? '')
         }
       })
       .finally(() => setLoading(false))
@@ -87,6 +90,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
           internal_notes: internalNotes || null,
           digital_wishes: digitalWishesAdmin || null,
           shared_notes: sharedNotes || null,
+          scan_file_url: scanFileUrl.trim() || null,
         }),
       })
       if (res.ok) {
@@ -153,6 +157,15 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
           {consent.size && <div><span className="text-gravida-light-sage">Grootte:</span> {consent.size === 'Anders, namelijk...' ? consent.size_other : consent.size}</div>}
           {consent.with_arms !== null && <div><span className="text-gravida-light-sage">Met armen:</span> {consent.with_arms ? 'Ja' : 'Nee'}</div>}
           {consent.weighted !== null && <div><span className="text-gravida-light-sage">Verzwaren:</span> {consent.weighted ? 'Ja' : 'Nee'}</div>}
+          {consent.scan_file_url && (
+            <div>
+              <span className="text-gravida-light-sage">📁 Scanbestand:</span>{' '}
+              <a href={consent.scan_file_url} target="_blank" rel="noopener noreferrer"
+                className="text-gravida-sage hover:text-gravida-green underline break-all">
+                {consent.scan_file_url.length > 50 ? consent.scan_file_url.slice(0, 50) + '...' : consent.scan_file_url}
+              </a>
+            </div>
+          )}
           {consent.digital_wishes && !consent.submitted_at && (
             <div className="italic text-gravida-sage mt-1">💬 Wensen digitaal: {consent.digital_wishes}</div>
           )}
@@ -262,6 +275,15 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
             ))}
           </div>
         </div>
+      </div>
+
+      <div>
+        <label className="text-[11px] text-gravida-light-sage block mb-1">
+          📁 Google Drive link naar scanbestand <span className="text-amber-700">(alleen team)</span>
+        </label>
+        <input type="url" className="w-full text-sm border border-gravida-cream rounded px-2 py-1.5 bg-amber-50/40"
+          placeholder="https://drive.google.com/..."
+          value={scanFileUrl} onChange={e => setScanFileUrl(e.target.value)} />
       </div>
 
       <div>

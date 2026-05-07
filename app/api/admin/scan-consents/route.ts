@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       material, finish, size, size_other,
       with_arms, weighted, internal_notes,
       digital_wishes, shared_notes,
+      scan_file_url,
     } = body
 
     if (!booking_id && !diy_rental_id) {
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
           internal_notes = ${internal_notes ?? null},
           digital_wishes = ${newWishes},
           shared_notes = ${newSharedNotes},
+          scan_file_url = ${scan_file_url ?? null},
           updated_at = NOW()
         WHERE id = ${id}
       `
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
         INSERT INTO scan_consents (
           booking_id, diy_rental_id, token,
           material, finish, size, size_other,
-          with_arms, weighted, internal_notes, digital_wishes, shared_notes
+          with_arms, weighted, internal_notes, digital_wishes, shared_notes, scan_file_url
         ) VALUES (
           ${booking_id ?? null},
           ${diy_rental_id ?? null},
@@ -98,7 +100,8 @@ export async function POST(request: NextRequest) {
           ${weighted ?? null},
           ${internal_notes ?? null},
           ${digital_wishes ?? null},
-          ${shared_notes ?? null}
+          ${shared_notes ?? null},
+          ${scan_file_url ?? null}
         )
         RETURNING *
       `
