@@ -32,7 +32,7 @@ export default function ScanConsentPage() {
   // Antwoorden
   const [storageFiles, setStorageFiles] = useState<boolean | null>(null)
   const [marketingUse, setMarketingUse] = useState<boolean | null>(null)
-  const [shippingInsured, setShippingInsured] = useState<boolean>(true)  // default JA
+  const [shippingInsured, setShippingInsured] = useState<boolean | null>(null)
   const [digitalWishes, setDigitalWishes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -53,8 +53,8 @@ export default function ScanConsentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (storageFiles === null || marketingUse === null) {
-      setError('Beantwoord beide toestemmingsvragen.')
+    if (storageFiles === null || marketingUse === null || shippingInsured === null) {
+      setError('Beantwoord alle drie de vragen.')
       return
     }
     setSubmitting(true); setError('')
@@ -181,20 +181,20 @@ export default function ScanConsentPage() {
           {/* Verzekerd verzenden */}
           <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-4">
             <label className="text-sm font-medium text-gravida-green mb-2 block">
-              📦 Verzekerd verzenden via Gravida (+€15)
+              📦 Wil je dat we je beeldje verzekerd verzenden? (+€15)
             </label>
             <p className="text-xs text-gravida-sage leading-relaxed mb-3">
               De koerier verzekert kunst niet, daarom hebben we hiervoor zelf een &apos;verzekeringspotje&apos;.
               Mocht je beeldje beschadigd raken tijdens transport, dan maken we direct een nieuw exemplaar voor je.
-              Standaard staat dit aangevinkt — meerprijs <strong>€15</strong>.
+              Meerprijs <strong>€15</strong>.
             </p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setShippingInsured(true)}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${shippingInsured ? 'border-amber-500 bg-amber-100 text-amber-900' : 'border-gravida-cream text-gravida-sage hover:border-amber-300'}`}>
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${shippingInsured === true ? 'border-amber-500 bg-amber-100 text-amber-900' : 'border-gravida-cream text-gravida-sage hover:border-amber-300'}`}>
                 ✓ Ja, verzekerd verzenden
               </button>
               <button type="button" onClick={() => setShippingInsured(false)}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${!shippingInsured ? 'border-gravida-light-sage bg-gravida-cream text-gravida-sage' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${shippingInsured === false ? 'border-gravida-light-sage bg-gravida-cream text-gravida-sage' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
                 Nee, op eigen risico
               </button>
             </div>
