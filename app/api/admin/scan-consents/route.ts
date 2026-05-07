@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       booking_id, diy_rental_id,
       material, finish, size, size_other,
       with_arms, weighted, internal_notes,
-      digital_wishes,
+      digital_wishes, shared_notes,
     } = body
 
     if (!booking_id && !diy_rental_id) {
@@ -53,11 +53,15 @@ export async function POST(request: NextRequest) {
       const id = existing.rows[0].id
       // Behoud bestaande klant-antwoorden bij digital_wishes update.
       // Als klant nog niet ingevuld heeft, mag admin de wensen aanpassen.
-      const existingConsent = await sql`SELECT submitted_at, digital_wishes FROM scan_consents WHERE id = ${id}`
+      const existingConsent = await sql`SELECT submitted_at, digital_wishes, shared_notes FROM scan_consents WHERE id = ${id}`
       const isSubmitted = existingConsent.rows[0]?.submitted_at !== null
-      const newWishes = digital_wishes !== undefined && !isSubmitted
+      // Behoud klant-antwoorden na submit; daarvoor mag admin overschrijven
+      const newWishes = !isSubmitted && digital_wishes !== undefined
         ? digital_wishes
         : existingConsent.rows[0]?.digital_wishes ?? null
+      const newSharedNotes = !isSubmitted && shared_notes !== undefined
+        ? shared_notes
+        : existingConsent.rows[0]?.shared_notes ?? null
 
       await sql`
         UPDATE scan_consents SET
@@ -69,6 +73,7 @@ export async function POST(request: NextRequest) {
           weighted = ${weighted ?? null},
           internal_notes = ${internal_notes ?? null},
           digital_wishes = ${newWishes},
+          shared_notes = ${newSharedNotes},
           updated_at = NOW()
         WHERE id = ${id}
       `
@@ -80,7 +85,7 @@ export async function POST(request: NextRequest) {
         INSERT INTO scan_consents (
           booking_id, diy_rental_id, token,
           material, finish, size, size_other,
-          with_arms, weighted, internal_notes, digital_wishes
+          with_arms, weighted, internal_notes, digital_wishes, shared_notes
         ) VALUES (
           ${booking_id ?? null},
           ${diy_rental_id ?? null},
@@ -92,7 +97,8 @@ export async function POST(request: NextRequest) {
           ${with_arms ?? null},
           ${weighted ?? null},
           ${internal_notes ?? null},
-          ${digital_wishes ?? null}
+          ${digital_wishes ?? null},
+          ${shared_notes ?? null}
         )
         RETURNING *
       `

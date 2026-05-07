@@ -17,6 +17,7 @@ interface Consent {
   consent_marketing_use: boolean | null
   shipping_insured: boolean | null
   digital_wishes: string | null
+  shared_notes: string | null
   sent_at: string | null
   submitted_at: string | null
 }
@@ -42,6 +43,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
   const [weighted, setWeighted] = useState<boolean | null>(null)
   const [internalNotes, setInternalNotes] = useState('')
   const [digitalWishesAdmin, setDigitalWishesAdmin] = useState('')
+  const [sharedNotes, setSharedNotes] = useState('')
 
   const idQuery = bookingId
     ? `booking_id=${bookingId}`
@@ -62,6 +64,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
           setWeighted(data.consent.weighted)
           setInternalNotes(data.consent.internal_notes ?? '')
           setDigitalWishesAdmin(data.consent.digital_wishes ?? '')
+          setSharedNotes(data.consent.shared_notes ?? '')
         }
       })
       .finally(() => setLoading(false))
@@ -83,6 +86,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
           weighted,
           internal_notes: internalNotes || null,
           digital_wishes: digitalWishesAdmin || null,
+          shared_notes: sharedNotes || null,
         }),
       })
       if (res.ok) {
@@ -152,6 +156,9 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
           {consent.digital_wishes && !consent.submitted_at && (
             <div className="italic text-gravida-sage mt-1">💬 Wensen digitaal: {consent.digital_wishes}</div>
           )}
+          {consent.shared_notes && !consent.submitted_at && (
+            <div className="italic text-gravida-sage mt-1">📋 Overige afspraken: {consent.shared_notes}</div>
+          )}
           {consent.internal_notes && <div className="italic text-amber-700 mt-1">📌 {consent.internal_notes}</div>}
         </div>
         <div className="mt-2 pt-2 border-t border-gravida-cream/70 flex flex-wrap gap-2 text-[11px]">
@@ -169,6 +176,7 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
             <div>📸 Foto&apos;s gebruiken: <span className={consent.consent_marketing_use ? 'text-green-700' : 'text-red-600'}>{consent.consent_marketing_use ? 'Ja' : 'Nee'}</span></div>
             <div>🛡️ Verzekerd verzenden (€15): <span className={consent.shipping_insured ? 'text-green-700' : 'text-red-600'}>{consent.shipping_insured ? 'Ja' : 'Nee'}</span></div>
             {consent.digital_wishes && <div className="mt-1">💬 Wensen: <span className="italic">{consent.digital_wishes}</span></div>}
+            {consent.shared_notes && <div className="mt-1">📋 Afspraken: <span className="italic">{consent.shared_notes}</span></div>}
           </div>
         )}
       </div>
@@ -258,19 +266,27 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
 
       <div>
         <label className="text-[11px] text-gravida-light-sage block mb-1">
-          Wensen voor digitaal werk (vooringevuld in formulier voor klant)
+          💬 Wensen voor digitale nabewerking <span className="text-gravida-sage">(klant ziet dit)</span>
         </label>
         <textarea rows={2} className="w-full text-sm border border-gravida-cream rounded px-2 py-1.5"
           placeholder="Bijv. moedervlek mag blijven, navelpiercing weghalen, tatoeage versterken..."
           value={digitalWishesAdmin} onChange={e => setDigitalWishesAdmin(e.target.value)} />
-        <p className="text-[10px] text-gravida-light-sage mt-1">
-          Dit verschijnt vooringevuld in het toestemmingsformulier dat de klant ontvangt — ze kunnen het zelf nog aanpassen.
-        </p>
       </div>
 
       <div>
-        <label className="text-[11px] text-gravida-light-sage block mb-1">Interne notitie (alleen voor team)</label>
+        <label className="text-[11px] text-gravida-light-sage block mb-1">
+          📋 Overige opmerkingen / afspraken <span className="text-gravida-sage">(klant ziet dit)</span>
+        </label>
         <textarea rows={2} className="w-full text-sm border border-gravida-cream rounded px-2 py-1.5"
+          placeholder="Bijv. wil eerst proefdruk zien, levering 2 weken later, etc."
+          value={sharedNotes} onChange={e => setSharedNotes(e.target.value)} />
+      </div>
+
+      <div>
+        <label className="text-[11px] text-gravida-light-sage block mb-1">
+          📌 Interne notitie <span className="text-amber-700">(alleen team)</span>
+        </label>
+        <textarea rows={2} className="w-full text-sm border border-gravida-cream rounded px-2 py-1.5 bg-amber-50/40"
           placeholder="Bijv. klant twijfelde over materiaal, gespreksnotitie..."
           value={internalNotes} onChange={e => setInternalNotes(e.target.value)} />
       </div>

@@ -17,6 +17,7 @@ interface Consent {
   consent_marketing_use: boolean | null
   shipping_insured: boolean | null
   digital_wishes: string | null
+  shared_notes: string | null
   submitted_at: string | null
 }
 
@@ -34,6 +35,7 @@ export default function ScanConsentPage() {
   const [marketingUse, setMarketingUse] = useState<boolean | null>(null)
   const [shippingInsured, setShippingInsured] = useState<boolean | null>(null)
   const [digitalWishes, setDigitalWishes] = useState('')
+  const [sharedNotes, setSharedNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
@@ -48,6 +50,7 @@ export default function ScanConsentPage() {
       if (data.consent.consent_marketing_use !== null) setMarketingUse(data.consent.consent_marketing_use)
       if (data.consent.shipping_insured !== null) setShippingInsured(data.consent.shipping_insured)
       if (data.consent.digital_wishes) setDigitalWishes(data.consent.digital_wishes)
+      if (data.consent.shared_notes) setSharedNotes(data.consent.shared_notes)
     }).catch(err => setError(String(err))).finally(() => setLoading(false))
   }, [token])
 
@@ -67,6 +70,7 @@ export default function ScanConsentPage() {
           consent_marketing_use: marketingUse,
           shipping_insured: shippingInsured,
           digital_wishes: digitalWishes.trim() || null,
+          shared_notes: sharedNotes.trim() || null,
         }),
       })
       if (res.ok) setSubmitted(true)
@@ -203,14 +207,28 @@ export default function ScanConsentPage() {
           {/* Digitale nabewerking wensen */}
           <div>
             <label className="text-sm font-medium text-gravida-green mb-2 block">
-              Wensen voor digitale nabewerking / afspraken (optioneel)
+              Wensen voor digitale nabewerking (optioneel)
             </label>
             <textarea
-              rows={4}
+              rows={3}
               className="w-full text-sm px-3 py-2 border border-gravida-cream rounded-lg focus:outline-none focus:border-gravida-sage"
-              placeholder="Bijv. moedervlek mag blijven, navelpiercing weghalen, etc."
+              placeholder="Bijv. moedervlek mag blijven, navelpiercing weghalen, tatoeage versterken..."
               value={digitalWishes}
               onChange={e => setDigitalWishes(e.target.value)}
+            />
+          </div>
+
+          {/* Overige afspraken */}
+          <div>
+            <label className="text-sm font-medium text-gravida-green mb-2 block">
+              Overige opmerkingen / afspraken (optioneel)
+            </label>
+            <textarea
+              rows={3}
+              className="w-full text-sm px-3 py-2 border border-gravida-cream rounded-lg focus:outline-none focus:border-gravida-sage"
+              placeholder="Bijv. afhalen i.p.v. verzenden, levering iets later, etc."
+              value={sharedNotes}
+              onChange={e => setSharedNotes(e.target.value)}
             />
           </div>
 
