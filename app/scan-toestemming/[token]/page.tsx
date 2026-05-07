@@ -1,0 +1,227 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { findMaterial, findFinishLabel } from '@/lib/scan-options'
+
+interface Consent {
+  id: number
+  token: string
+  material: string | null
+  finish: string | null
+  size: string | null
+  size_other: string | null
+  with_arms: boolean | null
+  weighted: boolean | null
+  consent_storage_files: boolean | null
+  consent_marketing_use: boolean | null
+  shipping_insured: boolean | null
+  digital_wishes: string | null
+  submitted_at: string | null
+}
+
+export default function ScanConsentPage() {
+  const params = useParams()
+  const token = params?.token as string
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [consent, setConsent] = useState<Consent | null>(null)
+  const [firstName, setFirstName] = useState<string | null>(null)
+
+  // Antwoorden
+  const [storageFiles, setStorageFiles] = useState<boolean | null>(null)
+  const [marketingUse, setMarketingUse] = useState<boolean | null>(null)
+  const [shippingInsured, setShippingInsured] = useState<boolean>(true)  // default JA
+  const [digitalWishes, setDigitalWishes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/scan-consent/${token}`).then(r => r.json()).then(data => {
+      if (data.error) { setError(data.error); return }
+      setConsent(data.consent)
+      setFirstName(data.first_name)
+      if (data.consent.submitted_at) setSubmitted(true)
+      // Pre-fill als al eens ingevuld
+      if (data.consent.consent_storage_files !== null) setStorageFiles(data.consent.consent_storage_files)
+      if (data.consent.consent_marketing_use !== null) setMarketingUse(data.consent.consent_marketing_use)
+      if (data.consent.shipping_insured !== null) setShippingInsured(data.consent.shipping_insured)
+      if (data.consent.digital_wishes) setDigitalWishes(data.consent.digital_wishes)
+    }).catch(err => setError(String(err))).finally(() => setLoading(false))
+  }, [token])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (storageFiles === null || marketingUse === null) {
+      setError('Beantwoord beide toestemmingsvragen.')
+      return
+    }
+    setSubmitting(true); setError('')
+    try {
+      const res = await fetch(`/api/scan-consent/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consent_storage_files: storageFiles,
+          consent_marketing_use: marketingUse,
+          shipping_insured: shippingInsured,
+          digital_wishes: digitalWishes.trim() || null,
+        }),
+      })
+      if (res.ok) setSubmitted(true)
+      else {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Er ging iets mis.')
+      }
+    } finally { setSubmitting(false) }
+  }
+
+  if (loading) {
+    return <div className="p-12 text-center text-sm text-gravida-light-sage">Laden...</div>
+  }
+
+  if (error && !consent) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12">
+        <div className="bg-white rounded-2xl shadow-sm border border-gravida-cream p-8 text-center">
+          <p className="text-red-600">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!consent) return null
+
+  const materialLabel = consent.material ? (findMaterial(consent.material)?.label ?? consent.material) : null
+  const finishLabel = consent.material && consent.finish ? findFinishLabel(consent.material, consent.finish) : null
+  const sizeLabel = consent.size === 'Anders, namelijk...' && consent.size_other
+    ? `Anders: ${consent.size_other}`
+    : consent.size
+
+  if (submitted) {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-12">
+        <div className="bg-white rounded-2xl shadow-sm border border-gravida-cream p-8 text-center">
+          <p className="text-5xl mb-4">✨</p>
+          <h1 className="text-2xl font-bold text-gravida-green mb-3">Helemaal goed!</h1>
+          <p className="text-gravida-sage mb-6">
+            Je antwoorden zijn ontvangen. We gaan voor je aan de slag met de bewerking en productie van je beeldje.
+            Je krijgt vanzelf bericht zodra het klaar is.
+          </p>
+          <p className="text-sm text-gravida-light-sage">— Team Gravida</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-12">
+      <div className="bg-white rounded-2xl shadow-sm border border-gravida-cream p-8">
+        <h1 className="text-2xl font-bold text-gravida-green mb-2">📝 Bevestig je keuzes</h1>
+        {firstName && (
+          <p className="text-sm text-gravida-sage mb-6">
+            Hi {firstName}! Hieronder zie je de afspraken die we samen hebben gemaakt en nog drie korte vragen.
+          </p>
+        )}
+
+        {/* Overzicht keuzes */}
+        {(materialLabel || finishLabel || sizeLabel || consent.with_arms !== null || consent.weighted !== null) && (
+          <div className="bg-gravida-off-white rounded-xl border border-gravida-cream p-4 mb-6">
+            <p className="text-xs font-semibold text-gravida-light-sage uppercase tracking-wide mb-2">
+              Onze afspraken voor jouw beeldje
+            </p>
+            <table className="w-full text-sm">
+              <tbody>
+                {materialLabel && <tr><td className="py-1 text-gravida-light-sage w-32">🎨 Materiaal</td><td className="py-1 text-gravida-green">{materialLabel}</td></tr>}
+                {finishLabel && <tr><td className="py-1 text-gravida-light-sage">✨ Afwerking</td><td className="py-1 text-gravida-green">{finishLabel}</td></tr>}
+                {sizeLabel && <tr><td className="py-1 text-gravida-light-sage">📏 Grootte</td><td className="py-1 text-gravida-green">{sizeLabel}</td></tr>}
+                {consent.with_arms !== null && <tr><td className="py-1 text-gravida-light-sage">🤱 Met armen</td><td className="py-1 text-gravida-green">{consent.with_arms ? 'Ja' : 'Nee'}</td></tr>}
+                {consent.weighted !== null && <tr><td className="py-1 text-gravida-light-sage">⚖️ Verzwaren</td><td className="py-1 text-gravida-green">{consent.weighted ? 'Ja' : 'Nee'}</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Toestemming opslaan */}
+          <div>
+            <label className="text-sm font-medium text-gravida-green mb-2 block">
+              Mogen wij jouw bestanden bewaren voor eventuele nabestellingen?
+            </label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setStorageFiles(true)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${storageFiles === true ? 'border-gravida-sage bg-gravida-sage text-white' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                ✓ Ja graag
+              </button>
+              <button type="button" onClick={() => setStorageFiles(false)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${storageFiles === false ? 'border-red-400 bg-red-50 text-red-700' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                ✗ Nee, liever niet
+              </button>
+            </div>
+          </div>
+
+          {/* Marketing use */}
+          <div>
+            <label className="text-sm font-medium text-gravida-green mb-2 block">
+              Mogen we (foto&apos;s van) jouw beeldje gebruiken in de studio, op social media en op de website?
+            </label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setMarketingUse(true)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${marketingUse === true ? 'border-gravida-sage bg-gravida-sage text-white' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                ✓ Ja graag
+              </button>
+              <button type="button" onClick={() => setMarketingUse(false)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${marketingUse === false ? 'border-red-400 bg-red-50 text-red-700' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                ✗ Liever niet
+              </button>
+            </div>
+          </div>
+
+          {/* Verzekerd verzenden */}
+          <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-4">
+            <label className="text-sm font-medium text-gravida-green mb-2 block">
+              📦 Verzekerd verzenden via Gravida (+€15)
+            </label>
+            <p className="text-xs text-gravida-sage leading-relaxed mb-3">
+              De koerier verzekert kunst niet, daarom hebben we hiervoor zelf een &apos;verzekeringspotje&apos;.
+              Mocht je beeldje beschadigd raken tijdens transport, dan maken we direct een nieuw exemplaar voor je.
+              Standaard staat dit aangevinkt — meerprijs <strong>€15</strong>.
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShippingInsured(true)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${shippingInsured ? 'border-amber-500 bg-amber-100 text-amber-900' : 'border-gravida-cream text-gravida-sage hover:border-amber-300'}`}>
+                ✓ Ja, verzekerd verzenden
+              </button>
+              <button type="button" onClick={() => setShippingInsured(false)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${!shippingInsured ? 'border-gravida-light-sage bg-gravida-cream text-gravida-sage' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                Nee, op eigen risico
+              </button>
+            </div>
+          </div>
+
+          {/* Digitale nabewerking wensen */}
+          <div>
+            <label className="text-sm font-medium text-gravida-green mb-2 block">
+              Wensen voor digitale nabewerking / afspraken (optioneel)
+            </label>
+            <textarea
+              rows={4}
+              className="w-full text-sm px-3 py-2 border border-gravida-cream rounded-lg focus:outline-none focus:border-gravida-sage"
+              placeholder="Bijv. moedervlek mag blijven, navelpiercing weghalen, etc."
+              value={digitalWishes}
+              onChange={e => setDigitalWishes(e.target.value)}
+            />
+          </div>
+
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+
+          <button type="submit" disabled={submitting}
+            className="w-full py-3 rounded-xl bg-gravida-green text-white font-medium hover:bg-gravida-sage transition-colors disabled:opacity-50">
+            {submitting ? 'Verzenden...' : 'Verzenden ✓'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}

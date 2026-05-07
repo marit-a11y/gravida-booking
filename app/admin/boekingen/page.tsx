@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { formatDutchDateShort } from '@/lib/utils'
+import { ScanConsentSection } from '@/app/admin/components/ScanConsentSection'
 
 interface Booking {
   id: number
@@ -774,6 +775,8 @@ export default function BoekingenPage() {
                     <p className="text-sm text-amber-700 italic whitespace-pre-wrap">{detailBooking.internal_notes}</p>
                   </Section>
                 )}
+
+                <ScanConsentSection bookingId={detailBooking.id} />
 
                 <div>
                   <label className="label">Status wijzigen</label>

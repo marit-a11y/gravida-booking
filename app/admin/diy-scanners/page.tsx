@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { ScanConsentSection } from '@/app/admin/components/ScanConsentSection'
 
 interface Scanner {
   id: number
@@ -526,6 +527,9 @@ export default function DiyScannerPage() {
                   <p className="text-sm text-amber-700 italic whitespace-pre-wrap">{detailRental.internal_notes}</p>
                 </div>
               )}
+
+              <ScanConsentSection diyRentalId={detailRental.id} />
+
               <div>
                 <label className="label">Status wijzigen</label>
                 <div className="flex gap-2 flex-wrap">

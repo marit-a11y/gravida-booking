@@ -955,6 +955,87 @@ export async function sendDiySupportCallStaffEmail(params: {
   })
 }
 
+// ─── Scan toestemmingsformulier email (na de scan) ─────────────────────────
+
+import { findMaterial, findFinishLabel } from './scan-options'
+
+export async function sendScanConsentEmail(params: {
+  first_name: string
+  email: string
+  token: string
+  material: string | null
+  finish: string | null
+  size: string | null
+  size_other: string | null
+  with_arms: boolean | null
+  weighted: boolean | null
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+
+  const formUrl = `https://dashboard.gravida.nl/scan-toestemming/${params.token}`
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  const materialLabel = params.material
+    ? (findMaterial(params.material)?.label ?? params.material)
+    : null
+  const finishLabel = params.material && params.finish
+    ? findFinishLabel(params.material, params.finish)
+    : null
+  const sizeLabel = params.size === 'Anders, namelijk...' && params.size_other
+    ? `Anders: ${params.size_other}`
+    : params.size
+
+  const overzichtRow = (label: string, value: string) =>
+    `<tr><td style="padding:5px 0;font-size:13px;color:#8a9e8c;width:140px;">${label}</td><td style="padding:5px 0;font-size:14px;color:#1e2d1f;">${value}</td></tr>`
+
+  const overzichtRows: string[] = []
+  if (materialLabel) overzichtRows.push(overzichtRow('🎨 Materiaal', materialLabel))
+  if (finishLabel) overzichtRows.push(overzichtRow('✨ Afwerking', finishLabel))
+  if (sizeLabel) overzichtRows.push(overzichtRow('📏 Grootte', sizeLabel))
+  if (params.with_arms !== null) overzichtRows.push(overzichtRow('🤱 Met armen', params.with_arms ? 'Ja' : 'Nee'))
+  if (params.weighted !== null) overzichtRows.push(overzichtRow('⚖️ Verzwaren', params.weighted ? 'Ja' : 'Nee'))
+
+  const overzichtBlock = overzichtRows.length > 0 ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:0 0 24px;">
+      <tr><td style="padding:20px 24px;">
+        <p style="margin:0 0 12px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">
+          Onze afspraken voor jouw beeldje
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${overzichtRows.join('')}
+        </table>
+      </td></tr>
+    </table>` : ''
+
+  const html = layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
+      📝 Bevestig je keuzes
+    </p>
+    ${p(`Hi ${params.first_name},`)}
+    ${p('Wat fijn dat we elkaar hebben gezien voor je 3D scan! Hieronder zie je de afspraken die we samen hebben gemaakt voor de afwerking van je beeldje.')}
+    ${overzichtBlock}
+    ${p('We hebben nog een paar korte vragen voordat we voor je aan de slag kunnen. Het invullen kost je hooguit een minuutje.')}
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
+      <a href="${formUrl}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">
+        ✓ Open formulier
+      </a>
+    </p>
+    ${p('Mocht er iets niet kloppen of heb je vragen? Stuur me gerust een berichtje.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Tot snel,<br/>
+      <strong style="color:#1e2d1f;">Team Gravida</strong>
+    </p>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject: 'Bevestig je keuzes — Gravida',
+    html,
+  })
+}
+
 // ─── Gift Card emails ─────────────────────────────────────────────────────────
 
 const GIFT_CARD_TYPE_LABELS: Record<string, string> = {
