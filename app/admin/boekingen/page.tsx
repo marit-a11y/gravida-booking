@@ -76,7 +76,13 @@ export default function BoekingenPage() {
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null)
   const [updatingId, setUpdatingId] = useState<number | null>(null)
   const [editMode, setEditMode] = useState(false)
-  const [editForm, setEditForm] = useState<Partial<Booking> & { pregnancy_weeks_str?: string }>({})
+  const [editForm, setEditForm] = useState<Partial<Booking> & {
+    pregnancy_weeks_str?: string
+    custom_mode?: boolean
+    custom_date?: string
+    custom_region?: string
+    custom_time?: string
+  }>({})
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -138,6 +144,36 @@ export default function BoekingenPage() {
     if (!detailBooking) return
     setEditSaving(true); setEditError('')
     try {
+      let availabilityId = editForm.availability_id
+      let timeSlot = editForm.time_slot
+
+      // Vrije invoer: maak een nieuwe availability aan met de custom datum/tijd
+      if (editForm.custom_mode) {
+        if (!editForm.custom_date || !editForm.custom_region || !editForm.custom_time) {
+          setEditError('Vul datum, regio en tijd in voor de vrije invoer.')
+          setEditSaving(false)
+          return
+        }
+        const availRes = await fetch('/api/admin/availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: editForm.custom_date,
+            region: editForm.custom_region,
+            slots: [editForm.custom_time],
+            max_per_slot: 2,
+          }),
+        })
+        if (!availRes.ok) {
+          setEditError('Kon nieuwe beschikbaarheid niet aanmaken.')
+          setEditSaving(false)
+          return
+        }
+        const availData = await availRes.json()
+        availabilityId = availData.availability.id
+        timeSlot = editForm.custom_time
+      }
+
       const payload = {
         first_name: editForm.first_name?.trim(),
         last_name: editForm.last_name?.trim(),
@@ -149,8 +185,8 @@ export default function BoekingenPage() {
         pregnancy_weeks: editForm.pregnancy_weeks_str ? parseInt(editForm.pregnancy_weeks_str, 10) : null,
         notes: editForm.notes?.trim() || null,
         internal_notes: editForm.internal_notes?.trim() || null,
-        availability_id: editForm.availability_id,
-        time_slot: editForm.time_slot,
+        availability_id: availabilityId,
+        time_slot: timeSlot,
       }
       const res = await fetch(`/api/admin/bookings/${detailBooking.id}`, {
         method: 'PUT',
@@ -876,46 +912,100 @@ export default function BoekingenPage() {
                 </div>
 
                 <Section title="Afspraak wijzigen">
-                  <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <label className="label">Datum &amp; regio</label>
-                      <select
-                        className="input-field"
-                        value={editForm.availability_id ?? ''}
-                        onChange={e => {
-                          const id = Number(e.target.value)
-                          const sel = availabilityList.find(a => a.id === id)
-                          setEditForm(f => ({ ...f, availability_id: id, time_slot: sel?.slots[0] ?? f.time_slot }))
-                        }}
-                      >
-                        {detailBooking.availability_id && !availabilityList.some(a => a.id === detailBooking.availability_id) && (
-                          <option value={detailBooking.availability_id}>
-                            Huidig: {detailBooking.date ? formatDutchDateShort(detailBooking.date) : '?'} · {detailBooking.region}
-                          </option>
-                        )}
-                        {availabilityList.sort((a, b) => a.date.localeCompare(b.date)).map(a => (
-                          <option key={a.id} value={a.id}>
-                            {formatDutchDateShort(a.date)} · {a.region}
-                          </option>
-                        ))}
-                      </select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <div className="flex gap-1.5 mb-2">
+                        <button type="button"
+                          onClick={() => setEditForm(f => ({ ...f, custom_mode: false }))}
+                          className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
+                            !editForm.custom_mode ? 'bg-gravida-sage text-white border-gravida-sage' : 'bg-white border-gravida-cream text-gravida-sage'
+                          }`}>
+                          📅 Bestaande planning
+                        </button>
+                        <button type="button"
+                          onClick={() => setEditForm(f => ({
+                            ...f,
+                            custom_mode: true,
+                            custom_date: f.custom_date || (detailBooking?.date ?? ''),
+                            custom_region: f.custom_region || (detailBooking?.region ?? ''),
+                            custom_time: f.custom_time || (detailBooking?.time_slot ?? ''),
+                          }))}
+                          className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
+                            editForm.custom_mode ? 'bg-gravida-sage text-white border-gravida-sage' : 'bg-white border-gravida-cream text-gravida-sage'
+                          }`}>
+                          ✏️ Vrije invoer
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <label className="label">Tijdslot</label>
-                      {(() => {
-                        const sel = availabilityList.find(a => a.id === editForm.availability_id)
-                        const slots = sel?.slots ?? (editForm.time_slot ? [editForm.time_slot] : [])
-                        return (
+
+                    {!editForm.custom_mode ? (
+                      <>
+                        <div>
+                          <label className="label">Datum &amp; regio</label>
                           <select
                             className="input-field"
-                            value={editForm.time_slot ?? ''}
-                            onChange={e => setEditForm(f => ({ ...f, time_slot: e.target.value }))}
+                            value={editForm.availability_id ?? ''}
+                            onChange={e => {
+                              const id = Number(e.target.value)
+                              const sel = availabilityList.find(a => a.id === id)
+                              setEditForm(f => ({ ...f, availability_id: id, time_slot: sel?.slots[0] ?? f.time_slot }))
+                            }}
                           >
-                            {slots.map(s => <option key={s} value={s}>{s}</option>)}
+                            {detailBooking.availability_id && !availabilityList.some(a => a.id === detailBooking.availability_id) && (
+                              <option value={detailBooking.availability_id}>
+                                Huidig: {detailBooking.date ? formatDutchDateShort(detailBooking.date) : '?'} · {detailBooking.region}
+                              </option>
+                            )}
+                            {availabilityList.sort((a, b) => a.date.localeCompare(b.date)).map(a => (
+                              <option key={a.id} value={a.id}>
+                                {formatDutchDateShort(a.date)} · {a.region}
+                              </option>
+                            ))}
                           </select>
-                        )
-                      })()}
-                    </div>
+                        </div>
+                        <div>
+                          <label className="label">Tijdslot</label>
+                          {(() => {
+                            const sel = availabilityList.find(a => a.id === editForm.availability_id)
+                            const slots = sel?.slots ?? (editForm.time_slot ? [editForm.time_slot] : [])
+                            return (
+                              <select
+                                className="input-field"
+                                value={editForm.time_slot ?? ''}
+                                onChange={e => setEditForm(f => ({ ...f, time_slot: e.target.value }))}
+                              >
+                                {slots.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            )
+                          })()}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="label">Datum *</label>
+                          <input type="date" className="input-field"
+                            value={editForm.custom_date ?? ''}
+                            onChange={e => setEditForm(f => ({ ...f, custom_date: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="label">Tijd *</label>
+                          <input type="time" className="input-field"
+                            value={editForm.custom_time ?? ''}
+                            onChange={e => setEditForm(f => ({ ...f, custom_time: e.target.value }))} />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="label">Regio *</label>
+                          <input className="input-field"
+                            placeholder="Bijv. Noord-Holland & Flevoland of Haarlem studioscan"
+                            value={editForm.custom_region ?? ''}
+                            onChange={e => setEditForm(f => ({ ...f, custom_region: e.target.value }))} />
+                          <p className="text-[10px] text-gravida-light-sage mt-1">
+                            Maakt een nieuwe beschikbaarheid aan op deze datum/tijd/regio (max 2 plekken).
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </Section>
 
