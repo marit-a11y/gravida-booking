@@ -93,7 +93,7 @@ export const MATERIALS: MaterialOption[] = [
   },
   {
     code: 'MB',
-    label: 'Marble Bronze',
+    label: 'Metal Bronze',
     finishes: [
       { code: 'MB1A', label: 'Blue-green' },
       { code: 'MB1B', label: 'Green' },
