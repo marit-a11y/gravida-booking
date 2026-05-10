@@ -98,7 +98,8 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
         setConsent(data.consent)
         setEditing(false)
       } else {
-        alert('Opslaan mislukt')
+        const data = await res.json().catch(() => ({}))
+        alert('Opslaan mislukt: ' + (data.error ?? 'onbekende fout'))
       }
     } finally { setSaving(false) }
   }
