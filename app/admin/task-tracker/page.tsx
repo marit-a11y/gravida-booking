@@ -70,7 +70,7 @@ export default function TaskTrackerPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | Task['status']>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | Task['status']>('open')
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Task | null>(null)
