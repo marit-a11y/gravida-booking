@@ -560,7 +560,7 @@ function diyCustomerEmailHtml(params: {
     ${params.customer_number ? p(`Je klantnummer is <strong>${params.customer_number}</strong>. Noteer dit nummer zodat je het later bij de hand hebt.`) : ''}
     ${p('De scanner wordt op <strong>woensdag</strong> naar je verstuurd, zodat je deze uiterlijk <strong>donderdag</strong> in huis hebt. Je kunt de scanner gebruiken van donderdag tot en met zondag.')}
     ${p('Stuur de scanner uiterlijk <strong>maandag</strong> retour, zodat wij deze op dinsdag kunnen verwerken.')}
-    ${p('Voor de scanner geldt een borg van <strong>&euro;200</strong>. Deze wordt teruggestort zodra de scanner in goede staat retour is ontvangen.')}
+    ${p('Voor de scanner geldt een borg van <strong>&euro;200</strong>. Zodra de scanner in goede staat retour is ontvangen, vragen we je hoe je de borg wilt verwerken: helemaal terugstorten, verrekenen met een bestelling van een beeldje, of omzetten in een cadeaubon. Je krijgt hier op de retour-dag automatisch bericht over.')}
     ${p('Heb je vragen over het gebruik van de scanner? Stuur ons gerust een berichtje!')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Veel plezier met scannen!<br/>
