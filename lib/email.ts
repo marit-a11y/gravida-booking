@@ -892,6 +892,51 @@ export async function sendDiyRentalShippedEmail(params: {
   })
 }
 
+// ─── DIY Feedback + borg-keuze mail (op retour-dag) ───────────────────────────
+
+export async function sendDiyFeedbackEmail(params: {
+  first_name: string
+  email: string
+  token: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+
+  const formUrl = `https://dashboard.gravida.nl/diy-feedback/${params.token}`
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  const html = layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
+      Tijd om de scanner retour te sturen
+    </p>
+    ${p(`Hi ${params.first_name},`)}
+    ${p('Hopelijk heb je een fijne scansessie gehad! Vandaag is de dag dat de scanner weer onze kant op kan, zodat we hem op dinsdag kunnen verwerken voor de volgende klant.')}
+    ${p('We willen je nog twee korte vragen stellen voor we de borg afhandelen:')}
+    <ul style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;padding-left:20px;">
+      <li>Heb je bijzonderheden ervaren bij het gebruik van de scanner?</li>
+      <li>Hoe wil je dat we de borg van &euro;200 verwerken?</li>
+    </ul>
+    ${p('Het invullen kost je hooguit een minuutje.')}
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
+      <a href="${formUrl}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">
+        Open formulier
+      </a>
+    </p>
+    ${p('Heel veel dank voor je gebruik van de DIY scan kit!')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Met vriendelijke groet,<br/>
+      <strong style="color:#1e2d1f;">Team Gravida</strong>
+    </p>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject: 'Tijd om de scanner retour te sturen',
+    html,
+  })
+}
+
 // ─── DIY Support call staff notificatie ───────────────────────────────────────
 
 export async function sendDiySupportCallStaffEmail(params: {

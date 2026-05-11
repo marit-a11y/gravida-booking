@@ -192,6 +192,23 @@ export default function DiyScannerPage() {
     } finally { setUpdatingRental(null) }
   }
 
+  const sendFeedbackEmail = async () => {
+    if (!detailRental) return
+    if (!confirm('Stuur de feedback + borg-keuze mail naar de klant?')) return
+    setUpdatingRental(detailRental.id)
+    try {
+      const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}/send-feedback-email`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        alert('Feedback-mail verstuurd')
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert('Verzenden mislukt: ' + (data.error ?? ''))
+      }
+    } finally { setUpdatingRental(null) }
+  }
+
   const sendShippedEmail = async () => {
     if (!detailRental) return
     const trackingUrl = prompt(
@@ -552,6 +569,18 @@ export default function DiyScannerPage() {
                   title="Stuurt klant een mail dat de scanner vandaag is verstuurd, en zet status op 'verzonden'"
                 >
                   {updatingRental === detailRental.id ? 'Bezig...' : '📦 Markeer verzonden + stuur mail'}
+                </button>
+              )}
+
+              {/* Feedback / borg-keuze mail knop (handmatig, los van de auto-cron) */}
+              {detailRental.status !== 'geannuleerd' && (
+                <button
+                  onClick={sendFeedbackEmail}
+                  disabled={updatingRental === detailRental.id}
+                  className="w-full py-2 rounded-lg text-sm font-medium bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200 transition-colors disabled:opacity-50"
+                  title="Stuurt klant het formulier met scanner-feedback + borg-keuze (terugstorten / verrekenen / cadeaubon)"
+                >
+                  {updatingRental === detailRental.id ? 'Bezig...' : 'Stuur feedback + borg-keuze mail'}
                 </button>
               )}
               <div>
