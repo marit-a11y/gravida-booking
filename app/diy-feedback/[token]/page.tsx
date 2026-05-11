@@ -22,7 +22,7 @@ export default function DiyFeedbackPage() {
   const [rental, setRental] = useState<Rental | null>(null)
 
   const [scannerIssues, setScannerIssues] = useState('')
-  const [depositChoice, setDepositChoice] = useState<'refund' | 'order_credit' | 'giftcard' | ''>('')
+  const [depositChoice, setDepositChoice] = useState<'order_credit' | 'giftcard' | ''>('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
@@ -32,7 +32,9 @@ export default function DiyFeedbackPage() {
       setRental(data.rental)
       if (data.rental.feedback_submitted_at) setSubmitted(true)
       if (data.rental.scanner_issues) setScannerIssues(data.rental.scanner_issues)
-      if (data.rental.deposit_choice) setDepositChoice(data.rental.deposit_choice)
+      if (data.rental.deposit_choice && (data.rental.deposit_choice === 'giftcard' || data.rental.deposit_choice === 'order_credit')) {
+      setDepositChoice(data.rental.deposit_choice)
+    }
     }).catch(err => setError(String(err))).finally(() => setLoading(false))
   }, [token])
 
@@ -113,27 +115,27 @@ export default function DiyFeedbackPage() {
           {/* Borg keuze */}
           <div>
             <label className="text-sm font-medium text-gravida-green mb-2 block">
-              Hoe wil je dat we je borg van &euro;200 verwerken?
+              Hoe wil je je aanbetaling van &euro;200 verwerken?
             </label>
+            <p className="text-xs text-gravida-sage mb-3 leading-relaxed">
+              De aanbetaling bestaat uit <strong>&euro;100</strong> scan-kosten en <strong>&euro;100</strong> borg. Hoe je de scan-kosten verrekent kun je hieronder kiezen.
+            </p>
             <div className="space-y-2">
-              <button type="button" onClick={() => setDepositChoice('refund')}
-                className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${depositChoice === 'refund' ? 'border-gravida-sage bg-gravida-sage/10' : 'border-gravida-cream hover:border-gravida-sage/50'}`}>
-                <div className="font-medium text-gravida-green text-sm">Terugstorten naar mijn rekening</div>
-                <div className="text-xs text-gravida-sage mt-0.5">Je krijgt de volledige &euro;200 binnen enkele werkdagen retour.</div>
-              </button>
-
               <button type="button" onClick={() => setDepositChoice('order_credit')}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${depositChoice === 'order_credit' ? 'border-gravida-sage bg-gravida-sage/10' : 'border-gravida-cream hover:border-gravida-sage/50'}`}>
-                <div className="font-medium text-gravida-green text-sm">Verrekenen met bestelling van een beeldje</div>
-                <div className="text-xs text-gravida-sage mt-0.5">Bestel je een beeldje? Dan trekken we de &euro;200 van de prijs af.</div>
+                <div className="font-medium text-gravida-green text-sm">Volledig verrekenen met bestelling van een beeldje</div>
+                <div className="text-xs text-gravida-sage mt-0.5 leading-relaxed">
+                  Je bestelt een beeldje en wij trekken de volledige <strong>&euro;200</strong> van de prijs af.
+                  Handig als je sowieso een beeldje wilt bestellen.
+                </div>
               </button>
 
               <button type="button" onClick={() => setDepositChoice('giftcard')}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${depositChoice === 'giftcard' ? 'border-amber-500 bg-amber-50' : 'border-gravida-cream hover:border-amber-300'}`}>
-                <div className="font-medium text-gravida-green text-sm">Omzetten in een cadeaubon</div>
+                <div className="font-medium text-gravida-green text-sm">Cadeaubon van &euro;100 + &euro;100 retour</div>
                 <div className="text-xs text-gravida-sage mt-0.5 leading-relaxed">
-                  We zetten <strong>&euro;100</strong> van je borg om in een cadeaubon, de andere <strong>&euro;100</strong> storten we naar je rekening terug.
-                  Een leuk cadeau om door te geven, of bewaar 'm voor jezelf voor een toekomstige scan of beeldje. Twee jaar geldig.
+                  We zetten de scan-kosten (<strong>&euro;100</strong>) om in een cadeaubon en storten de borg (<strong>&euro;100</strong>) naar je terug.
+                  De cadeaubon is twee jaar geldig en is te gebruiken voor een beeldje, scan of als cadeau voor iemand anders.
                 </div>
               </button>
             </div>

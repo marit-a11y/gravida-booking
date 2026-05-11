@@ -23,11 +23,11 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     const body = await request.json()
     const { scanner_issues, deposit_choice } = body as {
       scanner_issues?: string
-      deposit_choice: 'refund' | 'order_credit' | 'giftcard'
+      deposit_choice: 'order_credit' | 'giftcard'
     }
 
-    if (!deposit_choice || !['refund', 'order_credit', 'giftcard'].includes(deposit_choice)) {
-      return NextResponse.json({ error: 'Maak een keuze voor je borg.' }, { status: 400 })
+    if (!deposit_choice || !['order_credit', 'giftcard'].includes(deposit_choice)) {
+      return NextResponse.json({ error: 'Maak een keuze voor je aanbetaling.' }, { status: 400 })
     }
 
     // Find rental
@@ -66,9 +66,8 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
 
     // Inbox notify
     const choiceLabel: Record<string, string> = {
-      refund: 'terugstorten',
-      order_credit: 'verrekenen met bestelling',
-      giftcard: 'cadeaubon (100 euro draft aangemaakt, 100 terugstorten)',
+      order_credit: 'volledig verrekenen met beeldje-bestelling (200 euro korting)',
+      giftcard: 'cadeaubon 100 euro (draft aangemaakt) + 100 euro borg terugstorten',
     }
     for (const recipient of ['Marit', 'Laila']) {
       await sql`

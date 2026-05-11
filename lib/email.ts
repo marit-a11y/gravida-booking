@@ -560,7 +560,8 @@ function diyCustomerEmailHtml(params: {
     ${params.customer_number ? p(`Je klantnummer is <strong>${params.customer_number}</strong>. Noteer dit nummer zodat je het later bij de hand hebt.`) : ''}
     ${p('De scanner wordt op <strong>woensdag</strong> naar je verstuurd, zodat je deze uiterlijk <strong>donderdag</strong> in huis hebt. Je kunt de scanner gebruiken van donderdag tot en met zondag.')}
     ${p('Stuur de scanner uiterlijk <strong>maandag</strong> retour, zodat wij deze op dinsdag kunnen verwerken.')}
-    ${p('Voor de scanner geldt een borg van <strong>&euro;200</strong>. Zodra de scanner in goede staat retour is ontvangen, vragen we je hoe je de borg wilt verwerken: helemaal terugstorten, verrekenen met een bestelling van een beeldje, of omzetten in een cadeaubon. Je krijgt hier op de retour-dag automatisch bericht over.')}
+    ${p('Voor de scanner geldt een aanbetaling van <strong>&euro;200</strong>. Hiervan is <strong>&euro;100</strong> de scan-kosten en <strong>&euro;100</strong> de borg.')}
+    ${p('Op de dag dat de scanner retour gaat vragen we je hoe je de scan-kosten wilt verwerken: <strong>volledig verrekenen met de bestelling van een beeldje</strong> (dan trekken we de hele &euro;200 van je beeldje af), of als <strong>cadeaubon van &euro;100</strong> bewaren (om door te geven of later in te zetten - andere &euro;100 storten we dan terug). Je krijgt hier op de retour-dag automatisch bericht over.')}
     ${p('Heb je vragen over het gebruik van de scanner? Stuur ons gerust een berichtje!')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Veel plezier met scannen!<br/>
@@ -911,10 +912,10 @@ export async function sendDiyFeedbackEmail(params: {
     </p>
     ${p(`Hi ${params.first_name},`)}
     ${p('Hopelijk heb je een fijne scansessie gehad! Vandaag is de dag dat de scanner weer onze kant op kan, zodat we hem op dinsdag kunnen verwerken voor de volgende klant.')}
-    ${p('We willen je nog twee korte vragen stellen voor we de borg afhandelen:')}
+    ${p('We willen je nog twee korte vragen stellen:')}
     <ul style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;padding-left:20px;">
       <li>Heb je bijzonderheden ervaren bij het gebruik van de scanner?</li>
-      <li>Hoe wil je dat we de borg van &euro;200 verwerken?</li>
+      <li>Hoe wil je de aanbetaling verwerken: volledig verrekenen met een beeldje, of cadeaubon van &euro;100 (plus &euro;100 retour)?</li>
     </ul>
     ${p('Het invullen kost je hooguit een minuutje.')}
     <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
