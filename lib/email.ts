@@ -73,8 +73,8 @@ function layout(content: string): string {
               <strong style="color:#5a6e5c;">Gravida</strong> · <a href="https://www.gravida.nl" style="color:#8a9e8c;">www.gravida.nl</a>
             </p>
             <p style="margin:0;font-size:12px;color:#8a9e8c;line-height:1.6;">
-              📞 <a href="tel:+31687062504" style="color:#8a9e8c;">06 8706 2504</a> ·
-              ✉️ <a href="mailto:hi@gravida.nl" style="color:#8a9e8c;">hi@gravida.nl</a>
+              App ons via <a href="https://wa.me/31687062504" style="color:#8a9e8c;">06 8706 2504</a> &middot;
+              <a href="mailto:hi@gravida.nl" style="color:#8a9e8c;">hi@gravida.nl</a>
             </p>
           </td>
         </tr>
@@ -135,7 +135,7 @@ function customerEmailHtml(params: {
     ${p(`Hierbij bevestig ik je afspraak op <strong>${dateFormatted}</strong> om <strong>${params.time_slot}</strong>.`)}
     ${p(practical)}
     ${p(scheduling)}
-    ${p('Twijfel je nog over kleding of heb je ergens vragen over, stuur me gerust even een berichtje. Ik denk graag met je mee.')}
+    ${p('Twijfel je nog over kleding of heb je ergens vragen over, app me dan gerust via <strong>06 8706 2504</strong>. Ik denk graag met je mee.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       ${closing}<br/>
       <strong style="color:#1e2d1f;">Laila</strong>
@@ -242,7 +242,7 @@ function reminderEmailHtml(params: {
   return layout(`
     ${p(`Hi ${params.first_name},`)}
     ${p(intro)}
-    ${p('Heb je in de tussentijd iets veranderd of wil je de afspraak annuleren? Stuur me dan even een berichtje, dan zoeken we samen naar een oplossing.')}
+    ${p('Heb je in de tussentijd iets veranderd of wil je de afspraak annuleren? App me dan op <strong>06 8706 2504</strong>, dan zoeken we samen naar een oplossing.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       ${closing}<br/>
       <strong style="color:#1e2d1f;">Laila</strong>
@@ -389,7 +389,7 @@ function bookingUpdateEmailHtml(params: {
       </td></tr>
     </table>` : ''}
 
-    ${p('Heb je vragen of klopt er iets niet? Stuur me gerust een berichtje.')}
+    ${p('Heb je vragen of klopt er iets niet? App me gerust via <strong>06 8706 2504</strong>.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Tot snel,<br/>
       <strong style="color:#1e2d1f;">Laila</strong>
@@ -562,10 +562,10 @@ function diyCustomerEmailHtml(params: {
     ${p('Stuur de scanner uiterlijk <strong>maandag</strong> retour, zodat wij deze op dinsdag kunnen verwerken.')}
     ${p('Voor de scanner geldt een aanbetaling van <strong>&euro;200</strong>. Hiervan is <strong>&euro;100</strong> de scan-kosten en <strong>&euro;100</strong> de borg.')}
     ${p('Op de dag dat de scanner retour gaat vragen we je hoe je de scan-kosten wilt verwerken: <strong>volledig verrekenen met de bestelling van een beeldje</strong> (dan trekken we de hele &euro;200 van je beeldje af), of als <strong>cadeaubon van &euro;100</strong> bewaren (om door te geven of later in te zetten - andere &euro;100 storten we dan terug). Je krijgt hier op de retour-dag automatisch bericht over.')}
-    ${p('Heb je vragen over het gebruik van de scanner? Stuur ons gerust een berichtje!')}
+    ${p('Heb je vragen over het gebruik van de scanner? App me gerust via <strong>06 8706 2504</strong>.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Veel plezier met scannen!<br/>
-      <strong style="color:#1e2d1f;">Team Gravida</strong>
+      <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
 }
@@ -704,10 +704,10 @@ function diyRentalUpdateEmailHtml(params: {
         <p style="margin:0;font-size:14px;color:#3d4d3e;line-height:1.7;">${notesHtml}</p>
       </td></tr>
     </table>` : ''}
-    ${p('Heb je vragen of klopt er iets niet? Stuur me gerust een berichtje.')}
+    ${p('Heb je vragen of klopt er iets niet? App me gerust via <strong>06 8706 2504</strong>.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Groetjes,<br/>
-      <strong style="color:#1e2d1f;">Team Gravida</strong>
+      <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
 }
@@ -828,21 +828,21 @@ function diyRentalShippedEmailHtml(params: {
 
   const SCAN_INSTRUCTIONS_URL = 'https://www.canva.com/design/DAG4lcMpzJE/8awIbZlbFeTYqChjOdqLRA/view?utm_content=DAG4lcMpzJE&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hefd454b0ed'
   const VIDEO_URL = 'https://drive.google.com/file/d/1fV2bDR3jxXnEOjcmv21e2mqUouQl8w0n/view?usp=sharing'
-  const SUPPORT_CALL_URL = `https://dashboard.gravida.nl/diy-support-call?id=${params.rental_id}`
+  const WHATSAPP_URL = 'https://wa.me/31687062504'
 
   const trackingBlock = params.tracking_url ? `
     <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:8px 0 24px;">
       <tr><td style="padding:18px 22px;text-align:center;">
         <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Track &amp; trace</p>
         <a href="${params.tracking_url}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
-          Volg je pakket →
+          Volg je pakket
         </a>
       </td></tr>
     </table>` : ''
 
   return layout(`
     <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
-      📦 Je scanner is onderweg!
+      Je scanner is onderweg
     </p>
     ${p(`Hi ${params.first_name},`)}
     ${p('Goed nieuws, je DIY 3D-scankit is naar je onderweg.')}
@@ -850,26 +850,25 @@ function diyRentalShippedEmailHtml(params: {
     ${p(`Graag verwijs ik je naar onderstaande link, voor duidelijke scaninstructies:`)}
     <p style="margin:0 0 18px;font-size:15px;line-height:1.75;">
       <a href="${SCAN_INSTRUCTIONS_URL}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
-        📄 Scaninstructies
+        Scaninstructies
       </a>
     </p>
     ${p('Daarnaast kun je onderstaande instructievideo bekijken waarin we stap voor stap laten zien hoe het scanproces werkt.')}
     <p style="margin:0 0 18px;font-size:15px;line-height:1.75;">
       <a href="${VIDEO_URL}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
-        🎬 Instructievideo
+        Instructievideo
       </a>
     </p>
-    ${p('Waarschijnlijk wil je meteen zelf met de scanner aan de slag. Dat begrijpen we helemaal. Mocht je toch ondersteuning willen, dan kijken we graag met je mee. Vraag via onderstaande knop een call aan:')}
+    ${p('Waarschijnlijk wil je meteen zelf met de scanner aan de slag. Dat begrijpen we helemaal. Mocht je toch ondersteuning willen, app me dan gerust, ik kijk graag even met je mee.')}
     <p style="margin:0 0 24px;font-size:15px;line-height:1.75;">
-      <a href="${SUPPORT_CALL_URL}" style="display:inline-block;background:#7c4a8e;color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
-        📞 Boek een support call
+      <a href="${WHATSAPP_URL}" style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:500;">
+        App me op 06 8706 2504
       </a>
     </p>
-    ${p('Je kunt ons daarnaast altijd bereiken via de contactgegevens hieronder.')}
-    ${params.customer_number ? p(`Je klantnummer is <strong>${params.customer_number}</strong> — handig om bij de hand te hebben als je contact opneemt.`) : ''}
+    ${params.customer_number ? p(`Je klantnummer is <strong>${params.customer_number}</strong> &mdash; handig om bij de hand te hebben als je contact opneemt.`) : ''}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Heel veel plezier met het maken van je scan!<br/>
-      <strong style="color:#1e2d1f;">Team Gravida</strong>
+      <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
 }
@@ -888,7 +887,7 @@ export async function sendDiyRentalShippedEmail(params: {
   await getResend().emails.send({
     from: FROM,
     to: params.email,
-    subject: '📦 Je DIY 3D scan kit is onderweg!',
+    subject: 'Je DIY 3D scan kit is onderweg',
     html: diyRentalShippedEmailHtml(params),
   })
 }
@@ -926,7 +925,7 @@ export async function sendDiyFeedbackEmail(params: {
     ${p('Heel veel dank voor je gebruik van de DIY scan kit!')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Met vriendelijke groet,<br/>
-      <strong style="color:#1e2d1f;">Team Gravida</strong>
+      <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
 
@@ -955,10 +954,10 @@ export async function sendDiyRentalReturnReceivedEmail(params: {
     ${p(`Hi ${params.first_name},`)}
     ${p('Goed nieuws: de DIY scan kit is in goede orde retour ontvangen. Heel fijn dat je hem zo netjes hebt teruggestuurd.')}
     ${p('We gaan de komende dagen je scans rustig doornemen om de mooiste eruit te kiezen. Doorgaans hoor je nog dezelfde week van ons met een eerste indruk en de keuze die wij hebben gemaakt.')}
-    ${p('Heb je nog vragen in de tussentijd? Stuur ons gerust een berichtje.')}
+    ${p('Heb je nog vragen in de tussentijd? App me gerust via <strong>06 8706 2504</strong>.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Met vriendelijke groet,<br/>
-      <strong style="color:#1e2d1f;">Team Gravida</strong>
+      <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
 
@@ -1068,11 +1067,11 @@ export async function sendScanConsentEmail(params: {
     `<tr><td style="padding:5px 0;font-size:13px;color:#8a9e8c;width:140px;">${label}</td><td style="padding:5px 0;font-size:14px;color:#1e2d1f;">${value}</td></tr>`
 
   const overzichtRows: string[] = []
-  if (materialLabel) overzichtRows.push(overzichtRow('🎨 Materiaal', materialLabel))
-  if (finishLabel) overzichtRows.push(overzichtRow('✨ Afwerking', finishLabel))
-  if (sizeLabel) overzichtRows.push(overzichtRow('📏 Grootte', sizeLabel))
-  if (params.with_arms !== null) overzichtRows.push(overzichtRow('🤱 Met armen', params.with_arms ? 'Ja' : 'Nee'))
-  if (params.weighted !== null) overzichtRows.push(overzichtRow('⚖️ Verzwaren', params.weighted ? 'Ja' : 'Nee'))
+  if (materialLabel) overzichtRows.push(overzichtRow('Materiaal', materialLabel))
+  if (finishLabel) overzichtRows.push(overzichtRow('Afwerking', finishLabel))
+  if (sizeLabel) overzichtRows.push(overzichtRow('Grootte', sizeLabel))
+  if (params.with_arms !== null) overzichtRows.push(overzichtRow('Met armen', params.with_arms ? 'Ja' : 'Nee'))
+  if (params.weighted !== null) overzichtRows.push(overzichtRow('Verzwaren', params.weighted ? 'Ja' : 'Nee'))
 
   const overzichtBlock = overzichtRows.length > 0 ? `
     <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:0 0 24px;">
@@ -1088,7 +1087,7 @@ export async function sendScanConsentEmail(params: {
 
   const html = layout(`
     <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
-      📝 Bevestig je keuzes
+      Bevestig je keuzes
     </p>
     ${p(`Hi ${params.first_name},`)}
     ${p('Wat fijn dat we elkaar hebben gezien voor je 3D scan! Hieronder zie je de afspraken die we samen hebben gemaakt voor de afwerking van je beeldje.')}
@@ -1099,17 +1098,17 @@ export async function sendScanConsentEmail(params: {
         ✓ Open formulier
       </a>
     </p>
-    ${p('Mocht er iets niet kloppen of heb je vragen? Stuur me gerust een berichtje.')}
+    ${p('Mocht er iets niet kloppen of heb je vragen? App me gerust via <strong>06 8706 2504</strong>.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Tot snel,<br/>
-      <strong style="color:#1e2d1f;">Team Gravida</strong>
+      <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
 
   await getResend().emails.send({
     from: FROM,
     to: params.email,
-    subject: 'Bevestig je keuzes — Gravida',
+    subject: 'Bevestig je keuzes - Gravida',
     html,
   })
 }
@@ -1165,7 +1164,7 @@ function giftCardPurchaserEmailHtml(params: {
     ${p('Bewaar deze e-mail als bevestiging van jouw aankoop. Heb je vragen? Neem gerust contact met ons op.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Met vriendelijke groet,<br/>
-      <strong style="color:#1e2d1f;">Team Gravida</strong>
+      <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
 }
@@ -1220,7 +1219,7 @@ function giftCardRecipientEmailHtml(params: {
     ${p('Of kopieer de code en voer deze in tijdens het boeken op <a href="https://www.gravida.nl" style="color:' + BRAND_GREEN + ';">www.gravida.nl</a>.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Met vriendelijke groet,<br/>
-      <strong style="color:#1e2d1f;">Team Gravida</strong>
+      <strong style="color:#1e2d1f;">Laila</strong>
     </p>
   `)
 }
@@ -1275,7 +1274,7 @@ export async function sendGiftCardEmails(params: {
     getResend().emails.send({
       from: FROM,
       to: params.recipient_email,
-      subject: `${params.purchaser_name} heeft je een Gravida cadeaubon gestuurd 🎁`,
+      subject: `${params.purchaser_name} heeft je een Gravida cadeaubon gestuurd`,
       html: giftCardRecipientEmailHtml({ ...params, redeem_url }),
       attachments: pdfAttachment,
     }).catch(err => console.error('Gift card recipient email failed:', err))
@@ -1360,7 +1359,7 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
 
   return layout(`
     <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
-      Je scans zijn goedgekeurd! 🎉
+      Je scans zijn goedgekeurd
     </p>
 
     <p style="margin:0 0 16px;font-size:15px;color:#3d4d3e;line-height:1.75;">
@@ -1368,7 +1367,7 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
     </p>
 
     <p style="margin:0 0 16px;font-size:15px;color:#3d4d3e;line-height:1.75;">
-      Goed nieuws! Je scans zijn uitgezocht en goedgekeurd. Complimenten voor degene die jou heeft gescand en uiteraard voor het model. 😊
+      Goed nieuws! Je scans zijn uitgezocht en goedgekeurd. Complimenten voor degene die jou heeft gescand en uiteraard voor het model.
     </p>
 
     <p style="margin:0 0 24px;font-size:15px;color:#3d4d3e;line-height:1.75;">
@@ -1404,7 +1403,7 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
 
     <p style="margin:0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Met vriendelijke groeten,<br/>
-      <strong>Team Gravida</strong>
+      <strong>Laila</strong>
     </p>
   `)
 }
@@ -1414,7 +1413,7 @@ export async function sendDiyReviewEmail(params: DiyReviewEmailParams): Promise<
   await getResend().emails.send({
     from: FROM,
     to: params.klant_email,
-    subject: `Je scans zijn goedgekeurd — Gravida`,
+    subject: `Je scans zijn goedgekeurd - Gravida`,
     html: diyReviewEmailHtml(params),
     attachments: params.images.map(img => ({
       filename: img.filename,
