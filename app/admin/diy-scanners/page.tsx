@@ -32,6 +32,8 @@ interface Rental {
   internal_notes: string | null
   support_call_requested_at: string | null
   support_call_message: string | null
+  scanner_defect: string | null
+  return_received_at: string | null
   created_at: string
 }
 
@@ -188,6 +190,49 @@ export default function DiyScannerPage() {
       if (res.ok) {
         setRentals(prev => prev.map(r => r.id === id ? { ...r, deposit_status } : r))
         if (detailRental?.id === id) setDetailRental(prev => prev ? { ...prev, deposit_status } : null)
+      }
+    } finally { setUpdatingRental(null) }
+  }
+
+  const [returnDefect, setReturnDefect] = useState('')
+  const [returnModalOpen, setReturnModalOpen] = useState(false)
+
+  const openReturnModal = () => {
+    if (!detailRental) return
+    setReturnDefect(detailRental.scanner_defect ?? '')
+    setReturnModalOpen(true)
+  }
+
+  const submitReturnReceived = async (sendEmail: boolean) => {
+    if (!detailRental) return
+    setUpdatingRental(detailRental.id)
+    try {
+      const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}/send-return-received-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scanner_defect: returnDefect.trim() || null,
+          send_email: sendEmail,
+          update_status: true,
+        }),
+      })
+      if (res.ok) {
+        if (sendEmail) alert('Mail verstuurd naar klant en reservering bijgewerkt.')
+        else alert('Opmerking opgeslagen, geen mail verstuurd.')
+        // refresh rentals
+        setRentals(prev => prev.map(r => r.id === detailRental.id
+          ? { ...r, scanner_defect: returnDefect.trim() || null, status: r.status === 'uitzoeken' || r.status === 'scans_uitgezocht' || r.status === 'geannuleerd' ? r.status : 'retour' }
+          : r))
+        setDetailRental(prev => prev ? {
+          ...prev,
+          scanner_defect: returnDefect.trim() || null,
+          return_received_at: new Date().toISOString(),
+          status: prev.status === 'uitzoeken' || prev.status === 'scans_uitgezocht' || prev.status === 'geannuleerd' ? prev.status : 'retour',
+        } : null)
+        setReturnModalOpen(false)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert('Mislukt: ' + (data.error ?? ''))
       }
     } finally { setUpdatingRental(null) }
   }
@@ -583,6 +628,33 @@ export default function DiyScannerPage() {
                   {updatingRental === detailRental.id ? 'Bezig...' : 'Stuur feedback + borg-keuze mail'}
                 </button>
               )}
+
+              {/* Retour ontvangen mail knop */}
+              {detailRental.status !== 'geannuleerd' && !detailRental.return_received_at && (
+                <button
+                  onClick={openReturnModal}
+                  disabled={updatingRental === detailRental.id}
+                  className="w-full py-2 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-800 border border-emerald-200 hover:bg-emerald-200 transition-colors disabled:opacity-50"
+                  title="Markeer scanner als retour ontvangen en stuur klant een bevestigingsmail"
+                >
+                  Scanner retour ontvangen + stuur mail
+                </button>
+              )}
+              {detailRental.return_received_at && (
+                <button
+                  onClick={openReturnModal}
+                  className="w-full py-2 rounded-lg text-sm font-medium bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-colors"
+                  title="Defect-opmerking aanpassen of opnieuw mailen"
+                >
+                  Retour ontvangen: {new Date(detailRental.return_received_at).toLocaleDateString('nl-NL')} - bewerken
+                </button>
+              )}
+              {detailRental.scanner_defect && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
+                  <p className="font-semibold text-red-800 mb-1">Defect / opmerking bij retour:</p>
+                  <p className="text-red-900 whitespace-pre-wrap">{detailRental.scanner_defect}</p>
+                </div>
+              )}
               <div>
                 <label className="label">Borg</label>
                 <div className="flex gap-2">
@@ -778,6 +850,53 @@ export default function DiyScannerPage() {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Retour-ontvangen modal */}
+      {returnModalOpen && detailRental && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+            <div className="p-6 border-b border-gravida-cream flex items-start justify-between">
+              <h2 className="text-lg font-bold text-gravida-sage">Scanner retour ontvangen</h2>
+              <button onClick={() => setReturnModalOpen(false)}
+                className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center text-gravida-light-sage">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gravida-sage">
+                Retour van <strong>{detailRental.first_name} {detailRental.last_name}</strong>.
+                Laat onderstaand veld leeg als de scanner in goede orde is. Anders noteer wat er aan de hand was.
+              </p>
+              <div>
+                <label className="label">Defect / opmerking (alleen team)</label>
+                <textarea rows={3} className="input-field bg-red-50/40"
+                  placeholder="Bijv. knop op zijkant los, krasje in lens..."
+                  value={returnDefect}
+                  onChange={e => setReturnDefect(e.target.value)} />
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
+                {returnDefect.trim()
+                  ? 'Er is een defect ingevuld. De &quot;in goede orde&quot;-mail past dan misschien niet — kies wat je wilt doen.'
+                  : 'Status wordt op &quot;retour&quot; gezet (tenzij al op uitzoeken/scans uitgezocht), en klant krijgt een nette bevestiging dat scanner is binnengekomen.'}
+              </div>
+              <div className="flex flex-col gap-2">
+                <button onClick={() => submitReturnReceived(true)}
+                  disabled={updatingRental === detailRental.id}
+                  className="w-full py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
+                  {updatingRental === detailRental.id ? 'Bezig...' : 'Markeer retour + stuur klant mail'}
+                </button>
+                <button onClick={() => submitReturnReceived(false)}
+                  disabled={updatingRental === detailRental.id}
+                  className="w-full py-2 rounded-lg text-sm font-medium bg-white border border-gravida-cream hover:border-gravida-sage disabled:opacity-50">
+                  Alleen opslaan, geen mail naar klant
+                </button>
+                <button onClick={() => setReturnModalOpen(false)}
+                  className="w-full py-2 rounded-lg text-sm font-medium text-gravida-light-sage hover:text-gravida-sage">
+                  Annuleren
+                </button>
+              </div>
             </div>
           </div>
         </div>

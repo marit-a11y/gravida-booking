@@ -14,6 +14,9 @@ export async function GET() {
     // deposit_choice: 'refund' / 'order_credit' / 'giftcard'
     await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS giftcard_id INTEGER REFERENCES gift_cards(id)`
     await sql`CREATE INDEX IF NOT EXISTS idx_diy_rentals_feedback_token ON diy_rentals(feedback_token)`
+    // Defect / opmerking bij retour (alleen team)
+    await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS scanner_defect TEXT`
+    await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS return_received_at TIMESTAMPTZ`
     return NextResponse.json({ ok: true, message: 'DIY feedback velden toegevoegd' })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })

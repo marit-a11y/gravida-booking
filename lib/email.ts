@@ -937,6 +937,38 @@ export async function sendDiyFeedbackEmail(params: {
   })
 }
 
+// ─── DIY scanner retour ontvangen mail ────────────────────────────────────────
+
+export async function sendDiyRentalReturnReceivedEmail(params: {
+  first_name: string
+  email: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  const html = layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
+      Scanner is goed bij ons aangekomen
+    </p>
+    ${p(`Hi ${params.first_name},`)}
+    ${p('Goed nieuws: de DIY scan kit is in goede orde retour ontvangen. Heel fijn dat je hem zo netjes hebt teruggestuurd.')}
+    ${p('We gaan de komende dagen je scans rustig doornemen om de mooiste eruit te kiezen. Doorgaans hoor je nog dezelfde week van ons met een eerste indruk en de keuze die wij hebben gemaakt.')}
+    ${p('Heb je nog vragen in de tussentijd? Stuur ons gerust een berichtje.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Met vriendelijke groet,<br/>
+      <strong style="color:#1e2d1f;">Team Gravida</strong>
+    </p>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject: 'Scanner ontvangen - we gaan je scans beoordelen',
+    html,
+  })
+}
+
 // ─── DIY Support call staff notificatie ───────────────────────────────────────
 
 export async function sendDiySupportCallStaffEmail(params: {
