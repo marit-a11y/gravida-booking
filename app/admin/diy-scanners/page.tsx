@@ -34,6 +34,11 @@ interface Rental {
   support_call_message: string | null
   scanner_defect: string | null
   return_received_at: string | null
+  feedback_sent_at?: string | null
+  feedback_submitted_at?: string | null
+  scanner_issues?: string | null
+  deposit_choice?: string | null
+  giftcard_id?: number | null
   created_at: string
 }
 
@@ -589,6 +594,51 @@ export default function DiyScannerPage() {
                 <div>
                   <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Interne opmerkingen</p>
                   <p className="text-sm text-amber-700 italic whitespace-pre-wrap">{detailRental.internal_notes}</p>
+                </div>
+              )}
+
+              {/* Feedback van klant op retour-mail */}
+              {(detailRental.feedback_sent_at || detailRental.feedback_submitted_at || detailRental.scanner_issues || detailRental.deposit_choice) && (
+                <div className="bg-gravida-off-white rounded-xl border border-gravida-cream p-3">
+                  <p className="text-xs font-semibold text-gravida-light-sage uppercase tracking-wide mb-2">
+                    Feedback van klant (retour-mail)
+                  </p>
+                  <div className="text-xs space-y-1.5">
+                    {detailRental.feedback_sent_at && (
+                      <div className="text-gravida-light-sage">
+                        Mail verstuurd: {new Date(detailRental.feedback_sent_at).toLocaleString('nl-NL')}
+                      </div>
+                    )}
+                    {detailRental.feedback_submitted_at ? (
+                      <>
+                        <div className="text-green-700 font-medium">
+                          Klant heeft ingevuld: {new Date(detailRental.feedback_submitted_at).toLocaleString('nl-NL')}
+                        </div>
+                        {detailRental.scanner_issues && (
+                          <div>
+                            <span className="text-gravida-light-sage">Bijzonderheden tijdens gebruik:</span>
+                            <p className="italic text-gravida-green whitespace-pre-wrap mt-0.5">{detailRental.scanner_issues}</p>
+                          </div>
+                        )}
+                        {detailRental.deposit_choice && (
+                          <div>
+                            <span className="text-gravida-light-sage">Borg-keuze:</span>{' '}
+                            <span className="text-gravida-green font-medium">
+                              {detailRental.deposit_choice === 'order_credit' && 'Volledig verrekenen met beeldje (€200 korting)'}
+                              {detailRental.deposit_choice === 'giftcard' && 'Cadeaubon €100 + €100 borg retour'}
+                            </span>
+                          </div>
+                        )}
+                        {detailRental.giftcard_id && (
+                          <div className="text-amber-700">
+                            Auto-cadeaubon (draft) aangemaakt — id #{detailRental.giftcard_id}, nog activeren in cadeaubonnen-overzicht
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-gravida-light-sage italic">Wacht op klant...</div>
+                    )}
+                  </div>
                 </div>
               )}
 

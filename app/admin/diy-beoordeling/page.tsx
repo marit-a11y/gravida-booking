@@ -17,6 +17,7 @@ type PendingRental = {
   email: string
   rental_week: string
   scanner_name?: string
+  status?: string
 }
 
 const BIJZONDERHEDEN_OPTIES: { value: Bijzonderheid; label: string }[] = [
@@ -47,21 +48,24 @@ export default function DiyBeoordelingPage() {
   const fileRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
                     useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
 
-  // ── Fetch pending rentals ───────────────────────────────────────────────────
+  // ── Fetch pending rentals (zowel 'retour' als 'uitzoeken') ─────────────────
   const fetchPending = async () => {
     try {
-      const res = await fetch('/api/admin/diy-rentals?status=uitzoeken', { credentials: 'include' })
-      if (res.ok) {
-        const data = await res.json()
-        setPendingRentals(data.rentals ?? data ?? [])
-      }
+      const [retour, uitzoeken] = await Promise.all([
+        fetch('/api/admin/diy-rentals?status=retour', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+        fetch('/api/admin/diy-rentals?status=uitzoeken', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+      ])
+      const retourList = retour?.rentals ?? retour ?? []
+      const uitzoekList = uitzoeken?.rentals ?? uitzoeken ?? []
+      const combined = [...(Array.isArray(retourList) ? retourList : []), ...(Array.isArray(uitzoekList) ? uitzoekList : [])]
+      setPendingRentals(combined)
     } catch { /* ignore */ }
   }
 
   useEffect(() => { fetchPending() }, [])
 
   // ── Select a pending rental → pre-fill ─────────────────────────────────────
-  function selectRental(id: number) {
+  async function selectRental(id: number) {
     const r = pendingRentals.find(r => r.id === id)
     if (!r) return
     setSelectedRentalId(id)
@@ -69,6 +73,19 @@ export default function DiyBeoordelingPage() {
     setKlantEmail(r.email)
     setSent(false)
     setError(null)
+
+    // Als de klant nog status 'retour' had → auto omzetten naar 'uitzoeken'
+    if (r.status === 'retour') {
+      try {
+        await fetch(`/api/admin/diy-rentals/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ status: 'uitzoeken' }),
+        })
+        setPendingRentals(prev => prev.map(p => p.id === id ? { ...p, status: 'uitzoeken' } : p))
+      } catch { /* ignore */ }
+    }
   }
 
   function clearSelection() {

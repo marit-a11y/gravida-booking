@@ -31,12 +31,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (pathname === '/admin/login') return
     const fetchCount = async () => {
       try {
-        const res = await fetch('/api/admin/diy-rentals?status=uitzoeken', { credentials: 'include' })
-        if (res.ok) {
-          const data = await res.json()
-          const list = data.rentals ?? data
-          setUitzoekCount(Array.isArray(list) ? list.length : 0)
-        }
+        // Tel zowel 'retour' (net binnengekomen) als 'uitzoeken' (wordt aan gewerkt)
+        const [retour, uitzoeken] = await Promise.all([
+          fetch('/api/admin/diy-rentals?status=retour', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+          fetch('/api/admin/diy-rentals?status=uitzoeken', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+        ])
+        const retourList = retour?.rentals ?? retour ?? []
+        const uitzoekList = uitzoeken?.rentals ?? uitzoeken ?? []
+        const total = (Array.isArray(retourList) ? retourList.length : 0)
+                    + (Array.isArray(uitzoekList) ? uitzoekList.length : 0)
+        setUitzoekCount(total)
       } catch { /* ignore */ }
     }
     fetchCount()
