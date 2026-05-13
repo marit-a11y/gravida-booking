@@ -657,13 +657,45 @@ export default function DiyScannerPage() {
                   ))}
                 </div>
               </div>
+              {/* Markeer als betaald — alleen als nog niet betaald */}
+              {detailRental.payment_status !== 'betaald' && detailRental.status !== 'geannuleerd' && (
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Reservering van ${detailRental.first_name} ${detailRental.last_name} markeren als betaald?\n\nStatus gaat naar 'gereserveerd' en de bevestigingsmail wordt verstuurd.`)) return
+                    setUpdatingRental(detailRental.id)
+                    try {
+                      const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}/mark-paid`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ send_confirmation: true }),
+                      })
+                      if (res.ok) {
+                        alert('Gemarkeerd als betaald en bevestigingsmail verstuurd.')
+                        await loadData()
+                        const fresh = await fetch(`/api/admin/diy-rentals?status=alle`).then(r => r.json()).catch(() => null)
+                        const updated = fresh?.rentals?.find((r: Rental) => r.id === detailRental.id)
+                        if (updated) setDetailRental(updated)
+                      } else {
+                        const data = await res.json().catch(() => ({}))
+                        alert('Fout: ' + (data.error ?? 'mislukt'))
+                      }
+                    } finally { setUpdatingRental(null) }
+                  }}
+                  disabled={updatingRental === detailRental.id}
+                  className="w-full py-2 rounded-lg text-sm font-medium bg-green-100 text-green-700 border border-green-200 hover:bg-green-200 transition-colors disabled:opacity-50"
+                  title="Voor handmatige betalingen (bv. bankoverschrijving of test). Zet payment_status op betaald en stuurt bevestigingsmail."
+                >
+                  {updatingRental === detailRental.id ? 'Bezig...' : '✓ Markeer als betaald'}
+                </button>
+              )}
+
               {/* Verzonden mail knop — toon alleen als nog niet verzonden */}
               {detailRental.status !== 'verzonden' && detailRental.status !== 'geannuleerd' && (
                 <button
                   onClick={sendShippedEmail}
                   disabled={updatingRental === detailRental.id}
                   className="w-full py-2 rounded-lg text-sm font-medium bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 transition-colors disabled:opacity-50"
-                  title="Stuurt klant een mail dat de scanner vandaag is verstuurd, en zet status op 'verzonden'"
+                  title="Stuurt klant een mail dat de scanner vandaag is verstuurd, en zet status op 'verzonden'. Statuswijziging naar 'verzonden' triggert de mail nu ook automatisch."
                 >
                   {updatingRental === detailRental.id ? 'Bezig...' : '📦 Markeer verzonden + stuur mail'}
                 </button>

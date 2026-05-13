@@ -17,6 +17,7 @@ export async function GET() {
     // Defect / opmerking bij retour (alleen team)
     await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS scanner_defect TEXT`
     await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS return_received_at TIMESTAMPTZ`
+    await sql`ALTER TABLE diy_rentals ADD COLUMN IF NOT EXISTS shipped_email_sent_at TIMESTAMPTZ`
     return NextResponse.json({ ok: true, message: 'DIY feedback velden toegevoegd' })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })

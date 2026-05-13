@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { updateDiyRental, getDiyRentalById } from '@/lib/db'
 import { getMollie } from '@/lib/mollie'
-import { sendDiyRentalReturnReceivedEmail } from '@/lib/email'
+import { sendDiyRentalReturnReceivedEmail, sendDiyRentalShippedEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,14 +30,19 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       }
     }
 
-    // Auto-trigger "scanner ontvangen" mail bij eerste status-wijziging naar 'retour'
+    // Detecteer status-overgangen voordat we updaten
     let triggerReturnMail = false
-    if (body.status === 'retour') {
+    let triggerShippedMail = false
+    if (body.status === 'retour' || body.status === 'verzonden') {
       const existing = await getDiyRentalById(id)
-      if (existing && existing.status !== 'retour') {
-        // Voorkom dubbele mail
+      if (body.status === 'retour' && existing && existing.status !== 'retour') {
         const r = await sql`SELECT return_received_at FROM diy_rentals WHERE id = ${id}`
         if (!r.rows[0]?.return_received_at) triggerReturnMail = true
+      }
+      if (body.status === 'verzonden' && existing && existing.status !== 'verzonden') {
+        // Voorkom dubbele shipped-mail bij heen-en-weer wijzigen
+        const r = await sql`SELECT shipped_email_sent_at FROM diy_rentals WHERE id = ${id}`
+        if (!r.rows[0]?.shipped_email_sent_at) triggerShippedMail = true
       }
     }
 
@@ -53,6 +58,22 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         await sql`UPDATE diy_rentals SET return_received_at = NOW() WHERE id = ${id}`
       } catch (mailErr) {
         console.error('Auto-trigger retour mail mislukt:', mailErr)
+      }
+    }
+
+    if (triggerShippedMail) {
+      try {
+        await sendDiyRentalShippedEmail({
+          first_name: rental.first_name,
+          email: rental.email,
+          rental_id: rental.id,
+          customer_number: rental.customer_number,
+          tracking_url: null,
+        })
+        await sql`UPDATE diy_rentals SET shipped_email_sent_at = NOW() WHERE id = ${id}`
+          .catch(err => console.warn('shipped_email_sent_at update faalde (mogelijk kolom niet aangemaakt):', err))
+      } catch (mailErr) {
+        console.error('Auto-trigger shipped mail mislukt:', mailErr)
       }
     }
 
