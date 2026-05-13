@@ -1403,6 +1403,7 @@ export type DiyReviewEmailParams = {
   bruikbaar: boolean
   extra_wensen?: string
   images: Array<{ filename: string; content: Buffer }>
+  consent_form_url?: string  // optionele link naar toestemmingsformulier
 }
 
 function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
@@ -1500,6 +1501,18 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
       Zodra je akkoord geeft, eventueel met je aanvullende wensen, gaan we voor je aan de slag
       met de bewerking en productie van je beeldje.
     </p>
+
+    ${p.consent_form_url ? `
+    <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Vul via onderstaand formulier je keuzes en eventuele wensen voor de digitale nabewerking in.
+      Dit kost je hooguit een minuutje.
+    </p>
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
+      <a href="${p.consent_form_url}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">
+        Open formulier
+      </a>
+    </p>
+    ` : ''}
 
     <p style="margin:0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Met vriendelijke groeten,<br/>

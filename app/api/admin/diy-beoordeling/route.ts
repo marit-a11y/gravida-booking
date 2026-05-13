@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import crypto from 'crypto'
 import { verifyToken, COOKIE_NAME } from '@/lib/auth'
 import { sendDiyReviewEmail, DiyBijzonderheid } from '@/lib/email'
 import { sql } from '@vercel/postgres'
@@ -51,6 +52,47 @@ export async function POST(request: NextRequest) {
       content: Buffer.from(img.base64, 'base64'),
     }))
 
+    // Probeer rental te vinden — eerst via meegegeven ID, anders via email
+    let resolvedRentalId: number | null = (typeof rental_id === 'number') ? rental_id : null
+    if (!resolvedRentalId) {
+      const lookup = await sql<{ id: number }>`
+        SELECT id FROM diy_rentals
+        WHERE LOWER(email) = ${klant_email.trim().toLowerCase()}
+          AND status IN ('uitzoeken', 'retour')
+        ORDER BY rental_week DESC
+        LIMIT 1
+      `
+      resolvedRentalId = lookup.rows[0]?.id ?? null
+    }
+
+    // Gekoppeld aan een rental? Maak/find scan_consent en bouw form-link
+    let consentFormUrl: string | undefined = undefined
+    if (resolvedRentalId) {
+      try {
+        const existing = await sql<{ token: string }>`
+          SELECT token FROM scan_consents WHERE diy_rental_id = ${resolvedRentalId} LIMIT 1
+        `
+        let token: string
+        if (existing.rows[0]?.token) {
+          token = existing.rows[0].token
+        } else {
+          token = crypto.randomBytes(20).toString('hex')
+          await sql`
+            INSERT INTO scan_consents (diy_rental_id, token)
+            VALUES (${resolvedRentalId}, ${token})
+          `
+          // Markeer sent_at zodat we weten dat de klant de URL nu krijgt
+          await sql`
+            UPDATE scan_consents SET sent_at = NOW()
+            WHERE diy_rental_id = ${resolvedRentalId}
+          `
+        }
+        consentFormUrl = `https://dashboard.gravida.nl/scan-toestemming/${token}`
+      } catch (err) {
+        console.error('Failed to prepare scan-consent token:', err)
+      }
+    }
+
     await sendDiyReviewEmail({
       klant_naam: klant_naam.trim(),
       klant_email: klant_email.trim().toLowerCase(),
@@ -59,15 +101,15 @@ export async function POST(request: NextRequest) {
       bruikbaar,
       extra_wensen: extra_wensen?.trim() || undefined,
       images: imageAttachments,
+      consent_form_url: consentFormUrl,
     })
 
-    // If linked to a rental, update its status to 'scans_uitgezocht'
-    if (rental_id && typeof rental_id === 'number') {
+    // Status-update naar 'scans_uitgezocht'
+    if (resolvedRentalId) {
       try {
-        await sql`UPDATE diy_rentals SET status = 'scans_uitgezocht' WHERE id = ${rental_id}`
+        await sql`UPDATE diy_rentals SET status = 'scans_uitgezocht' WHERE id = ${resolvedRentalId}`
       } catch (err) {
         console.error('Failed to update rental status after review:', err)
-        // Don't fail the request — email was already sent
       }
     }
 
