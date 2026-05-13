@@ -908,6 +908,17 @@ export default function DiyScannerPage() {
                 </button>
               )}
 
+              {/* Bericht aan klant — waarschuwing bij uitgaande scanner (werkt altijd) */}
+              {detailRental.status !== 'geannuleerd' && (
+                <button
+                  onClick={() => openOutgoingMessageModal(detailRental)}
+                  className="w-full py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 transition-colors"
+                  title="Stuur klant een heads-up (niet opgeladen / vertraging / defect / anders)"
+                >
+                  Bericht aan klant (niet opgeladen / vertraging / defect / anders)
+                </button>
+              )}
+
               {/* Feedback / borg-keuze mail knop (handmatig, los van de auto-cron) */}
               {detailRental.status !== 'geannuleerd' && (
                 <button
