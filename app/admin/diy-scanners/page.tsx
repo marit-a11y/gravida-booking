@@ -83,6 +83,7 @@ export default function DiyScannerPage() {
   // New rental modal
   const [showNewModal, setShowNewModal] = useState(false)
   const [availableWeeks, setAvailableWeeks] = useState<string[]>([])
+  const [newCustomDate, setNewCustomDate] = useState(false)
   const [newForm, setNewForm] = useState({
     rental_week: '', first_name: '', last_name: '', email: '', phone: '',
     address: '', city: '', zip_code: '', notes: '',
@@ -285,6 +286,7 @@ export default function DiyScannerPage() {
   const openNewModal = async () => {
     setShowNewModal(true)
     setNewForm({ rental_week: '', first_name: '', last_name: '', email: '', phone: '', address: '', city: '', zip_code: '', notes: '' })
+    setNewCustomDate(false)
     setNewError('')
     setNewSuccess('')
     try {
@@ -804,11 +806,29 @@ export default function DiyScannerPage() {
               ) : (
                 <>
                   <div>
-                    <label className="label">Week (do t/m zo) *</label>
-                    <select className="input-field" value={newForm.rental_week} onChange={e => setNewForm(f => ({ ...f, rental_week: e.target.value }))}>
-                      <option value="">Selecteer week...</option>
-                      {availableWeeks.map(w => <option key={w} value={w}>{formatWeek(w)}</option>)}
-                    </select>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="label mb-0">Week (do t/m zo) *</label>
+                      <button type="button"
+                        onClick={() => setNewCustomDate(c => !c)}
+                        className="text-[11px] text-gravida-sage hover:text-gravida-green underline">
+                        {newCustomDate ? '← terug naar weekkeuze' : '✏️ vrije datum invoeren'}
+                      </button>
+                    </div>
+                    {!newCustomDate ? (
+                      <select className="input-field" value={newForm.rental_week} onChange={e => setNewForm(f => ({ ...f, rental_week: e.target.value }))}>
+                        <option value="">Selecteer week...</option>
+                        {availableWeeks.map(w => <option key={w} value={w}>{formatWeek(w)}</option>)}
+                      </select>
+                    ) : (
+                      <>
+                        <input type="date" className="input-field"
+                          value={newForm.rental_week}
+                          onChange={e => setNewForm(f => ({ ...f, rental_week: e.target.value }))} />
+                        <p className="text-[10px] text-gravida-light-sage mt-1">
+                          Kies eender welke datum (verleden of toekomst). De rest van de planning past zich automatisch aan.
+                        </p>
+                      </>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
