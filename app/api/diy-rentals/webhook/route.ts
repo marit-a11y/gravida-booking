@@ -27,9 +27,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (payment.status === 'paid') {
+      // Lees huidige status zodat we 'verzonden'/'retour'/etc. niet overschrijven
+      // wanneer een Mollie webhook later (opnieuw) firet — bv. bij test-betalingen
+      // of als de admin de status al handmatig verder heeft gezet.
+      const current = await getDiyRentalById(rentalId)
+      const nextStatus = !current || current.status === 'wacht_op_betaling'
+        ? 'gereserveerd'
+        : current.status
       await updateDiyRentalPayment(rentalId, {
         payment_status: 'betaald',
-        status: 'gereserveerd',
+        status: nextStatus,
       })
 
       // Send confirmation emails
