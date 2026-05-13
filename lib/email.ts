@@ -844,7 +844,7 @@ function diyRentalShippedEmailHtml(params: {
       Je scanner is onderweg
     </p>
     ${p(`Hi ${params.first_name},`)}
-    ${p('Goed nieuws, je DIY 3D-scankit is naar je onderweg.')}
+    ${p('Goed nieuws, je DIY 3D scankit is naar je onderweg.')}
     ${trackingBlock}
     ${p(`Graag verwijs ik je naar onderstaande link, voor duidelijke scaninstructies:`)}
     <p style="margin:0 0 18px;font-size:15px;line-height:1.75;">
@@ -864,7 +864,7 @@ function diyRentalShippedEmailHtml(params: {
         App me op 06 8706 2504
       </a>
     </p>
-    ${params.customer_number ? p(`Je klantnummer is <strong>${params.customer_number}</strong> &mdash; handig om bij de hand te hebben als je contact opneemt.`) : ''}
+    ${params.customer_number ? p(`Je klantnummer is ${params.customer_number}. Handig om bij de hand te hebben als je contact opneemt.`) : ''}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Heel veel plezier met het maken van je scan!<br/>
       <strong style="color:#1e2d1f;">Laila</strong>
