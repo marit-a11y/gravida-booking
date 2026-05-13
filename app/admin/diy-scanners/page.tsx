@@ -338,28 +338,42 @@ export default function DiyScannerPage() {
       <div className="mb-8">
         <h2 className="section-title mb-3">Inventaris</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {scanners.map(s => (
-            <div key={s.id} className="card flex items-center justify-between">
-              <div>
-                <p className="font-medium">{s.name}</p>
-                <p className={`text-xs ${s.is_available ? 'text-green-600' : 'text-red-500'}`}>
-                  {s.is_available ? 'Beschikbaar' : 'Niet beschikbaar'}
-                </p>
-                {s.notes && <p className="text-xs text-gravida-light-sage mt-0.5">{s.notes}</p>}
+          {scanners.map(s => {
+            const activeRental = rentals.find(r =>
+              r.scanner_id === s.id &&
+              ['wacht_op_betaling', 'gereserveerd', 'verzonden'].includes(r.status)
+            )
+            return (
+              <div key={s.id} className="card flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{s.name}</p>
+                  <p className={`text-xs ${s.is_available ? 'text-green-600' : 'text-red-500'}`}>
+                    {s.is_available ? 'In omloop' : 'Uit omloop'}
+                  </p>
+                  {activeRental && s.is_available && (
+                    <p className="text-xs text-orange-600 mt-0.5">
+                      Verhuurd aan {activeRental.first_name} {activeRental.last_name}
+                    </p>
+                  )}
+                  {s.notes && <p className="text-xs text-gravida-light-sage mt-0.5">{s.notes}</p>}
+                </div>
+                <button
+                  onClick={() => toggleScanner(s.id, s.is_available)}
+                  disabled={updatingScanner === s.id}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                    s.is_available
+                      ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                      : 'bg-green-50 text-green-600 hover:bg-green-100'
+                  }`}
+                  title={s.is_available
+                    ? 'Markeer scanner als uit omloop (bv. defect). Komt niet meer in nieuwe reserveringen.'
+                    : 'Zet scanner weer in omloop voor nieuwe reserveringen.'}
+                >
+                  {s.is_available ? 'Uit omloop halen' : 'In omloop zetten'}
+                </button>
               </div>
-              <button
-                onClick={() => toggleScanner(s.id, s.is_available)}
-                disabled={updatingScanner === s.id}
-                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                  s.is_available
-                    ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                    : 'bg-green-50 text-green-600 hover:bg-green-100'
-                }`}
-              >
-                {s.is_available ? 'Uit omloop' : 'Beschikbaar maken'}
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
