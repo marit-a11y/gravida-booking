@@ -556,13 +556,12 @@ function diyCustomerEmailHtml(params: {
 
   return layout(`
     ${p(`Hi ${params.first_name},`)}
-    ${p(`Leuk dat je een DIY 3D scan kit hebt gereserveerd! Hierbij bevestigen we je reservering voor <strong>${weekFormatted}</strong>.`)}
-    ${params.customer_number ? p(`Je klantnummer is <strong>${params.customer_number}</strong>. Noteer dit nummer zodat je het later bij de hand hebt.`) : ''}
-    ${p('De scanner wordt op <strong>woensdag</strong> naar je verstuurd, zodat je deze uiterlijk <strong>donderdag</strong> in huis hebt. Je kunt de scanner gebruiken van donderdag tot en met zondag.')}
-    ${p('Stuur de scanner uiterlijk <strong>maandag</strong> retour, zodat wij deze op dinsdag kunnen verwerken.')}
-    ${p('Voor de scanner geldt een aanbetaling van <strong>&euro;200</strong>. Hiervan is <strong>&euro;100</strong> de scan-kosten en <strong>&euro;100</strong> de borg.')}
-    ${p('Op de dag dat de scanner retour gaat vragen we je hoe je de scan-kosten wilt verwerken: <strong>volledig verrekenen met de bestelling van een beeldje</strong> (dan trekken we de hele &euro;200 van je beeldje af), of als <strong>cadeaubon van &euro;100</strong> bewaren (om door te geven of later in te zetten - andere &euro;100 storten we dan terug). Je krijgt hier op de retour-dag automatisch bericht over.')}
-    ${p('Heb je vragen over het gebruik van de scanner? App me gerust via <strong>06 8706 2504</strong>.')}
+    ${p(`Leuk dat je een DIY 3D scan kit hebt gereserveerd! Hierbij bevestigen we je reservering voor ${weekFormatted}.`)}
+    ${params.customer_number ? p(`Je klantnummer is ${params.customer_number}. Noteer dit nummer zodat je het later bij de hand hebt.`) : ''}
+    ${p('De scanner wordt op woensdag naar je verstuurd, zodat je deze uiterlijk donderdag in huis hebt. Je kunt de scanner gebruiken van donderdag tot en met zondag.')}
+    ${p('Stuur de scanner uiterlijk maandag retour, zodat wij deze op dinsdag kunnen verwerken voor de volgende klant.')}
+    ${p('Het lenen van de scanner is gratis. Je betaalt enkel voor het beeldje dat we voor je maken. De aanbetaling die je hebt gedaan, verrekenen we straks met je beeldje. Mocht je toch geen beeldje willen, dan zetten we een deel van de aanbetaling om in een cadeaubon (om door te geven of zelf later in te zetten), de borg ontvang je terug. Je krijgt op de retour-dag automatisch bericht over hoe we het verwerken.')}
+    ${p('Heb je vragen over het gebruik van de scanner? App me gerust via 06 8706 2504.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Veel plezier met scannen!<br/>
       <strong style="color:#1e2d1f;">Laila</strong>
@@ -914,7 +913,7 @@ export async function sendDiyFeedbackEmail(params: {
     ${p('We willen je nog twee korte vragen stellen:')}
     <ul style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;padding-left:20px;">
       <li>Heb je bijzonderheden ervaren bij het gebruik van de scanner?</li>
-      <li>Hoe wil je de aanbetaling verwerken: volledig verrekenen met een beeldje, of cadeaubon van &euro;100 (plus &euro;100 retour)?</li>
+      <li>Wil je je aanbetaling verrekenen met een beeldje, of geen beeldje en omzetten in een cadeaubon (met borg retour)?</li>
     </ul>
     ${p('Het invullen kost je hooguit een minuutje.')}
     <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">

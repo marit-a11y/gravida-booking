@@ -118,23 +118,22 @@ export default function DiyFeedbackPage() {
               Hoe wil je je aanbetaling van &euro;200 verwerken?
             </label>
             <p className="text-xs text-gravida-sage mb-3 leading-relaxed">
-              De aanbetaling bestaat uit <strong>&euro;100</strong> scan-kosten en <strong>&euro;100</strong> borg. Hoe je de scan-kosten verrekent kun je hieronder kiezen.
+              Het lenen van de scanner is gratis &mdash; je betaalt enkel voor het beeldje. Je aanbetaling verrekenen we met je beeldje. Wil je geen beeldje? Dan zetten we een deel om in een cadeaubon en storten we de borg terug.
             </p>
             <div className="space-y-2">
               <button type="button" onClick={() => setDepositChoice('order_credit')}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${depositChoice === 'order_credit' ? 'border-gravida-sage bg-gravida-sage/10' : 'border-gravida-cream hover:border-gravida-sage/50'}`}>
-                <div className="font-medium text-gravida-green text-sm">Volledig verrekenen met bestelling van een beeldje</div>
+                <div className="font-medium text-gravida-green text-sm">Verrekenen met bestelling van een beeldje</div>
                 <div className="text-xs text-gravida-sage mt-0.5 leading-relaxed">
-                  Je bestelt een beeldje en wij trekken de volledige <strong>&euro;200</strong> van de prijs af.
-                  Handig als je sowieso een beeldje wilt bestellen.
+                  Je bestelt een beeldje en wij verrekenen je aanbetaling met de prijs.
                 </div>
               </button>
 
               <button type="button" onClick={() => setDepositChoice('giftcard')}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${depositChoice === 'giftcard' ? 'border-amber-500 bg-amber-50' : 'border-gravida-cream hover:border-amber-300'}`}>
-                <div className="font-medium text-gravida-green text-sm">Cadeaubon van &euro;100 + &euro;100 retour</div>
+                <div className="font-medium text-gravida-green text-sm">Cadeaubon (geen beeldje)</div>
                 <div className="text-xs text-gravida-sage mt-0.5 leading-relaxed">
-                  We zetten de scan-kosten (<strong>&euro;100</strong>) om in een cadeaubon en storten de borg (<strong>&euro;100</strong>) naar je terug.
+                  We zetten een deel van je aanbetaling om in een cadeaubon en storten de borg naar je terug.
                   De cadeaubon is twee jaar geldig en is te gebruiken voor een beeldje, scan of als cadeau voor iemand anders.
                 </div>
               </button>
