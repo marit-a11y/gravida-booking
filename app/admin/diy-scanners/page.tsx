@@ -334,14 +334,153 @@ export default function DiyScannerPage() {
         </button>
       </div>
 
+      {/* Deze week — verzenden + retour quick actions */}
+      {(() => {
+        // Bereken huidige week-maandag in NL-datum
+        const today = new Date()
+        const dow = (today.getDay() + 6) % 7  // 0 = maandag
+        const thisMonday = new Date(today); thisMonday.setDate(today.getDate() - dow)
+        thisMonday.setHours(0, 0, 0, 0)
+        const lastMonday = new Date(thisMonday); lastMonday.setDate(thisMonday.getDate() - 7)
+        const pad = (n: number) => String(n).padStart(2, '0')
+        const mondayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+        const thisMondayStr = mondayKey(thisMonday)
+        const lastMondayStr = mondayKey(lastMonday)
+
+        // Verzenden = deze week's rental_week + status gereserveerd
+        // Retour = vorige week's rental_week + status verzonden
+        const toSend = rentals.filter(r => {
+          const w = (r.rental_week ?? '').slice(0, 10)
+          return w === thisMondayStr && (r.status === 'gereserveerd' || r.status === 'wacht_op_betaling')
+        })
+        const toReceive = rentals.filter(r => {
+          const w = (r.rental_week ?? '').slice(0, 10)
+          return w === lastMondayStr && r.status === 'verzonden'
+        })
+
+        if (toSend.length === 0 && toReceive.length === 0) return null
+
+        const markStatus = async (rentalId: number, newStatus: string, action: string) => {
+          if (!confirm(`Reservering markeren als '${action}'?`)) return
+          setUpdatingRental(rentalId)
+          try {
+            const res = await fetch(`/api/admin/diy-rentals/${rentalId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: newStatus }),
+            })
+            if (res.ok) {
+              await loadData()
+            } else {
+              const data = await res.json().catch(() => ({}))
+              alert('Fout: ' + (data.error ?? 'mislukt'))
+            }
+          } finally { setUpdatingRental(null) }
+        }
+
+        return (
+          <div className="mb-8">
+            <h2 className="section-title mb-3">Deze week</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* Verzenden */}
+              <div className="card border-l-4 border-blue-400">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-blue-700">Verzenden (woensdag)</h3>
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                    {toSend.length} {toSend.length === 1 ? 'pakket' : 'pakketten'}
+                  </span>
+                </div>
+                {toSend.length === 0 ? (
+                  <p className="text-sm text-gravida-light-sage italic">Niets te verzenden deze week.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {toSend.map(r => {
+                      const notPaid = r.payment_status !== 'betaald'
+                      return (
+                        <div key={r.id} className="border border-gravida-cream rounded-lg p-3">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <div>
+                              <p className="font-medium text-sm">{r.first_name} {r.last_name}</p>
+                              <p className="text-xs text-gravida-light-sage">{r.address}, {r.zip_code} {r.city}</p>
+                              {r.customer_number && <p className="text-[10px] text-gravida-light-sage font-mono">#{r.customer_number}</p>}
+                            </div>
+                            <button
+                              onClick={() => markStatus(r.id, 'verzonden', 'verzonden')}
+                              disabled={updatingRental === r.id || notPaid}
+                              className="text-xs px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium whitespace-nowrap"
+                              title={notPaid ? 'Eerst betaling registreren' : 'Markeer als verzonden — stuurt automatisch de scanner-onderweg mail'}
+                            >
+                              ✓ Verzonden
+                            </button>
+                          </div>
+                          {notPaid && (
+                            <p className="text-[10px] text-orange-600">⚠ Nog niet betaald — eerst openen en betaling markeren</p>
+                          )}
+                          <button onClick={() => setDetailRental(r)}
+                            className="text-[10px] text-gravida-sage hover:underline mt-1">
+                            Details openen →
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Retour */}
+              <div className="card border-l-4 border-purple-400">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-purple-700">Retour verwachten (maandag)</h3>
+                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                    {toReceive.length} {toReceive.length === 1 ? 'pakket' : 'pakketten'}
+                  </span>
+                </div>
+                {toReceive.length === 0 ? (
+                  <p className="text-sm text-gravida-light-sage italic">Geen retour verwacht deze week.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {toReceive.map(r => (
+                      <div key={r.id} className="border border-gravida-cream rounded-lg p-3">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div>
+                            <p className="font-medium text-sm">{r.first_name} {r.last_name}</p>
+                            <p className="text-xs text-gravida-light-sage">{r.email}</p>
+                            {r.customer_number && <p className="text-[10px] text-gravida-light-sage font-mono">#{r.customer_number}</p>}
+                          </div>
+                          <button
+                            onClick={() => markStatus(r.id, 'retour', 'retour ontvangen')}
+                            disabled={updatingRental === r.id}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-40 font-medium whitespace-nowrap"
+                            title="Markeer als retour ontvangen — stuurt automatisch de 'scanner is binnen' mail"
+                          >
+                            ✓ Retour
+                          </button>
+                        </div>
+                        <button onClick={() => setDetailRental(r)}
+                          className="text-[10px] text-gravida-sage hover:underline mt-1">
+                          Details openen →
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Scanner inventaris */}
       <div className="mb-8">
         <h2 className="section-title mb-3">Inventaris</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {scanners.map(s => {
+            // Alleen tonen als scanner ECHT bij klant is (status verzonden,
+            // dus na woensdag-verzending en voor retour-maandag)
             const activeRental = rentals.find(r =>
-              r.scanner_id === s.id &&
-              ['wacht_op_betaling', 'gereserveerd', 'verzonden'].includes(r.status)
+              r.scanner_id === s.id && r.status === 'verzonden'
             )
             return (
               <div key={s.id} className="card flex items-center justify-between">
@@ -352,7 +491,7 @@ export default function DiyScannerPage() {
                   </p>
                   {activeRental && s.is_available && (
                     <p className="text-xs text-orange-600 mt-0.5">
-                      Verhuurd aan {activeRental.first_name} {activeRental.last_name}
+                      Nu op pad bij {activeRental.first_name} {activeRental.last_name}
                     </p>
                   )}
                   {s.notes && <p className="text-xs text-gravida-light-sage mt-0.5">{s.notes}</p>}
