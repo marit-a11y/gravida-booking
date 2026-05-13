@@ -998,13 +998,20 @@ export async function sendDiyOutgoingMessageEmail(params: {
   let bodyHtml = ''
   let subject = ''
 
+  const reasonBlock = reasonHtml ? `
+    <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">
+      Notitie van ons verzendteam
+    </p>
+    <p style="margin:0 0 18px;font-size:14px;color:#3d4d3e;line-height:1.7;font-style:italic;">${reasonHtml}</p>
+  ` : ''
+
   if (params.message_type === 'not_charged') {
     title = 'Even een heads-up over je scanner'
     subject = 'Heads-up over je DIY scan kit'
     bodyHtml = `
       ${p('We willen je even laten weten dat de scanner helaas niet helemaal opgeladen is wanneer hij bij je aankomt. Onze excuses voor het ongemak.')}
-      ${reasonHtml ? p(`<em>${reasonHtml}</em>`) : ''}
-      ${p('Sluit de scanner even aan op de stroom voordat je begint met scannen, dan kun je gewoon zonder problemen aan de slag.')}
+      ${reasonBlock}
+      ${p('Sluit de scanner een paar uur voordat je gaat scannen aan op de stroom, dan kun je zonder problemen aan de slag.')}
     `
   } else if (params.message_type === 'delayed') {
     title = 'Je scanner komt iets later'
@@ -1013,7 +1020,7 @@ export async function sendDiyOutgoingMessageEmail(params: {
     const newReturn = params.new_return_date ? formatNl(params.new_return_date) : null
     bodyHtml = `
       ${p('Helaas moeten we je laten weten dat je scanner met vertraging wordt verzonden. Onze excuses voor het ongemak.')}
-      ${reasonHtml ? p(`<em>${reasonHtml}</em>`) : ''}
+      ${reasonBlock}
       ${newSend || newReturn ? `
         <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:0 0 20px;">
           <tr><td style="padding:18px 22px;">
