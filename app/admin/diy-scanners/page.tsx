@@ -201,6 +201,51 @@ export default function DiyScannerPage() {
   }
 
   const [returnDefect, setReturnDefect] = useState('')
+
+  // Bericht aan klant bij uitgaande scanner
+  const [outgoingMsgRental, setOutgoingMsgRental] = useState<Rental | null>(null)
+  const [outgoingMsgType, setOutgoingMsgType] = useState<'not_charged' | 'delayed' | 'defect' | 'other'>('not_charged')
+  const [outgoingReason, setOutgoingReason] = useState('')
+  const [outgoingNewSend, setOutgoingNewSend] = useState('')
+  const [outgoingNewReturn, setOutgoingNewReturn] = useState('')
+  const [outgoingCustom, setOutgoingCustom] = useState('')
+  const [outgoingSending, setOutgoingSending] = useState(false)
+
+  const openOutgoingMessageModal = (r: Rental) => {
+    setOutgoingMsgRental(r)
+    setOutgoingMsgType('not_charged')
+    setOutgoingReason('')
+    setOutgoingNewSend('')
+    setOutgoingNewReturn('')
+    setOutgoingCustom('')
+  }
+
+  const sendOutgoingMessage = async () => {
+    if (!outgoingMsgRental) return
+    setOutgoingSending(true)
+    try {
+      const res = await fetch(`/api/admin/diy-rentals/${outgoingMsgRental.id}/send-outgoing-message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message_type: outgoingMsgType,
+          reason: outgoingReason.trim() || null,
+          new_send_date: outgoingNewSend || null,
+          new_return_date: outgoingNewReturn || null,
+          custom_text: outgoingCustom.trim() || null,
+        }),
+      })
+      if (res.ok) {
+        alert('Bericht verstuurd naar klant.')
+        setOutgoingMsgRental(null)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert('Fout: ' + (data.error ?? 'mislukt'))
+      }
+    } finally {
+      setOutgoingSending(false)
+    }
+  }
   const [returnModalOpen, setReturnModalOpen] = useState(false)
 
   const openReturnModal = () => {
@@ -405,14 +450,23 @@ export default function DiyScannerPage() {
                               <p className="text-xs text-gravida-light-sage">{r.address}, {r.zip_code} {r.city}</p>
                               {r.customer_number && <p className="text-[10px] text-gravida-light-sage font-mono">#{r.customer_number}</p>}
                             </div>
-                            <button
-                              onClick={() => markStatus(r.id, 'verzonden', 'verzonden')}
-                              disabled={updatingRental === r.id || notPaid}
-                              className="text-xs px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium whitespace-nowrap"
-                              title={notPaid ? 'Eerst betaling registreren' : 'Markeer als verzonden — stuurt automatisch de scanner-onderweg mail'}
-                            >
-                              ✓ Verzonden
-                            </button>
+                            <div className="flex flex-col gap-1 shrink-0">
+                              <button
+                                onClick={() => markStatus(r.id, 'verzonden', 'verzonden')}
+                                disabled={updatingRental === r.id || notPaid}
+                                className="text-xs px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-40 disabled:cursor-not-allowed font-medium whitespace-nowrap"
+                                title={notPaid ? 'Eerst betaling registreren' : 'Markeer als verzonden — stuurt automatisch de scanner-onderweg mail'}
+                              >
+                                ✓ Verzonden
+                              </button>
+                              <button
+                                onClick={() => openOutgoingMessageModal(r)}
+                                className="text-[10px] px-2 py-1 rounded bg-white border border-gravida-cream hover:border-gravida-sage text-gravida-sage whitespace-nowrap"
+                                title="Stuur klant een heads-up (niet opgeladen / vertraging / defect / anders)"
+                              >
+                                Bericht klant
+                              </button>
+                            </div>
                           </div>
                           {notPaid && (
                             <p className="text-[10px] text-orange-600">⚠ Nog niet betaald — eerst openen en betaling markeren</p>
@@ -1020,6 +1074,95 @@ export default function DiyScannerPage() {
               </button>
             </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Bericht aan klant — uitgaande scanner */}
+      {outgoingMsgRental && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-gravida-cream flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gravida-sage">Bericht aan klant</h2>
+                <p className="text-xs text-gravida-light-sage">
+                  Naar {outgoingMsgRental.first_name} {outgoingMsgRental.last_name}
+                </p>
+              </div>
+              <button onClick={() => setOutgoingMsgRental(null)}
+                className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center text-gravida-light-sage">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <label className="block">
+                <input type="radio" className="mr-2" checked={outgoingMsgType === 'not_charged'} onChange={() => setOutgoingMsgType('not_charged')} />
+                <span className="text-sm">De scanner is helaas niet helemaal opgeladen</span>
+              </label>
+              <label className="block">
+                <input type="radio" className="mr-2" checked={outgoingMsgType === 'delayed'} onChange={() => setOutgoingMsgType('delayed')} />
+                <span className="text-sm">De scanner wordt met vertraging verzonden</span>
+              </label>
+              <label className="block">
+                <input type="radio" className="mr-2" checked={outgoingMsgType === 'defect'} onChange={() => setOutgoingMsgType('defect')} />
+                <span className="text-sm">De scanner is defect — we nemen binnen 24u contact op</span>
+              </label>
+              <label className="block">
+                <input type="radio" className="mr-2" checked={outgoingMsgType === 'other'} onChange={() => setOutgoingMsgType('other')} />
+                <span className="text-sm">Anders (vrij bericht)</span>
+              </label>
+
+              <div className="border-t border-gravida-cream pt-3 mt-3 space-y-2">
+                {(outgoingMsgType === 'not_charged' || outgoingMsgType === 'delayed') && (
+                  <div>
+                    <label className="label text-xs">Reden (optioneel, klant ziet dit)</label>
+                    <textarea rows={2} className="input-field text-sm"
+                      placeholder={outgoingMsgType === 'not_charged'
+                        ? 'Bijv. door tijdsdruk niet meer kunnen opladen voor verzending'
+                        : 'Bijv. door drukte bij PostNL, of leverancier was te laat'}
+                      value={outgoingReason} onChange={e => setOutgoingReason(e.target.value)} />
+                  </div>
+                )}
+
+                {outgoingMsgType === 'delayed' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="label text-xs">Nieuwe verzenddatum</label>
+                      <input type="date" className="input-field text-sm"
+                        value={outgoingNewSend} onChange={e => setOutgoingNewSend(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="label text-xs">Nieuwe retourdatum</label>
+                      <input type="date" className="input-field text-sm"
+                        value={outgoingNewReturn} onChange={e => setOutgoingNewReturn(e.target.value)} />
+                    </div>
+                  </div>
+                )}
+
+                {outgoingMsgType === 'defect' && (
+                  <p className="text-xs text-gravida-sage italic">
+                    Geen extra velden nodig — klant krijgt bericht dat we binnen 24 uur contact opnemen.
+                  </p>
+                )}
+
+                {outgoingMsgType === 'other' && (
+                  <div>
+                    <label className="label text-xs">Vrij bericht</label>
+                    <textarea rows={5} className="input-field text-sm"
+                      placeholder="Typ hier je bericht aan de klant..."
+                      value={outgoingCustom} onChange={e => setOutgoingCustom(e.target.value)} />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gravida-cream flex justify-end gap-2">
+              <button onClick={() => setOutgoingMsgRental(null)}
+                className="text-xs px-3 py-1.5 rounded-lg border border-gravida-cream hover:border-gravida-sage">
+                Annuleren
+              </button>
+              <button onClick={sendOutgoingMessage} disabled={outgoingSending}
+                className="text-xs px-3 py-1.5 rounded-lg bg-gravida-sage text-white hover:bg-gravida-green disabled:opacity-50 font-medium">
+                {outgoingSending ? 'Verzenden...' : 'Versturen'}
+              </button>
+            </div>
           </div>
         </div>
       )}

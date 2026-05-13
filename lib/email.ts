@@ -968,6 +968,100 @@ export async function sendDiyRentalReturnReceivedEmail(params: {
   })
 }
 
+// ─── DIY uitgaand bericht aan klant (waarschuwing bij verzending) ─────────────
+
+export type DiyOutgoingMessageType = 'not_charged' | 'delayed' | 'defect' | 'other'
+
+export async function sendDiyOutgoingMessageEmail(params: {
+  first_name: string
+  email: string
+  message_type: DiyOutgoingMessageType
+  reason?: string | null
+  new_send_date?: string | null
+  new_return_date?: string | null
+  custom_text?: string | null
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  const formatNl = (d: string) => {
+    try {
+      return new Date(d).toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })
+    } catch { return d }
+  }
+  const reasonHtml = (params.reason ?? '').trim()
+    ? (params.reason ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')
+    : ''
+
+  let title = ''
+  let bodyHtml = ''
+  let subject = ''
+
+  if (params.message_type === 'not_charged') {
+    title = 'Even een heads-up over je scanner'
+    subject = 'Heads-up over je DIY scan kit'
+    bodyHtml = `
+      ${p('We willen je even laten weten dat de scanner helaas niet helemaal opgeladen is wanneer hij bij je aankomt. Onze excuses voor het ongemak.')}
+      ${reasonHtml ? p(`<em>${reasonHtml}</em>`) : ''}
+      ${p('Sluit de scanner even aan op de stroom voordat je begint met scannen, dan kun je gewoon zonder problemen aan de slag.')}
+    `
+  } else if (params.message_type === 'delayed') {
+    title = 'Je scanner komt iets later'
+    subject = 'Je DIY scan kit komt met vertraging'
+    const newSend = params.new_send_date ? formatNl(params.new_send_date) : null
+    const newReturn = params.new_return_date ? formatNl(params.new_return_date) : null
+    bodyHtml = `
+      ${p('Helaas moeten we je laten weten dat je scanner met vertraging wordt verzonden. Onze excuses voor het ongemak.')}
+      ${reasonHtml ? p(`<em>${reasonHtml}</em>`) : ''}
+      ${newSend || newReturn ? `
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:0 0 20px;">
+          <tr><td style="padding:18px 22px;">
+            <p style="margin:0 0 10px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Nieuwe planning</p>
+            ${newSend ? `<p style="margin:0 0 6px;font-size:14px;color:#1e2d1f;"><span style="color:#8a9e8c;width:120px;display:inline-block;">Verzonden op</span> ${newSend}</p>` : ''}
+            ${newReturn ? `<p style="margin:0;font-size:14px;color:#1e2d1f;"><span style="color:#8a9e8c;width:120px;display:inline-block;">Retour uiterlijk</span> ${newReturn}</p>` : ''}
+          </td></tr>
+        </table>` : ''}
+      ${p('Mocht deze nieuwe planning niet werken voor jou, laat het ons gerust weten dan kijken we naar een passende oplossing.')}
+    `
+  } else if (params.message_type === 'defect') {
+    title = 'Helaas, de scanner is defect'
+    subject = 'Belangrijke info over je DIY scan kit reservering'
+    bodyHtml = `
+      ${p('We moeten je helaas laten weten dat de scanner die voor jou klaar lag een defect heeft. Onze excuses voor dit vervelende nieuws.')}
+      ${p('We nemen binnen 24 uur contact met je op om de volgende stappen te bespreken. Geen zorgen, we zorgen samen voor een goede oplossing.')}
+    `
+  } else {
+    // 'other'
+    title = 'Bericht over je DIY scan kit reservering'
+    subject = 'Bericht over je DIY scan kit reservering'
+    const customHtml = (params.custom_text ?? '').trim()
+      ? (params.custom_text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>')
+      : ''
+    bodyHtml = customHtml ? `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${customHtml}</p>` : ''
+  }
+
+  const html = layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
+      ${title}
+    </p>
+    ${p(`Hi ${params.first_name},`)}
+    ${bodyHtml}
+    ${p('Heb je vragen? App me gerust via 06 8706 2504.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Groetjes,<br/>
+      <strong style="color:#1e2d1f;">Laila</strong>
+    </p>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject,
+    html,
+  })
+}
+
 // ─── DIY Support call staff notificatie ───────────────────────────────────────
 
 export async function sendDiySupportCallStaffEmail(params: {
