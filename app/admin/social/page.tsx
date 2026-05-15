@@ -611,6 +611,58 @@ function SocialPlannerPage() {
         </div>
       )}
 
+      {/* Vandaag posten — quick access voor mobiel */}
+      {(() => {
+        const todayPosts = posts.filter(p => getNlDateKey(p.scheduled_for) === todayKey)
+        if (todayPosts.length === 0) return null
+        const sorted = [...todayPosts].sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))
+        return (
+          <div className="card mb-6 border-l-4 border-pink-400 bg-pink-50/30">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-pink-700">
+                📌 Vandaag posten ({todayPosts.length})
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {sorted.map(p => {
+                const ci = categoryInfo(p.category)
+                const ti = typeInfo(p.post_type)
+                const time = formatNlTime(p.scheduled_for)
+                const isPosted = p.status === 'geplaatst' || p.status === 'posted'
+                return (
+                  <button key={p.id} onClick={() => openEditModal(p)}
+                    className={`w-full text-left rounded-xl border p-3 transition-colors ${
+                      isPosted
+                        ? 'bg-green-50 border-green-200 opacity-60'
+                        : 'bg-white border-gravida-cream hover:border-gravida-sage'
+                    }`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-2xl shrink-0">{ci?.icon ?? ti.emoji}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-semibold text-gravida-green">{time}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${ti.badge}`}>{ti.label}</span>
+                            {p.category && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${ci?.color ?? ''}`}>
+                                {p.category}
+                              </span>
+                            )}
+                            {isPosted && <span className="text-[10px] text-green-700 font-medium">✓ Geplaatst</span>}
+                          </div>
+                          {p.title && <p className="text-sm text-gravida-sage mt-0.5 truncate">{p.title}</p>}
+                        </div>
+                      </div>
+                      <span className="text-gravida-sage text-lg shrink-0">›</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Aankomende belangrijke data */}
       {upcomingEvents.length > 0 && (
         <div className="card mb-6">
@@ -991,17 +1043,39 @@ function SocialPlannerPage() {
                         📋 Alles kopiëren
                       </button>
                     )}
-                    {form.image_urls_text && form.image_urls_text.trim() && (
-                      <a
-                        href={form.image_urls_text.split('\n').map(s => s.trim()).filter(Boolean)[0]}
-                        download
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs px-3 py-1.5 rounded-lg bg-white border border-gravida-cream hover:border-gravida-sage transition-colors flex items-center gap-1.5"
-                        title="Download afbeelding naar je toestel">
-                        ⬇️ Download media
-                      </a>
-                    )}
+                    {form.image_urls_text && form.image_urls_text.trim() && (() => {
+                      const urls = (form.image_urls_text ?? '').split('\n').map(s => s.trim()).filter(Boolean)
+                      const downloadAll = async () => {
+                        // Fetch elke media file als blob en trigger download
+                        for (let i = 0; i < urls.length; i++) {
+                          const url = urls[i]
+                          try {
+                            const res = await fetch(url)
+                            const blob = await res.blob()
+                            const blobUrl = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = blobUrl
+                            const ext = url.split('.').pop()?.split('?')[0] ?? 'jpg'
+                            a.download = `gravida-${editingPost?.id ?? 'post'}-${i+1}.${ext}`
+                            document.body.appendChild(a)
+                            a.click()
+                            document.body.removeChild(a)
+                            URL.revokeObjectURL(blobUrl)
+                            // Korte vertraging tussen bestanden zodat browser ze niet samenvoegt
+                            if (i < urls.length - 1) await new Promise(r => setTimeout(r, 300))
+                          } catch (err) {
+                            console.error('Download fout:', err)
+                          }
+                        }
+                      }
+                      return (
+                        <button type="button" onClick={downloadAll}
+                          className="text-xs px-3 py-1.5 rounded-lg bg-white border border-gravida-cream hover:border-gravida-sage transition-colors flex items-center gap-1.5"
+                          title={`Download ${urls.length} ${urls.length === 1 ? 'bestand' : 'bestanden'} naar je toestel — kan steeds opnieuw`}>
+                          ⬇️ Download media{urls.length > 1 ? ` (${urls.length})` : ''}
+                        </button>
+                      )
+                    })()}
                     <button
                       type="button"
                       onClick={async () => {
