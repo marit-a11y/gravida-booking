@@ -854,7 +854,7 @@ function SocialPlannerPage() {
                             <a href={p.canva_url} target="_blank" rel="noopener noreferrer"
                               className="text-[10px] text-gravida-sage hover:text-gravida-green inline-block mt-0.5"
                               onClick={e => e.stopPropagation()}>
-                              🎨 Canva →
+                              🔗 Link →
                             </a>
                           )}
                         </td>
@@ -1229,8 +1229,8 @@ function SocialPlannerPage() {
                   )}
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="label">Canva link (optioneel)</label>
-                  <input className="input-field" placeholder="https://www.canva.com/design/..."
+                  <label className="label">Link toevoegen (optioneel)</label>
+                  <input className="input-field" placeholder="https://..."
                     value={form.canva_url ?? ''}
                     onChange={e => setForm(f => ({ ...f, canva_url: e.target.value }))}
                   />
