@@ -1001,6 +1001,7 @@ function SocialPlannerPage() {
                     {(editingPost.status !== 'geplaatst' && editingPost.status !== 'posted') && (
                       <button
                         onClick={async () => {
+                          if (!confirm('Deze post markeren als GEPLAATST? (alleen doen als hij echt op Instagram staat)')) return
                           const res = await fetch(`/api/admin/social-posts/${editingPost.id}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
@@ -1008,10 +1009,10 @@ function SocialPlannerPage() {
                           })
                           if (res.ok) { await load(); setModalOpen(false) }
                         }}
-                        className="text-[10px] font-medium px-2 py-1 rounded-md bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
-                        title="Markeer als geplaatst"
+                        className="text-[10px] font-medium px-2 py-1 rounded-md border border-green-200 text-green-700 hover:bg-green-50 transition-colors"
+                        title="Markeer als geplaatst — vraagt eerst bevestiging"
                       >
-                        ✓ Geplaatst
+                        Markeer geplaatst
                       </button>
                     )}
                   </div>
