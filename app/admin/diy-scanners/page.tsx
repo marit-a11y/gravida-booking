@@ -543,7 +543,7 @@ export default function DiyScannerPage() {
                   <p className={`text-xs ${s.is_available ? 'text-green-600' : 'text-red-500'}`}>
                     {s.is_available ? 'In omloop' : 'Uit omloop'}
                   </p>
-                  {activeRental && s.is_available && (
+                  {activeRental && (
                     <p className="text-xs text-orange-600 mt-0.5">
                       Nu op pad bij {activeRental.first_name} {activeRental.last_name}
                     </p>
