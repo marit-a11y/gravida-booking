@@ -911,7 +911,7 @@ export async function sendDiyCheckInEmail(params: {
     </p>
     ${p(`Hi ${params.first_name},`)}
     ${p('Even een snelle check om te horen of de scanner goed is aangekomen en alles naar wens loopt.')}
-    ${p('Laat het me morgen (vrijdag) even weten met een klik:')}
+    ${p('Laat je me even weten via onderstaande knop?')}
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
       <tr>
         <td style="padding:0 6px 0 0;width:50%;">
