@@ -910,8 +910,8 @@ export async function sendDiyCheckInEmail(params: {
       Hoe gaat het met je scanner?
     </p>
     ${p(`Hi ${params.first_name},`)}
-    ${p('Je bent halverwege je scanweek. Ik wilde even checken of de scanner goed is aangekomen en alles naar wens loopt.')}
-    ${p('Laat het me even weten met een klik:')}
+    ${p('Je hebt nog de hele week om met de scanner aan de slag te gaan. Ik wilde even checken of de scanner goed is aangekomen en alles naar wens loopt.')}
+    ${p('Laat het me morgen (vrijdag) even weten met een klik:')}
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
       <tr>
         <td style="padding:0 6px 0 0;width:50%;">
@@ -926,7 +926,7 @@ export async function sendDiyCheckInEmail(params: {
         </td>
       </tr>
     </table>
-    ${p('Of app me direct via 06 8706 2504 als je liever even praat.')}
+    ${p('In het weekend ben ik alleen bereikbaar via WhatsApp op <strong>06 8706 2504</strong>. App me gerust als je niet kunt wachten tot maandag.')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Groetjes,<br/>
       <strong style="color:#1e2d1f;">Laila</strong>
