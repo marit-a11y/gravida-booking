@@ -891,6 +891,56 @@ export async function sendDiyRentalShippedEmail(params: {
   })
 }
 
+// ─── DIY Check-in mail (vrijdag tijdens scanperiode) ─────────────────────────
+
+export async function sendDiyCheckInEmail(params: {
+  first_name: string
+  email: string
+  token: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  const okUrl = `https://dashboard.gravida.nl/diy-check-in/${params.token}?response=ok`
+  const questionUrl = `https://dashboard.gravida.nl/diy-check-in/${params.token}?response=question`
+
+  const html = layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
+      Hoe gaat het met je scanner?
+    </p>
+    ${p(`Hi ${params.first_name},`)}
+    ${p('Je bent halverwege je scanweek. Ik wilde even checken of de scanner goed is aangekomen en alles naar wens loopt.')}
+    ${p('Laat het me even weten met een klik:')}
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+      <tr>
+        <td style="padding:0 6px 0 0;width:50%;">
+          <a href="${okUrl}" style="display:block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:14px 12px;border-radius:10px;font-size:14px;font-weight:500;text-align:center;">
+            Alles werkt prima!
+          </a>
+        </td>
+        <td style="padding:0 0 0 6px;width:50%;">
+          <a href="${questionUrl}" style="display:block;background:#fff;color:${BRAND_GREEN};border:2px solid ${BRAND_GREEN};text-decoration:none;padding:12px 12px;border-radius:10px;font-size:14px;font-weight:500;text-align:center;">
+            Ik heb een vraag
+          </a>
+        </td>
+      </tr>
+    </table>
+    ${p('Of app me direct via 06 8706 2504 als je liever even praat.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Groetjes,<br/>
+      <strong style="color:#1e2d1f;">Laila</strong>
+    </p>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject: 'Hoe gaat het met je scanner?',
+    html,
+  })
+}
+
 // ─── DIY Feedback + borg-keuze mail (op retour-dag) ───────────────────────────
 
 export async function sendDiyFeedbackEmail(params: {

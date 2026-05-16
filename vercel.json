@@ -25,8 +25,12 @@
       "schedule": "0 19 * * 0"
     },
     {
-      "path": "/api/cron/diy-check-in-reminder",
+      "path": "/api/cron/diy-check-in-reminder?stage=morning",
       "schedule": "0 8 * * 5"
+    },
+    {
+      "path": "/api/cron/diy-check-in-reminder?stage=afternoon",
+      "schedule": "0 15 * * 5"
     }
   ]
 }
