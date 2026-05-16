@@ -910,7 +910,7 @@ export async function sendDiyCheckInEmail(params: {
       Hoe gaat het met je scanner?
     </p>
     ${p(`Hi ${params.first_name},`)}
-    ${p('Je hebt nog de hele week om met de scanner aan de slag te gaan. Ik wilde even checken of de scanner goed is aangekomen en alles naar wens loopt.')}
+    ${p('Even een snelle check om te horen of de scanner goed is aangekomen en alles naar wens loopt.')}
     ${p('Laat het me morgen (vrijdag) even weten met een klik:')}
     <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
       <tr>
