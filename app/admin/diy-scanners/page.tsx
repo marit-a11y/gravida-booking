@@ -39,6 +39,9 @@ interface Rental {
   scanner_issues?: string | null
   deposit_choice?: string | null
   giftcard_id?: number | null
+  customer_contacted_at?: string | null
+  customer_contacted_by?: string | null
+  customer_contact_note?: string | null
   created_at: string
 }
 
@@ -864,6 +867,72 @@ export default function DiyScannerPage() {
                   ))}
                 </div>
               </div>
+              {/* Contact met klant gehad (onderdrukt vrijdag-check-in reminder) */}
+              {detailRental.status === 'verzonden' && (
+                <div className={`rounded-xl p-3 border ${
+                  detailRental.customer_contacted_at
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-amber-50 border-amber-200'
+                }`}>
+                  {detailRental.customer_contacted_at ? (
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-green-700">
+                          ✓ Contact gehad op {new Date(detailRental.customer_contacted_at).toLocaleString('nl-NL')}
+                        </p>
+                        {detailRental.customer_contacted_by && (
+                          <p className="text-xs text-green-700/80">door {detailRental.customer_contacted_by}</p>
+                        )}
+                        {detailRental.customer_contact_note && (
+                          <p className="text-xs text-gravida-sage italic mt-1">{detailRental.customer_contact_note}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Contact-status terugzetten naar "nog niet contact gehad"?')) return
+                          const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}/mark-contacted`, { method: 'DELETE' })
+                          if (res.ok) {
+                            setDetailRental(prev => prev ? { ...prev, customer_contacted_at: null, customer_contacted_by: null, customer_contact_note: null } : null)
+                            await loadData()
+                          }
+                        }}
+                        className="text-[10px] text-green-700 underline hover:text-green-900 shrink-0">
+                        terugzetten
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 mb-2">
+                        Nog geen contact gehad met klant
+                      </p>
+                      <p className="text-[11px] text-amber-700/90 mb-2">
+                        Zolang dit niet is aangevinkt krijg je vrijdag een herinnering in je inbox.
+                      </p>
+                      <button
+                        onClick={async () => {
+                          const me = (typeof window !== 'undefined' && localStorage.getItem('inbox_me')) || 'Laila'
+                          const note = prompt('Korte notitie (optioneel) — bv. "via app, alles werkt":', '')
+                          if (note === null) return  // cancel
+                          const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}/mark-contacted`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ by: me, note: note.trim() || null }),
+                          })
+                          if (res.ok) {
+                            const nowIso = new Date().toISOString()
+                            setDetailRental(prev => prev ? { ...prev, customer_contacted_at: nowIso, customer_contacted_by: me, customer_contact_note: note.trim() || null } : null)
+                            await loadData()
+                          }
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700 font-medium"
+                      >
+                        ✓ Markeer: contact gehad
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Markeer als betaald — alleen als nog niet betaald */}
               {detailRental.payment_status !== 'betaald' && detailRental.status !== 'geannuleerd' && (
                 <button
