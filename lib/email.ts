@@ -941,6 +941,107 @@ export async function sendDiyCheckInEmail(params: {
   })
 }
 
+// ─── DIY Borg-verrekening: kortingscode mail (na keuze order_credit) ──────────
+
+export async function sendDiyBorgKortingEmail(params: {
+  first_name: string
+  email: string
+  code: string
+  value_euros: number
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  const html = layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
+      Je kortingscode van &euro;${params.value_euros}
+    </p>
+    ${p(`Hi ${params.first_name},`)}
+    ${p('Bedankt voor je keuze om je aanbetaling te verrekenen met de bestelling van je beeldje. Hieronder vind je je persoonlijke kortingscode. Voer deze in tijdens het afrekenen in de webshop om je aanbetaling automatisch te verrekenen.')}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:0 0 24px;">
+      <tr><td style="padding:24px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Kortingscode</p>
+        <p style="margin:0;font-size:28px;font-weight:700;color:${BRAND_GREEN};letter-spacing:4px;font-family:monospace;">${params.code}</p>
+        <p style="margin:8px 0 0;font-size:13px;color:#8a9e8c;">Goed voor &euro;${params.value_euros} korting op een beeldje</p>
+      </td></tr>
+    </table>
+
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
+      <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">
+        Bekijk de beeldjes
+      </a>
+    </p>
+
+    ${p('Heb je vragen? App me gerust via 06 8706 2504.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Groetjes,<br/>
+      <strong style="color:#1e2d1f;">Laila</strong>
+    </p>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject: `Je kortingscode van €${params.value_euros} voor je beeldje`,
+    html,
+  })
+}
+
+// ─── DIY Borg-verrekening: cadeaubon mail (na keuze giftcard) ─────────────────
+
+export async function sendDiyBorgCadeaubonEmail(params: {
+  first_name: string
+  email: string
+  code: string
+  value_euros: number
+  expires_at?: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const p = (text: string) =>
+    `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
+
+  const expiresFormatted = params.expires_at
+    ? new Date(params.expires_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null
+
+  const html = layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">
+      Je cadeaubon van &euro;${params.value_euros}
+    </p>
+    ${p(`Hi ${params.first_name},`)}
+    ${p('Bedankt voor je keuze om je aanbetaling om te zetten in een cadeaubon. De andere &euro;100 (de borg) storten we naar je terug. Je vindt hieronder je persoonlijke cadeaubon, twee jaar geldig. Te gebruiken voor een beeldje of scan, of geef de bon door als cadeau aan iemand anders.')}
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:0 0 24px;">
+      <tr><td style="padding:24px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Cadeauboncode</p>
+        <p style="margin:0;font-size:28px;font-weight:700;color:${BRAND_GREEN};letter-spacing:4px;font-family:monospace;">${params.code}</p>
+        <p style="margin:8px 0 0;font-size:13px;color:#8a9e8c;">Waarde &euro;${params.value_euros}${expiresFormatted ? ` &middot; geldig tot ${expiresFormatted}` : ''}</p>
+      </td></tr>
+    </table>
+
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
+      <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">
+        Bekijk de beeldjes
+      </a>
+    </p>
+
+    ${p('Heb je vragen? App me gerust via 06 8706 2504.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Groetjes,<br/>
+      <strong style="color:#1e2d1f;">Laila</strong>
+    </p>
+  `)
+
+  await getResend().emails.send({
+    from: FROM,
+    to: params.email,
+    subject: `Je cadeaubon van €${params.value_euros}`,
+    html,
+  })
+}
+
 // ─── DIY Feedback + borg-keuze mail (op retour-dag) ───────────────────────────
 
 export async function sendDiyFeedbackEmail(params: {

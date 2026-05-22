@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { createGiftCard } from '@/lib/db'
+import { sendDiyBorgKortingEmail, sendDiyBorgCadeaubonEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,21 +40,58 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     if (r.rows.length === 0) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 })
     const rental = r.rows[0]
 
-    // Als keuze 'giftcard': maak een draft cadeaubon van EUR 100
-    // (Marit/Laila stort dan andere EUR 100 terug en activeert de bon handmatig)
+    // Automatisch aanmaken: kortingscode (order_credit) OF cadeaubon (giftcard)
+    // In beide gevallen gebruiken we de gift_cards tabel met verschillende types.
     let giftCardId: number | null = null
-    if (deposit_choice === 'giftcard') {
-      const giftcard = await createGiftCard({
+    let createdCode: string | null = null
+
+    if (deposit_choice === 'order_credit') {
+      // Kortingscode €200 voor verrekenen met beeldje-bestelling
+      const card = await createGiftCard({
+        type: 'borg_korting',
+        value_euros: 200,
+        purchaser_name: `${rental.first_name} ${rental.last_name}`,
+        purchaser_email: rental.email,
+        recipient_name: `${rental.first_name} ${rental.last_name}`,
+        recipient_email: rental.email,
+        personal_message: 'Borg-verrekening DIY scan kit',
+        status: 'actief',
+      }).catch(err => { console.error('Auto-kortingscode create error:', err); return null })
+      giftCardId = card?.id ?? null
+      createdCode = card?.code ?? null
+
+      if (card?.code) {
+        sendDiyBorgKortingEmail({
+          first_name: rental.first_name,
+          email: rental.email,
+          code: card.code,
+          value_euros: 200,
+        }).catch(err => console.error('Kortingscode mail error:', err))
+      }
+    } else if (deposit_choice === 'giftcard') {
+      // Cadeaubon €100 (andere €100 borg storten we terug)
+      const card = await createGiftCard({
         type: 'digitaal',
         value_euros: 100,
         purchaser_name: `${rental.first_name} ${rental.last_name}`,
         purchaser_email: rental.email,
         recipient_name: `${rental.first_name} ${rental.last_name}`,
         recipient_email: rental.email,
-        personal_message: 'Aangemaakt vanuit DIY borgverrekening.',
-        status: 'concept',  // moet nog goedgekeurd/geactiveerd worden door team
-      }).catch(err => { console.error('Auto-giftcard create error:', err); return null })
-      giftCardId = giftcard?.id ?? null
+        personal_message: 'Cadeaubon vanuit DIY borg-omzetting',
+        status: 'actief',
+      }).catch(err => { console.error('Auto-cadeaubon create error:', err); return null })
+      giftCardId = card?.id ?? null
+      createdCode = card?.code ?? null
+
+      if (card?.code) {
+        sendDiyBorgCadeaubonEmail({
+          first_name: rental.first_name,
+          email: rental.email,
+          code: card.code,
+          value_euros: 100,
+          expires_at: card.expires_at,
+        }).catch(err => console.error('Cadeaubon mail error:', err))
+      }
     }
 
     await sql`
@@ -68,8 +106,8 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
 
     // Inbox notify
     const choiceLabel: Record<string, string> = {
-      order_credit: 'volledig verrekenen met beeldje-bestelling (200 euro korting)',
-      giftcard: 'cadeaubon 100 euro (draft aangemaakt) + 100 euro borg terugstorten',
+      order_credit: `volledig verrekenen met beeldje, kortingscode ${createdCode ?? '?'} (200 euro) automatisch aangemaakt en gemaild`,
+      giftcard: `cadeaubon ${createdCode ?? '?'} (100 euro) automatisch aangemaakt en gemaild, 100 euro borg nog terugstorten`,
     }
     for (const recipient of ['Marit', 'Laila']) {
       await sql`
