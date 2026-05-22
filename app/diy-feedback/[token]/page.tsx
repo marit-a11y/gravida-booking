@@ -122,7 +122,7 @@ export default function DiyFeedbackPage() {
             </label>
             <textarea rows={3}
               className="w-full text-sm px-3 py-2 border border-gravida-cream rounded-lg focus:outline-none focus:border-gravida-sage"
-              placeholder="Bijv. de scan rond 14:30 of de scan waarin de baby z'n handje bij gezicht heeft. Laat dit leeg als je het aan ons overlaat."
+              placeholder="Bijv. de scan met armen, de scan zonder armen, of de eerste scan zonder beweging. Laat dit leeg als je het aan ons overlaat."
               value={scanPreference}
               onChange={e => setScanPreference(e.target.value)} />
             <p className="text-[11px] text-gravida-light-sage mt-1">
