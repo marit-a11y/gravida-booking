@@ -16,6 +16,7 @@ interface Consent {
   consent_storage_files: boolean | null
   consent_marketing_use: boolean | null
   consent_interview: boolean | null
+  preferred_scan_number: number | null
   shipping_insured: boolean | null
   digital_wishes: string | null
   shared_notes: string | null
@@ -190,6 +191,9 @@ export function ScanConsentSection({ bookingId, diyRentalId }: Props) {
             <div>📦 Bestanden opslaan: <span className={consent.consent_storage_files ? 'text-green-700' : 'text-red-600'}>{consent.consent_storage_files ? 'Ja' : 'Nee'}</span></div>
             <div>📸 Foto&apos;s gebruiken: <span className={consent.consent_marketing_use ? 'text-green-700' : 'text-red-600'}>{consent.consent_marketing_use ? 'Ja' : 'Nee'}</span></div>
             <div>🎤 Open voor interview: <span className={consent.consent_interview ? 'text-green-700' : 'text-red-600'}>{consent.consent_interview ? 'Ja' : 'Nee'}</span></div>
+            {consent.preferred_scan_number && (
+              <div>⭐ Voorkeur scan: <span className="font-semibold text-gravida-green">scan {consent.preferred_scan_number}</span></div>
+            )}
             <div>🛡️ Verzekerd verzenden (€15): <span className={consent.shipping_insured ? 'text-green-700' : 'text-red-600'}>{consent.shipping_insured ? 'Ja' : 'Nee'}</span></div>
             {consent.digital_wishes && <div className="mt-1">💬 Wensen: <span className="italic">{consent.digital_wishes}</span></div>}
             {consent.shared_notes && <div className="mt-1">📋 Afspraken: <span className="italic">{consent.shared_notes}</span></div>}

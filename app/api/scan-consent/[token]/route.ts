@@ -9,24 +9,27 @@ export async function GET(_request: NextRequest, { params }: { params: { token: 
     const r = await sql`
       SELECT id, token, material, finish, size, size_other, with_arms, weighted,
              consent_storage_files, consent_marketing_use, consent_interview, shipping_insured,
-             digital_wishes, shared_notes, submitted_at::text
+             digital_wishes, shared_notes, preferred_scan_number, submitted_at::text
       FROM scan_consents WHERE token = ${params.token} LIMIT 1
     `
     if (r.rows.length === 0) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 })
 
-    // Get klantnaam ook
+    // Get klantnaam + klantnummer ook
     const consent = r.rows[0]
     const c = await sql`SELECT booking_id, diy_rental_id FROM scan_consents WHERE token = ${params.token} LIMIT 1`
     let firstName: string | null = null
+    let customerNumber: string | null = null
     if (c.rows[0]?.booking_id) {
-      const b = await sql`SELECT first_name FROM bookings WHERE id = ${c.rows[0].booking_id}`
+      const b = await sql`SELECT first_name, customer_number FROM bookings WHERE id = ${c.rows[0].booking_id}`
       firstName = b.rows[0]?.first_name ?? null
+      customerNumber = b.rows[0]?.customer_number ?? null
     } else if (c.rows[0]?.diy_rental_id) {
-      const x = await sql`SELECT first_name FROM diy_rentals WHERE id = ${c.rows[0].diy_rental_id}`
+      const x = await sql`SELECT first_name, customer_number FROM diy_rentals WHERE id = ${c.rows[0].diy_rental_id}`
       firstName = x.rows[0]?.first_name ?? null
+      customerNumber = x.rows[0]?.customer_number ?? null
     }
 
-    return NextResponse.json({ consent, first_name: firstName })
+    return NextResponse.json({ consent, first_name: firstName, customer_number: customerNumber })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
@@ -43,6 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       shipping_insured,
       digital_wishes,
       shared_notes,
+      preferred_scan_number,
     } = body
 
     const r = await sql`
@@ -53,6 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
         shipping_insured = ${shipping_insured ?? null},
         digital_wishes = ${digital_wishes ?? null},
         shared_notes = ${shared_notes ?? null},
+        preferred_scan_number = ${preferred_scan_number ?? null},
         submitted_at = NOW(),
         updated_at = NOW()
       WHERE token = ${params.token}

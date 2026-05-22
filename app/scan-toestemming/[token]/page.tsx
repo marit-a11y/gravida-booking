@@ -19,6 +19,7 @@ interface Consent {
   shipping_insured: boolean | null
   digital_wishes: string | null
   shared_notes: string | null
+  preferred_scan_number: number | null
   submitted_at: string | null
 }
 
@@ -30,12 +31,14 @@ export default function ScanConsentPage() {
   const [error, setError] = useState('')
   const [consent, setConsent] = useState<Consent | null>(null)
   const [firstName, setFirstName] = useState<string | null>(null)
+  const [customerNumber, setCustomerNumber] = useState<string | null>(null)
 
   // Antwoorden
   const [storageFiles, setStorageFiles] = useState<boolean | null>(null)
   const [marketingUse, setMarketingUse] = useState<boolean | null>(null)
   const [interviewOk, setInterviewOk] = useState<boolean | null>(null)
   const [shippingInsured, setShippingInsured] = useState<boolean | null>(null)
+  const [preferredScan, setPreferredScan] = useState<number | null>(null)
   const [digitalWishes, setDigitalWishes] = useState('')
   const [sharedNotes, setSharedNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -46,7 +49,9 @@ export default function ScanConsentPage() {
       if (data.error) { setError(data.error); return }
       setConsent(data.consent)
       setFirstName(data.first_name)
+      setCustomerNumber(data.customer_number ?? null)
       if (data.consent.submitted_at) setSubmitted(true)
+      if (data.consent.preferred_scan_number) setPreferredScan(data.consent.preferred_scan_number)
       // Pre-fill als al eens ingevuld
       if (data.consent.consent_storage_files !== null) setStorageFiles(data.consent.consent_storage_files)
       if (data.consent.consent_marketing_use !== null) setMarketingUse(data.consent.consent_marketing_use)
@@ -63,6 +68,10 @@ export default function ScanConsentPage() {
       setError('Beantwoord alle vragen.')
       return
     }
+    if (!preferredScan) {
+      setError('Geef aan welke scan je voorkeur heeft.')
+      return
+    }
     setSubmitting(true); setError('')
     try {
       const res = await fetch(`/api/scan-consent/${token}`, {
@@ -75,6 +84,7 @@ export default function ScanConsentPage() {
           shipping_insured: shippingInsured,
           digital_wishes: digitalWishes.trim() || null,
           shared_notes: sharedNotes.trim() || null,
+          preferred_scan_number: preferredScan,
         }),
       })
       if (res.ok) setSubmitted(true)
@@ -152,6 +162,26 @@ export default function ScanConsentPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Voorkeur scan */}
+          <div>
+            <label className="text-sm font-medium text-gravida-green mb-2 block">
+              Welke scan heeft je voorkeur?
+            </label>
+            <p className="text-xs text-gravida-sage leading-relaxed mb-2">
+              We hebben twee scans voor je uitgezocht. Kies welke je wilt laten produceren.
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setPreferredScan(1)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${preferredScan === 1 ? 'border-gravida-sage bg-gravida-sage text-white' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                Scan {customerNumber ? customerNumber + '-1' : '1'}
+              </button>
+              <button type="button" onClick={() => setPreferredScan(2)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${preferredScan === 2 ? 'border-gravida-sage bg-gravida-sage text-white' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                Scan {customerNumber ? customerNumber + '-2' : '2'}
+              </button>
+            </div>
+          </div>
+
           {/* Toestemming opslaan */}
           <div>
             <label className="text-sm font-medium text-gravida-green mb-2 block">
