@@ -235,12 +235,12 @@ export default function ScanConsentPage() {
               Wensen voor digitale nabewerking (optioneel)
             </label>
             <p className="text-xs text-gravida-sage leading-relaxed mb-2">
-              Standaard maken we je beeldje &lsquo;smooth&rsquo; af, waarbij we kleine bijzonderheden (zoals moedervlek, navelpiercing of tatoeage) wegwerken. Wil je dat we iets juist behouden of accentueren? Geef het hier door.
+              Standaard werken we je beeldje &lsquo;smooth&rsquo; af, waarbij we alles onder de buik gladtrekken: details in de schaamstreek en eventueel zichtbare cellulitis. Wil je andere bewerkingen, of juist géén standaard smooth-afwerking? Geef het hier door.
             </p>
             <textarea
               rows={3}
               className="w-full text-sm px-3 py-2 border border-gravida-cream rounded-lg focus:outline-none focus:border-gravida-sage"
-              placeholder="Bijv. moedervlek mag blijven, navelpiercing weghalen, tatoeage versterken..."
+              placeholder="Bijv. moedervlek mag blijven, navelpiercing weghalen, tatoeage versterken, of: liever geen standaard smooth"
               value={digitalWishes}
               onChange={e => setDigitalWishes(e.target.value)}
             />
@@ -268,18 +268,22 @@ export default function ScanConsentPage() {
           </button>
         </form>
 
-        {/* Webshop verwijzing */}
-        <div className="mt-8 pt-6 border-t border-gravida-cream">
-          <p className="text-sm font-medium text-gravida-green mb-2">Beeldje bestellen</p>
-          <p className="text-xs text-gravida-sage leading-relaxed">
-            Bestel je beeldje via onze webshop op{' '}
-            <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje"
-              target="_blank" rel="noopener noreferrer"
-              className="text-gravida-green underline">
-              gravida.nl
-            </a>
-            , onder vermelding van je klant- en scannummer. Zo weten we precies welke scan bij je bestelling hoort en kunnen we je aanbetaling automatisch verrekenen.
+        {/* Webshop verwijzing , feestelijk */}
+        <div className="mt-10 -mx-8 -mb-8 px-8 py-8 rounded-b-2xl bg-gradient-to-br from-gravida-cream to-amber-50 border-t border-gravida-cream text-center">
+          <p className="text-2xl mb-2">✨</p>
+          <h2 className="text-xl font-bold text-gravida-green mb-2">
+            Nu het leuke werk: kies jouw mooiste beeldje
+          </h2>
+          <p className="text-sm text-gravida-sage leading-relaxed mb-5 max-w-md mx-auto">
+            Neem rustig de tijd om door onze collectie zwangerschapsbeeldjes te bladeren en kies het beeldje
+            dat jij het mooist vindt. Vermeld bij je bestelling je klant, en scannummer, dan verrekenen wij
+            je aanbetaling automatisch.
           </p>
+          <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje"
+            target="_blank" rel="noopener noreferrer"
+            className="inline-block px-8 py-4 rounded-xl bg-gravida-green text-white font-semibold text-base shadow-sm hover:bg-gravida-sage transition-colors">
+            Bekijk de beeldjes
+          </a>
         </div>
       </div>
     </div>
