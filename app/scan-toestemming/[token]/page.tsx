@@ -64,7 +64,7 @@ export default function ScanConsentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (storageFiles === null || marketingUse === null || interviewOk === null || shippingInsured === null) {
+    if (storageFiles === null || marketingUse === null || interviewOk === null) {
       setError('Beantwoord alle vragen.')
       return
     }
@@ -235,26 +235,6 @@ export default function ScanConsentPage() {
               <button type="button" onClick={() => setInterviewOk(false)}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${interviewOk === false ? 'border-red-400 bg-red-50 text-red-700' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
                 Liever niet
-              </button>
-            </div>
-          </div>
-
-          {/* Verzending */}
-          <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-4">
-            <label className="text-sm font-medium text-gravida-green mb-2 block">
-              Verzending
-            </label>
-            <p className="text-xs text-gravida-sage leading-relaxed mb-3">
-              Verzending is standaard <strong>inclusief</strong>. Daarnaast bieden we de optie om je beeldje <strong>verzekerd</strong> te verzenden voor &euro;15. Kunst is namelijk niet te verzekeren via de koeriersdienst, daarom hebben we hiervoor onze eigen verzekering. Komt het beeldje stuk of beschadigd aan, dan maken of herstellen we het kosteloos opnieuw voor je.
-            </p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setShippingInsured(true)}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${shippingInsured === true ? 'border-amber-500 bg-amber-100 text-amber-900' : 'border-gravida-cream text-gravida-sage hover:border-amber-300'}`}>
-                Ja, verzekerd verzenden (+&euro;15)
-              </button>
-              <button type="button" onClick={() => setShippingInsured(false)}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${shippingInsured === false ? 'border-gravida-light-sage bg-gravida-cream text-gravida-sage' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
-                Nee, standaard verzenden
               </button>
             </div>
           </div>
