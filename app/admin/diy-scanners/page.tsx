@@ -116,6 +116,20 @@ export default function DiyScannerPage() {
   useEffect(() => { loadData() }, [loadData])
 
   const toggleScanner = async (id: number, currentAvail: boolean) => {
+    // Waarschuwing: als je de LAATSTE in-omloop scanner uit omloop wilt halen,
+    // wordt de webshop direct compleet onverhuurbaar. Vraag extra bevestiging.
+    if (currentAvail) {
+      const otherActiveCount = scanners.filter(s => s.id !== id && s.is_available).length
+      if (otherActiveCount === 0) {
+        const confirmed = confirm(
+          'LET OP: dit is de laatste scanner die nog in omloop is.\n\n' +
+          'Als je deze uit omloop haalt, kan niemand meer een DIY scan kit reserveren via de webshop. ' +
+          'Alle weken worden direct als "uitverkocht" getoond.\n\n' +
+          'Weet je zeker dat je door wilt gaan?'
+        )
+        if (!confirmed) return
+      }
+    }
     setUpdatingScanner(id)
     try {
       const res = await fetch(`/api/admin/diy-scanners/${id}`, {
