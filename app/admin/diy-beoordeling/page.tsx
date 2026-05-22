@@ -18,6 +18,7 @@ type PendingRental = {
   rental_week: string
   scanner_name?: string
   status?: string
+  customer_number?: string | null
 }
 
 const BIJZONDERHEDEN_OPTIES: { value: Bijzonderheid; label: string }[] = [
@@ -35,6 +36,7 @@ export default function DiyBeoordelingPage() {
   // Form state
   const [klantNaam,       setKlantNaam]       = useState('')
   const [klantEmail,      setKlantEmail]      = useState('')
+  const [klantNummer,     setKlantNummer]     = useState('')
   const [bijzonderheden,  setBijzonderheden]  = useState<Bijzonderheid[]>([])
   const [andersTekst,     setAndersTekst]     = useState('')
   const [bruikbaar,       setBruikbaar]       = useState<boolean | null>(null)
@@ -71,6 +73,7 @@ export default function DiyBeoordelingPage() {
     setSelectedRentalId(id)
     setKlantNaam(`${r.first_name} ${r.last_name}`)
     setKlantEmail(r.email)
+    setKlantNummer(r.customer_number ?? '')
     setSent(false)
     setError(null)
 
@@ -90,7 +93,7 @@ export default function DiyBeoordelingPage() {
 
   function clearSelection() {
     setSelectedRentalId(null)
-    setKlantNaam(''); setKlantEmail('')
+    setKlantNaam(''); setKlantEmail(''); setKlantNummer('')
   }
 
   // ── Image handling ──────────────────────────────────────────────────────────
@@ -145,7 +148,19 @@ export default function DiyBeoordelingPage() {
       return
     }
 
-    const filledImages = images.filter(Boolean) as NonNullable<ImageSlot>[]
+    // Bouw filenames: {klantnr}-scan{N}-hoek{M}.{ext}, en val terug op naam als
+    // klantnummer onbekend is.
+    const labeledImages = images
+      .map((slot, idx) => {
+        if (!slot) return null
+        const scanNr = Math.floor(idx / 2) + 1
+        const hoekNr = (idx % 2) + 1
+        const ext = (slot.filename.split('.').pop() ?? 'jpg').toLowerCase()
+        const prefix = klantNummer ? `${klantNummer}-` : ''
+        const filename = `${prefix}scan${scanNr}-hoek${hoekNr}.${ext}`
+        return { filename, base64: slot.base64 }
+      })
+      .filter(Boolean) as { filename: string; base64: string }[]
 
     setSending(true)
     try {
@@ -160,7 +175,7 @@ export default function DiyBeoordelingPage() {
           anders_tekst: andersTekst.trim() || undefined,
           bruikbaar,
           extra_wensen: extraWensen.trim() || undefined,
-          images: filledImages.map(img => ({ filename: img.filename, base64: img.base64 })),
+          images: labeledImages,
           rental_id: selectedRentalId ?? undefined,
         }),
       })
@@ -171,7 +186,7 @@ export default function DiyBeoordelingPage() {
       setSent(true)
 
       // Reset form
-      setKlantNaam(''); setKlantEmail(''); setBijzonderheden([]); setAndersTekst('')
+      setKlantNaam(''); setKlantEmail(''); setKlantNummer(''); setBijzonderheden([]); setAndersTekst('')
       setBruikbaar(null); setExtraWensen(''); setImages([null, null, null, null])
       setSelectedRentalId(null)
 
@@ -326,43 +341,57 @@ export default function DiyBeoordelingPage() {
           )}
         </div>
 
-        {/* ── Screenshots ── */}
+        {/* ── Screenshots ── 2 scans, 2 hoeken per scan */}
         <div className="card p-6">
-          <h2 className="section-title mb-1">Screenshots</h2>
-          <p className="text-xs text-gravida-sage mb-4">Voeg maximaal 4 afbeeldingen toe — worden als bijlage meegestuurd.</p>
-          <div className="grid grid-cols-2 gap-3">
-            {images.map((slot, i) => (
-              <div key={i}>
-                {slot ? (
-                  <div className="relative rounded-xl overflow-hidden border-2 border-gravida-cream group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={slot.preview} alt={`Scan ${i + 1}`} className="w-full h-32 object-cover" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(i)}
-                      className="absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full text-xs font-bold text-red-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                    >×</button>
-                    <p className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1 truncate">
-                      {slot.filename}
-                    </p>
-                  </div>
-                ) : (
-                  <div
-                    className="border-2 border-dashed border-gravida-cream rounded-xl h-32 flex flex-col items-center justify-center cursor-pointer hover:border-gravida-sage transition-colors"
-                    onClick={() => fileRefs[i].current?.click()}
-                    onDragOver={e => e.preventDefault()}
-                    onDrop={e => handleDrop(i, e)}
-                  >
-                    <span className="text-2xl text-gravida-light-sage">+</span>
-                    <span className="text-xs text-gravida-light-sage mt-1">Scan {i + 1}</span>
-                  </div>
-                )}
-                <input ref={fileRefs[i]} type="file" accept="image/*" className="hidden"
-                  onChange={e => handleFileChange(i, e.target.files?.[0] ?? null)} />
+          <h2 className="section-title mb-1">Screenshots per scan</h2>
+          <p className="text-xs text-gravida-sage mb-4">
+            Upload 2 hoeken per scan (4 afbeeldingen totaal). Klant ziet twee scans en kiest haar voorkeur via het toestemmingsformulier.
+          </p>
+          {[0, 1].map(scanIdx => {
+            const scanLabel = `Scan ${klantNummer ? klantNummer + '-' : ''}${scanIdx + 1}`
+            return (
+              <div key={scanIdx} className="mb-5 last:mb-0">
+                <h3 className="text-sm font-semibold text-gravida-green mb-2">{scanLabel}</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[0, 1].map(hoekIdx => {
+                    const slotIdx = scanIdx * 2 + hoekIdx
+                    const slot = images[slotIdx]
+                    return (
+                      <div key={hoekIdx}>
+                        {slot ? (
+                          <div className="relative rounded-xl overflow-hidden border-2 border-gravida-cream group">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={slot.preview} alt={`${scanLabel} hoek ${hoekIdx + 1}`} className="w-full h-32 object-cover" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(slotIdx)}
+                              className="absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full text-xs font-bold text-red-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                            >×</button>
+                            <p className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1">
+                              Hoek {hoekIdx + 1}
+                            </p>
+                          </div>
+                        ) : (
+                          <div
+                            className="border-2 border-dashed border-gravida-cream rounded-xl h-32 flex flex-col items-center justify-center cursor-pointer hover:border-gravida-sage transition-colors"
+                            onClick={() => fileRefs[slotIdx].current?.click()}
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={e => handleDrop(slotIdx, e)}
+                          >
+                            <span className="text-2xl text-gravida-light-sage">+</span>
+                            <span className="text-xs text-gravida-light-sage mt-1">Hoek {hoekIdx + 1}</span>
+                          </div>
+                        )}
+                        <input ref={fileRefs[slotIdx]} type="file" accept="image/*" className="hidden"
+                          onChange={e => handleFileChange(slotIdx, e.target.files?.[0] ?? null)} />
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            ))}
-          </div>
+            )
+          })}
         </div>
 
         {/* ── Bijzonderheden ── */}
