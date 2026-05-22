@@ -117,7 +117,7 @@ export default function ScanConsentPage() {
             Je antwoorden zijn ontvangen. We gaan voor je aan de slag met de bewerking en productie van je beeldje.
             Je krijgt vanzelf bericht zodra het klaar is.
           </p>
-          <p className="text-sm text-gravida-light-sage">— Team Gravida</p>
+          <p className="text-sm text-gravida-light-sage">Team Gravida</p>
         </div>
       </div>
     )
@@ -158,7 +158,7 @@ export default function ScanConsentPage() {
               Mogen wij jouw bestanden na productie bewaren voor eventuele nabestellingen?
             </label>
             <p className="text-xs text-gravida-sage leading-relaxed mb-2">
-              Handig voor het geval je beeldje stuk valt of beschadigd raakt &mdash; dan kunnen we makkelijk een nieuwe maken zonder dat we opnieuw moeten scannen.
+              Handig voor het geval je beeldje stuk valt of beschadigd raakt, dan kunnen we makkelijk een nieuwe maken zonder dat we opnieuw moeten scannen.
             </p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setStorageFiles(true)}
@@ -195,7 +195,7 @@ export default function ScanConsentPage() {
               Sta je open voor een interview voor ons magazine of social media?
             </label>
             <p className="text-xs text-gravida-sage leading-relaxed mb-2">
-              We nemen hierover vooraf altijd persoonlijk contact met je op &mdash; dit is alleen een eerste &lsquo;wel/niet interesse&rsquo;. Geen verplichtingen.
+              We nemen hierover vooraf altijd persoonlijk contact met je op, dit is alleen een eerste &lsquo;wel/niet interesse&rsquo;. Geen verplichtingen.
             </p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setInterviewOk(true)}

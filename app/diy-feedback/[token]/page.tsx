@@ -136,7 +136,7 @@ export default function DiyFeedbackPage() {
               Hoe wil je je aanbetaling van &euro;200 verwerken?
             </label>
             <p className="text-xs text-gravida-sage mb-3 leading-relaxed">
-              Het lenen van de scanner is gratis &mdash; je betaalt enkel voor het beeldje. Je aanbetaling verrekenen we met je beeldje. Wil je geen beeldje? Dan zetten we een deel om in een cadeaubon en storten we de borg terug.
+              Het lenen van de scanner is gratis, je betaalt enkel voor het beeldje. Je aanbetaling verrekenen we met je beeldje. Wil je geen beeldje? Dan zetten we een deel om in een cadeaubon en storten we de borg terug.
             </p>
             <div className="space-y-2">
               <button type="button" onClick={() => setDepositChoice('order_credit')}

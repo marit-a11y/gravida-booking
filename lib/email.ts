@@ -25,7 +25,7 @@ function formatDutchDate(dateStr: string): string {
 //    Gron/Fr/Drenthe, Curacao
 //  - Studio/showroom in Haarlem: 'Haarlem studioscan', 'Family scan Haarlem',
 //    'Showroom bezoek Haarlem'
-// De copy in mails moet hierop aangepast worden — anders krijgt iemand met
+// De copy in mails moet hierop aangepast worden, anders krijgt iemand met
 // een studioscan een mail over "ik kom bij je langs".
 type ScanType = 'thuis' | 'studio' | 'showroom'
 
@@ -114,7 +114,7 @@ function customerEmailHtml(params: {
   let closing: string
   if (scanType === 'studio') {
     intro = 'Wat leuk dat je een 3D scan in onze studio in Haarlem hebt geboekt. Ik kijk ernaar uit om je te zien.'
-    practical = 'De studio is rustig en sfeervol ingericht — je hoeft thuis niets voor te bereiden. Eet en drink gerust iets voor je komt zodat de baby actief is. Reken op ongeveer een half uur voor de scan zelf, plus tijd om de beelden samen te bekijken.'
+    practical = 'De studio is rustig en sfeervol ingericht, je hoeft thuis niets voor te bereiden. Eet en drink gerust iets voor je komt zodat de baby actief is. Reken op ongeveer een half uur voor de scan zelf, plus tijd om de beelden samen te bekijken.'
     scheduling = 'Mocht je toch nog willen schuiven met de tijd, laat het me dan even op tijd weten zodat we het in de planning kunnen aanpassen.'
     closing = 'Tot snel in de studio,'
   } else if (scanType === 'showroom') {
@@ -288,7 +288,7 @@ export interface BookingEmailParams {
 
 export async function sendBookingEmails(params: BookingEmailParams): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — skipping email')
+    console.warn('RESEND_API_KEY not set, skipping email')
     return
   }
 
@@ -346,7 +346,7 @@ function bookingUpdateEmailHtml(params: {
   const p = (text: string) =>
     `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
 
-  // Notes worden line-by-line getoond, plain text — escape HTML risk
+  // Notes worden line-by-line getoond, plain text, escape HTML risk
   const notesHtml = params.notes
     ? params.notes
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -409,7 +409,7 @@ export interface BookingUpdateEmailParams {
 
 export async function sendBookingUpdateEmail(params: BookingUpdateEmailParams): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — skipping email')
+    console.warn('RESEND_API_KEY not set, skipping email')
     return
   }
   const dateFormatted = formatDutchDate(params.date)
@@ -421,7 +421,7 @@ export async function sendBookingUpdateEmail(params: BookingUpdateEmailParams): 
   })
 }
 
-// Staff-side notification of an update — sent in parallel with the customer mail.
+// Staff-side notification of an update, sent in parallel with the customer mail.
 function bookingUpdateStaffEmailHtml(params: {
   first_name: string
   last_name: string
@@ -641,7 +641,7 @@ export interface DiyRentalEmailParams {
 
 export async function sendDiyRentalEmails(params: DiyRentalEmailParams): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — skipping email')
+    console.warn('RESEND_API_KEY not set, skipping email')
     return
   }
 
@@ -719,7 +719,7 @@ export async function sendDiyRentalUpdateEmail(params: {
   notes?: string | null
 }): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — skipping email')
+    console.warn('RESEND_API_KEY not set, skipping email')
     return
   }
   const weekFormatted = formatDiyWeek(params.rental_week)
@@ -880,7 +880,7 @@ export async function sendDiyRentalShippedEmail(params: {
   tracking_url?: string | null
 }): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — skipping email')
+    console.warn('RESEND_API_KEY not set, skipping email')
     return
   }
   await getResend().emails.send({
@@ -1386,7 +1386,7 @@ export async function sendGiftCardEmails(params: {
   expires_at: string
 }): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — skipping gift card email')
+    console.warn('RESEND_API_KEY not set, skipping gift card email')
     return
   }
 
@@ -1600,7 +1600,7 @@ export interface SocialReminderItem {
 
 export async function sendSocialPlannerReminder(items: SocialReminderItem[]): Promise<void> {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('RESEND_API_KEY not set — skipping email')
+    console.warn('RESEND_API_KEY not set, skipping email')
     return
   }
   if (items.length === 0) return
@@ -1650,7 +1650,7 @@ export async function sendSocialPlannerReminder(items: SocialReminderItem[]): Pr
   await getResend().emails.send({
     from: FROM,
     to: staffEmail,
-    subject: `Social media — ${items.length} post${items.length === 1 ? '' : 's'} vandaag`,
+    subject: `Social media, ${items.length} post${items.length === 1 ? '' : 's'} vandaag`,
     html,
   })
 }

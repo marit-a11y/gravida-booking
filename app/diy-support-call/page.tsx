@@ -52,7 +52,7 @@ function Content() {
             We nemen binnen 1 werkdag contact met je op om een support call in te plannen.
             Tot snel!
           </p>
-          <p className="text-sm text-gravida-light-sage">— Team Gravida</p>
+          <p className="text-sm text-gravida-light-sage">Team Gravida</p>
         </div>
       </div>
     )

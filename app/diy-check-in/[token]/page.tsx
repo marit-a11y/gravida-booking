@@ -70,7 +70,7 @@ function Content() {
             <p className="text-5xl mb-4">✨</p>
             <h1 className="text-2xl font-bold text-gravida-green mb-3">Dankjewel!</h1>
             <p className="text-gravida-sage">We hebben je reactie ontvangen.</p>
-            <p className="text-sm text-gravida-light-sage mt-3">— Laila, Gravida</p>
+            <p className="text-sm text-gravida-light-sage mt-3">Laila, Gravida</p>
           </div>
         )}
 
