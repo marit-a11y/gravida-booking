@@ -37,6 +37,7 @@ interface Rental {
   feedback_sent_at?: string | null
   feedback_submitted_at?: string | null
   scanner_issues?: string | null
+  scan_preference?: string | null
   deposit_choice?: string | null
   giftcard_id?: number | null
   customer_contacted_at?: string | null
@@ -828,6 +829,12 @@ export default function DiyScannerPage() {
                           <div>
                             <span className="text-gravida-light-sage">Bijzonderheden tijdens gebruik:</span>
                             <p className="italic text-gravida-green whitespace-pre-wrap mt-0.5">{detailRental.scanner_issues}</p>
+                          </div>
+                        )}
+                        {detailRental.scan_preference && (
+                          <div>
+                            <span className="text-gravida-light-sage">Voorkeur scan:</span>
+                            <p className="italic text-gravida-green whitespace-pre-wrap mt-0.5">{detailRental.scan_preference}</p>
                           </div>
                         )}
                         {detailRental.deposit_choice && (

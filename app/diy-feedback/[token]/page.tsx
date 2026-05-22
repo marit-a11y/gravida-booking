@@ -22,6 +22,7 @@ export default function DiyFeedbackPage() {
   const [rental, setRental] = useState<Rental | null>(null)
 
   const [scannerIssues, setScannerIssues] = useState('')
+  const [scanPreference, setScanPreference] = useState('')
   const [depositChoice, setDepositChoice] = useState<'order_credit' | 'giftcard' | ''>('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -32,6 +33,7 @@ export default function DiyFeedbackPage() {
       setRental(data.rental)
       if (data.rental.feedback_submitted_at) setSubmitted(true)
       if (data.rental.scanner_issues) setScannerIssues(data.rental.scanner_issues)
+      if (data.rental.scan_preference) setScanPreference(data.rental.scan_preference)
       if (data.rental.deposit_choice && (data.rental.deposit_choice === 'giftcard' || data.rental.deposit_choice === 'order_credit')) {
       setDepositChoice(data.rental.deposit_choice)
     }
@@ -51,6 +53,7 @@ export default function DiyFeedbackPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           scanner_issues: scannerIssues.trim() || null,
+          scan_preference: scanPreference.trim() || null,
           deposit_choice: depositChoice,
         }),
       })
@@ -104,12 +107,27 @@ export default function DiyFeedbackPage() {
             <label className="text-sm font-medium text-gravida-green mb-2 block">
               Heb je bijzonderheden ervaren bij het gebruik van de scanner?
             </label>
-            <textarea rows={4}
+            <textarea rows={3}
               className="w-full text-sm px-3 py-2 border border-gravida-cream rounded-lg focus:outline-none focus:border-gravida-sage"
               placeholder="Bijv. een knopje deed het niet helemaal, of alles werkte juist perfect... Laat het ons even weten!"
               value={scannerIssues}
               onChange={e => setScannerIssues(e.target.value)} />
             <p className="text-[11px] text-gravida-light-sage mt-1">Optioneel.</p>
+          </div>
+
+          {/* Voorkeur voor scan */}
+          <div>
+            <label className="text-sm font-medium text-gravida-green mb-2 block">
+              Heb je een voorkeur voor een specifieke scan?
+            </label>
+            <textarea rows={3}
+              className="w-full text-sm px-3 py-2 border border-gravida-cream rounded-lg focus:outline-none focus:border-gravida-sage"
+              placeholder="Bijv. de scan rond 14:30 of de scan waarin de baby z'n handje bij gezicht heeft. Laat dit leeg als je het aan ons overlaat."
+              value={scanPreference}
+              onChange={e => setScanPreference(e.target.value)} />
+            <p className="text-[11px] text-gravida-light-sage mt-1">
+              Optioneel. Laat je het leeg, dan kiezen wij de twee mooiste scans uit en sturen we je daarvan een voorvertoning.
+            </p>
           </div>
 
           {/* Borg keuze */}

@@ -182,24 +182,22 @@ export default function ScanConsentPage() {
             </div>
           </div>
 
-          {/* Verzekerd verzenden */}
+          {/* Verzending */}
           <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-4">
             <label className="text-sm font-medium text-gravida-green mb-2 block">
-              📦 Wil je dat we je beeldje verzekerd verzenden? (+€15)
+              Verzending
             </label>
             <p className="text-xs text-gravida-sage leading-relaxed mb-3">
-              De koerier verzekert kunst niet, daarom hebben we hiervoor zelf een &apos;verzekeringspotje&apos;.
-              Mocht je beeldje beschadigd raken tijdens transport, dan maken we direct een nieuw exemplaar voor je.
-              Meerprijs <strong>€15</strong>.
+              Verzending is standaard <strong>inclusief</strong>. Daarnaast bieden we de optie om je beeldje <strong>verzekerd</strong> te verzenden voor &euro;15. Kunst is namelijk niet te verzekeren via de koeriersdienst, daarom hebben we hiervoor onze eigen verzekering. Komt het beeldje stuk of beschadigd aan, dan maken of herstellen we het kosteloos opnieuw voor je.
             </p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setShippingInsured(true)}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${shippingInsured === true ? 'border-amber-500 bg-amber-100 text-amber-900' : 'border-gravida-cream text-gravida-sage hover:border-amber-300'}`}>
-                ✓ Ja, verzekerd verzenden
+                Ja, verzekerd verzenden (+&euro;15)
               </button>
               <button type="button" onClick={() => setShippingInsured(false)}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${shippingInsured === false ? 'border-gravida-light-sage bg-gravida-cream text-gravida-sage' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
-                Nee, op eigen risico
+                Nee, standaard verzenden
               </button>
             </div>
           </div>
@@ -209,6 +207,9 @@ export default function ScanConsentPage() {
             <label className="text-sm font-medium text-gravida-green mb-2 block">
               Wensen voor digitale nabewerking (optioneel)
             </label>
+            <p className="text-xs text-gravida-sage leading-relaxed mb-2">
+              Standaard maken we je beeldje &lsquo;smooth&rsquo; af, waarbij we kleine bijzonderheden (zoals moedervlek, navelpiercing of tatoeage) wegwerken. Wil je dat we iets juist behouden of accentueren? Geef het hier door.
+            </p>
             <textarea
               rows={3}
               className="w-full text-sm px-3 py-2 border border-gravida-cream rounded-lg focus:outline-none focus:border-gravida-sage"
@@ -236,9 +237,23 @@ export default function ScanConsentPage() {
 
           <button type="submit" disabled={submitting}
             className="w-full py-3 rounded-xl bg-gravida-green text-white font-medium hover:bg-gravida-sage transition-colors disabled:opacity-50">
-            {submitting ? 'Verzenden...' : 'Verzenden ✓'}
+            {submitting ? 'Verzenden...' : 'Verzenden'}
           </button>
         </form>
+
+        {/* Webshop verwijzing */}
+        <div className="mt-8 pt-6 border-t border-gravida-cream">
+          <p className="text-sm font-medium text-gravida-green mb-2">Beeldje bestellen</p>
+          <p className="text-xs text-gravida-sage leading-relaxed">
+            Bestel je beeldje via onze webshop op{' '}
+            <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje"
+              target="_blank" rel="noopener noreferrer"
+              className="text-gravida-green underline">
+              gravida.nl
+            </a>
+            , onder vermelding van je klant- en scannummer. Zo weten we precies welke scan bij je bestelling hoort en kunnen we je aanbetaling automatisch verrekenen.
+          </p>
+        </div>
       </div>
     </div>
   )

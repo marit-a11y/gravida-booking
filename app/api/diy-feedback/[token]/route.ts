@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(_request: NextRequest, { params }: { params: { token: string } }) {
   try {
     const r = await sql`
-      SELECT id, first_name, last_name, email, scanner_issues, deposit_choice,
+      SELECT id, first_name, last_name, email, scanner_issues, scan_preference, deposit_choice,
              feedback_submitted_at::text
       FROM diy_rentals WHERE feedback_token = ${params.token} LIMIT 1
     `
@@ -21,9 +21,10 @@ export async function GET(_request: NextRequest, { params }: { params: { token: 
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
   try {
     const body = await request.json()
-    const { scanner_issues, deposit_choice } = body as {
+    const { scanner_issues, deposit_choice, scan_preference } = body as {
       scanner_issues?: string
       deposit_choice: 'order_credit' | 'giftcard'
+      scan_preference?: string
     }
 
     if (!deposit_choice || !['order_credit', 'giftcard'].includes(deposit_choice)) {
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     await sql`
       UPDATE diy_rentals SET
         scanner_issues = ${scanner_issues?.trim() || null},
+        scan_preference = ${scan_preference?.trim() || null},
         deposit_choice = ${deposit_choice},
         giftcard_id = ${giftCardId},
         feedback_submitted_at = NOW()
