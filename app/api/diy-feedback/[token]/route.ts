@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { createGiftCard } from '@/lib/db'
 import { sendDiyBorgKortingEmail, sendDiyBorgCadeaubonEmail } from '@/lib/email'
+import { createWooCoupon, isWooCommerceConfigured } from '@/lib/woocommerce'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,6 +46,8 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     let giftCardId: number | null = null
     let createdCode: string | null = null
 
+    let wooCouponCreated = false
+
     if (deposit_choice === 'order_credit') {
       // Kortingscode €200 voor verrekenen met beeldje-bestelling
       const card = await createGiftCard({
@@ -60,7 +63,18 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       giftCardId = card?.id ?? null
       createdCode = card?.code ?? null
 
+      // Sync naar WooCommerce als coupon
       if (card?.code) {
+        const wc = await createWooCoupon({
+          code: card.code,
+          discount_type: 'fixed_cart',
+          amount: '200.00',
+          description: `Borg-verrekening DIY scan kit - ${rental.first_name} ${rental.last_name}`,
+          email_restrictions: [rental.email],
+          usage_limit: 1,
+        })
+        wooCouponCreated = wc.ok
+
         sendDiyBorgKortingEmail({
           first_name: rental.first_name,
           email: rental.email,
@@ -84,6 +98,17 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       createdCode = card?.code ?? null
 
       if (card?.code) {
+        // Cadeaubon als WC coupon, vervaldatum doorgeven indien beschikbaar
+        const wc = await createWooCoupon({
+          code: card.code,
+          discount_type: 'fixed_cart',
+          amount: '100.00',
+          description: `Cadeaubon - ${rental.first_name} ${rental.last_name}`,
+          date_expires: card.expires_at,
+          usage_limit: 1,
+        })
+        wooCouponCreated = wc.ok
+
         sendDiyBorgCadeaubonEmail({
           first_name: rental.first_name,
           email: rental.email,
@@ -105,9 +130,12 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     `
 
     // Inbox notify
+    const wcStatus = createdCode
+      ? (wooCouponCreated ? ' (sync naar WooCommerce gelukt)' : ' (LET OP: niet gesynced naar WooCommerce, handmatig toevoegen)')
+      : ''
     const choiceLabel: Record<string, string> = {
-      order_credit: `volledig verrekenen met beeldje, kortingscode ${createdCode ?? '?'} (200 euro) automatisch aangemaakt en gemaild`,
-      giftcard: `cadeaubon ${createdCode ?? '?'} (100 euro) automatisch aangemaakt en gemaild, 100 euro borg nog terugstorten`,
+      order_credit: `volledig verrekenen met beeldje, kortingscode ${createdCode ?? '?'} (200 euro) automatisch aangemaakt en gemaild${wcStatus}`,
+      giftcard: `cadeaubon ${createdCode ?? '?'} (100 euro) automatisch aangemaakt en gemaild, 100 euro borg nog terugstorten${wcStatus}`,
     }
     for (const recipient of ['Marit', 'Laila']) {
       await sql`
