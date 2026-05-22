@@ -15,6 +15,7 @@ interface Consent {
   weighted: boolean | null
   consent_storage_files: boolean | null
   consent_marketing_use: boolean | null
+  consent_interview: boolean | null
   shipping_insured: boolean | null
   digital_wishes: string | null
   shared_notes: string | null
@@ -33,6 +34,7 @@ export default function ScanConsentPage() {
   // Antwoorden
   const [storageFiles, setStorageFiles] = useState<boolean | null>(null)
   const [marketingUse, setMarketingUse] = useState<boolean | null>(null)
+  const [interviewOk, setInterviewOk] = useState<boolean | null>(null)
   const [shippingInsured, setShippingInsured] = useState<boolean | null>(null)
   const [digitalWishes, setDigitalWishes] = useState('')
   const [sharedNotes, setSharedNotes] = useState('')
@@ -48,6 +50,7 @@ export default function ScanConsentPage() {
       // Pre-fill als al eens ingevuld
       if (data.consent.consent_storage_files !== null) setStorageFiles(data.consent.consent_storage_files)
       if (data.consent.consent_marketing_use !== null) setMarketingUse(data.consent.consent_marketing_use)
+      if (data.consent.consent_interview !== null && data.consent.consent_interview !== undefined) setInterviewOk(data.consent.consent_interview)
       if (data.consent.shipping_insured !== null) setShippingInsured(data.consent.shipping_insured)
       if (data.consent.digital_wishes) setDigitalWishes(data.consent.digital_wishes)
       if (data.consent.shared_notes) setSharedNotes(data.consent.shared_notes)
@@ -56,8 +59,8 @@ export default function ScanConsentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (storageFiles === null || marketingUse === null || shippingInsured === null) {
-      setError('Beantwoord alle drie de vragen.')
+    if (storageFiles === null || marketingUse === null || interviewOk === null || shippingInsured === null) {
+      setError('Beantwoord alle vragen.')
       return
     }
     setSubmitting(true); setError('')
@@ -68,6 +71,7 @@ export default function ScanConsentPage() {
         body: JSON.stringify({
           consent_storage_files: storageFiles,
           consent_marketing_use: marketingUse,
+          consent_interview: interviewOk,
           shipping_insured: shippingInsured,
           digital_wishes: digitalWishes.trim() || null,
           shared_notes: sharedNotes.trim() || null,
@@ -151,16 +155,19 @@ export default function ScanConsentPage() {
           {/* Toestemming opslaan */}
           <div>
             <label className="text-sm font-medium text-gravida-green mb-2 block">
-              Mogen wij jouw bestanden bewaren voor eventuele nabestellingen?
+              Mogen wij jouw bestanden na productie bewaren voor eventuele nabestellingen?
             </label>
+            <p className="text-xs text-gravida-sage leading-relaxed mb-2">
+              Handig voor het geval je beeldje stuk valt of beschadigd raakt &mdash; dan kunnen we makkelijk een nieuwe maken zonder dat we opnieuw moeten scannen.
+            </p>
             <div className="flex gap-2">
               <button type="button" onClick={() => setStorageFiles(true)}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${storageFiles === true ? 'border-gravida-sage bg-gravida-sage text-white' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
-                ✓ Ja graag
+                Ja graag
               </button>
               <button type="button" onClick={() => setStorageFiles(false)}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${storageFiles === false ? 'border-red-400 bg-red-50 text-red-700' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
-                ✗ Nee, liever niet
+                Nee, liever niet
               </button>
             </div>
           </div>
@@ -168,16 +175,36 @@ export default function ScanConsentPage() {
           {/* Marketing use */}
           <div>
             <label className="text-sm font-medium text-gravida-green mb-2 block">
-              Mogen we (foto&apos;s van) jouw beeldje gebruiken in de studio, op social media en op de website?
+              Mogen we foto&apos;s van jouw beeldje delen op social media en voor andere marketingdoeleinden?
             </label>
             <div className="flex gap-2">
               <button type="button" onClick={() => setMarketingUse(true)}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${marketingUse === true ? 'border-gravida-sage bg-gravida-sage text-white' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
-                ✓ Ja graag
+                Ja graag
               </button>
               <button type="button" onClick={() => setMarketingUse(false)}
                 className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${marketingUse === false ? 'border-red-400 bg-red-50 text-red-700' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
-                ✗ Liever niet
+                Liever niet
+              </button>
+            </div>
+          </div>
+
+          {/* Interview */}
+          <div>
+            <label className="text-sm font-medium text-gravida-green mb-2 block">
+              Sta je open voor een interview voor ons magazine of social media?
+            </label>
+            <p className="text-xs text-gravida-sage leading-relaxed mb-2">
+              We nemen hierover vooraf altijd persoonlijk contact met je op &mdash; dit is alleen een eerste &lsquo;wel/niet interesse&rsquo;. Geen verplichtingen.
+            </p>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setInterviewOk(true)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${interviewOk === true ? 'border-gravida-sage bg-gravida-sage text-white' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                Ja, leuk
+              </button>
+              <button type="button" onClick={() => setInterviewOk(false)}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${interviewOk === false ? 'border-red-400 bg-red-50 text-red-700' : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage/50'}`}>
+                Liever niet
               </button>
             </div>
           </div>

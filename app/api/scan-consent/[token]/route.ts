@@ -8,7 +8,7 @@ export async function GET(_request: NextRequest, { params }: { params: { token: 
   try {
     const r = await sql`
       SELECT id, token, material, finish, size, size_other, with_arms, weighted,
-             consent_storage_files, consent_marketing_use, shipping_insured,
+             consent_storage_files, consent_marketing_use, consent_interview, shipping_insured,
              digital_wishes, shared_notes, submitted_at::text
       FROM scan_consents WHERE token = ${params.token} LIMIT 1
     `
@@ -39,6 +39,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     const {
       consent_storage_files,
       consent_marketing_use,
+      consent_interview,
       shipping_insured,
       digital_wishes,
       shared_notes,
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       UPDATE scan_consents SET
         consent_storage_files = ${consent_storage_files ?? null},
         consent_marketing_use = ${consent_marketing_use ?? null},
+        consent_interview = ${consent_interview ?? null},
         shipping_insured = ${shipping_insured ?? null},
         digital_wishes = ${digital_wishes ?? null},
         shared_notes = ${shared_notes ?? null},
