@@ -15,6 +15,8 @@ const navItems = [
   { href: '/admin/diy-beoordeling', label: 'Scan beoordeling', icon: '✓', badge: true },
   { href: '/admin/cadeaubonnen',    label: 'Cadeaubonnen',   icon: '🎁' },
   { href: '/admin/social',          label: 'Social planner', icon: '📅' },
+  { href: '/admin/galleries',       label: 'Galerijen',      icon: '🖼️' },
+  { href: '/admin/blogs',           label: 'Blogs',          icon: '✍️' },
   { href: '/admin/whatsapp-test',   label: 'WhatsApp test',  icon: '💬' },
   { href: '/admin/task-tracker',    label: 'Task tracker',   icon: '🐞' },
 ]
