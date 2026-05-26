@@ -1,4 +1,5 @@
 import { sql } from '@vercel/postgres'
+import { isDutchHoliday } from './holidays'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -655,6 +656,9 @@ export async function generateStandardAvailability(weeksAhead = 12): Promise<num
     // Skip date entirely if there's already an active booking elsewhere
     // (e.g. a studio scan booking blocks the day for aan-huis bookings too)
     if (busyDates.has(dateStr)) continue
+
+    // Skip nationale feestdagen
+    if (isDutchHoliday(dateStr)) continue
 
     for (const region of BOOKABLE_REGIONS) {
       const key = `${dateStr}|${region}`
