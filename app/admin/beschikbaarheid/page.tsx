@@ -658,7 +658,7 @@ export default function BeschikbaarheidPage() {
             className="btn-secondary"
             title="Genereer standaard beschikbaarheid voor alle NL regio's op basis van werktijden + afwezigheid"
           >
-            {autoSyncing ? 'Synchroniseren...' : '↻ Synchroniseer komende 6 maanden'}
+            {autoSyncing ? 'Synchroniseren...' : '↻ Synchroniseer komende 9 maanden'}
           </button>
           <button
             onClick={async () => {

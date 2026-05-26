@@ -46,8 +46,8 @@ export async function POST() {
     `
     const keptCount = parseInt(kept.rows[0].count, 10)
 
-    // Stap 3: regenereer met huidige regels (6 maanden vooruit)
-    const inserted = await generateStandardAvailability(24)
+    // Stap 3: regenereer met huidige regels (9 maanden vooruit)
+    const inserted = await generateStandardAvailability(40)
 
     return NextResponse.json({
       ok: true,

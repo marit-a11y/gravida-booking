@@ -6,7 +6,7 @@ export const maxDuration = 60
 
 export async function POST() {
   try {
-    const inserted = await generateStandardAvailability(24)
+    const inserted = await generateStandardAvailability(40)
     return NextResponse.json({ ok: true, inserted, message: `${inserted} nieuwe beschikbaarheden aangemaakt` })
   } catch (err) {
     console.error('POST /api/admin/availability/auto-generate error:', err)
