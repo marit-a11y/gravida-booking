@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const inserted = await generateStandardAvailability(12)
+    const inserted = await generateStandardAvailability(24)
     return NextResponse.json({ ok: true, inserted })
   } catch (err) {
     console.error('cron/auto-availability error:', err)
