@@ -222,6 +222,42 @@ export default function DiyScannerPage() {
 
   // Bericht aan klant bij uitgaande scanner
   const [outgoingMsgRental, setOutgoingMsgRental] = useState<Rental | null>(null)
+
+  // Blokkades (zomerstop, vakanties etc)
+  interface DiyBlock { id: number; date_from: string; date_to: string; reason: string | null }
+  const [blocks, setBlocks] = useState<DiyBlock[]>([])
+  const [blockForm, setBlockForm] = useState({ date_from: '', date_to: '', reason: '' })
+  const [savingBlock, setSavingBlock] = useState(false)
+
+  const loadBlocks = async () => {
+    const r = await fetch('/api/admin/diy-blocks')
+    if (r.ok) setBlocks((await r.json()).blocks ?? [])
+  }
+  useEffect(() => { loadBlocks() }, [])
+
+  const addBlock = async () => {
+    if (!blockForm.date_from || !blockForm.date_to) return
+    setSavingBlock(true)
+    const r = await fetch('/api/admin/diy-blocks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(blockForm),
+    })
+    if (r.ok) {
+      setBlockForm({ date_from: '', date_to: '', reason: '' })
+      await loadBlocks()
+    } else {
+      const d = await r.json().catch(() => ({}))
+      alert(d.error ?? 'Toevoegen mislukt')
+    }
+    setSavingBlock(false)
+  }
+
+  const removeBlock = async (id: number) => {
+    if (!confirm('Block verwijderen?')) return
+    await fetch(`/api/admin/diy-blocks/${id}`, { method: 'DELETE' })
+    await loadBlocks()
+  }
   const [outgoingMsgType, setOutgoingMsgType] = useState<'not_charged' | 'delayed' | 'defect' | 'other'>('not_charged')
   const [outgoingReason, setOutgoingReason] = useState('')
   const [outgoingNewSend, setOutgoingNewSend] = useState('')
@@ -543,6 +579,57 @@ export default function DiyScannerPage() {
           </div>
         )
       })()}
+
+      {/* Blokkades / zomerstop */}
+      <div className="mb-8">
+        <h2 className="section-title mb-3">Blokkades (vakantie / zomerstop)</h2>
+        <div className="card">
+          <p className="text-xs text-gravida-sage mb-3">
+            Geef een datumrange op waarin er geen DIY scanner verhuurd kan worden. Weken die hierin vallen worden als &lsquo;uitverkocht&rsquo; getoond op de webshop.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
+            <div>
+              <label className="label text-xs">Van</label>
+              <input type="date" className="input-field text-sm"
+                value={blockForm.date_from}
+                onChange={e => setBlockForm({ ...blockForm, date_from: e.target.value })} />
+            </div>
+            <div>
+              <label className="label text-xs">Tot en met</label>
+              <input type="date" className="input-field text-sm"
+                value={blockForm.date_to}
+                onChange={e => setBlockForm({ ...blockForm, date_to: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="label text-xs">Reden (optioneel)</label>
+              <input className="input-field text-sm"
+                placeholder="Bijv. zomerstop"
+                value={blockForm.reason}
+                onChange={e => setBlockForm({ ...blockForm, reason: e.target.value })} />
+            </div>
+          </div>
+          <button onClick={addBlock} disabled={savingBlock || !blockForm.date_from || !blockForm.date_to}
+            className="btn-primary text-sm">
+            {savingBlock ? 'Toevoegen...' : '+ Block toevoegen'}
+          </button>
+
+          {blocks.length > 0 && (
+            <div className="mt-4 space-y-1.5">
+              {blocks.map(b => (
+                <div key={b.id} className="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <div className="text-sm">
+                    <span className="font-medium text-gravida-green">
+                      {new Date(b.date_from).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} t/m {new Date(b.date_to).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                    {b.reason && <span className="text-gravida-sage ml-2">, {b.reason}</span>}
+                  </div>
+                  <button onClick={() => removeBlock(b.id)} className="text-xs text-red-600 hover:underline">Verwijder</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Scanner inventaris */}
       <div className="mb-8">

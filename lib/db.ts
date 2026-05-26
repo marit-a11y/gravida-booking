@@ -967,6 +967,12 @@ export async function getDiyWeekStatuses(weeksAhead = 52): Promise<DiyWeekStatus
   `
   const totalScanners = parseInt(scannerResult.rows[0]?.count ?? '0', 10)
 
+  // Fetch admin-defined blocks (bv. zomerstop, feestperiodes)
+  const blocksResult = await sql<{ date_from: string; date_to: string }>`
+    SELECT date_from::text AS date_from, date_to::text AS date_to FROM diy_blocks
+  `
+  const blocks = blocksResult.rows
+
   // Generate Mondays for the next `weeksAhead` weeks (default: a full year)
   const weeks: string[] = []
   const now = new Date()
@@ -996,6 +1002,15 @@ export async function getDiyWeekStatuses(weeksAhead = 52): Promise<DiyWeekStatus
   // scanner in the inventory, 0 bookings still means 'available' for the
   // customer — not "last one" — otherwise every week would look urgent.
   const realStatuses: DiyWeekStatus[] = weeks.map(monday => {
+    // Bereken zondag (eindigt week) voor block-overlap-check
+    const mondayDate = new Date(monday + 'T00:00:00')
+    const sundayDate = new Date(mondayDate); sundayDate.setDate(sundayDate.getDate() + 6)
+    const sundayKey = sundayDate.toISOString().split('T')[0]
+
+    // Check of een block deze week raakt
+    const isBlocked = blocks.some(b => b.date_from <= sundayKey && b.date_to >= monday)
+    if (isBlocked) return { monday, status: 'sold_out' }
+
     const booked = bookedByWeek.get(monday) ?? 0
     let status: DiyWeekStatus['status'] = 'available'
     if (totalScanners === 0 || booked >= totalScanners) status = 'sold_out'
