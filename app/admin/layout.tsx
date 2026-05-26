@@ -17,6 +17,7 @@ const navItems = [
   { href: '/admin/social',          label: 'Social planner', icon: '📅' },
   { href: '/admin/galleries',       label: 'Galerijen',      icon: '🖼️' },
   { href: '/admin/blogs',           label: 'Blogs',          icon: '✍️' },
+  { href: '/admin/gedeelde-beelden', label: 'Gedeelde beelden', icon: '💝' },
   { href: '/admin/whatsapp-test',   label: 'WhatsApp test',  icon: '💬' },
   { href: '/admin/task-tracker',    label: 'Task tracker',   icon: '🐞' },
 ]
