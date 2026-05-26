@@ -1174,23 +1174,22 @@ function SocialPlannerPage() {
                           const files = Array.from(e.target.files ?? [])
                           if (files.length === 0) return
                           setUploading(true); setUploadError('')
+                          // Dynamic import zodat we het pas bij klik laden
+                          const { upload } = await import('@vercel/blob/client')
                           const newUrls: string[] = []
                           for (const file of files) {
-                            const fd = new FormData()
-                            fd.append('file', file)
                             try {
-                              const res = await fetch('/api/admin/social-posts/upload', {
-                                method: 'POST',
-                                body: fd,
+                              const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)
+                              const pathname = `social/${Date.now()}-${safe}`
+                              const blob = await upload(pathname, file, {
+                                access: 'public',
+                                handleUploadUrl: '/api/admin/social-posts/upload',
+                                contentType: file.type,
                               })
-                              const data = await res.json()
-                              if (res.ok && data.url) {
-                                newUrls.push(data.url)
-                              } else {
-                                setUploadError(data.error ?? `Upload mislukt: ${file.name}`)
-                              }
-                            } catch {
-                              setUploadError(`Verbindingsfout bij ${file.name}`)
+                              if (blob.url) newUrls.push(blob.url)
+                            } catch (err) {
+                              const msg = err instanceof Error ? err.message : String(err)
+                              setUploadError(`Upload mislukt bij ${file.name}: ${msg}`)
                             }
                           }
                           if (newUrls.length > 0) {
