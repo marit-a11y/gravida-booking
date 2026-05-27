@@ -183,7 +183,16 @@ export default function MediaLibraryPage() {
     await loadFolders()
   }
 
-const updateProductUrl = async (itemId: number, product_url: string) => {
+  const updateLabel = async (itemId: number, label: string) => {
+    await fetch(`/api/admin/media-items/${itemId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label: label || null }),
+    })
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, label: label || null } : i))
+  }
+
+  const updateProductUrl = async (itemId: number, product_url: string) => {
     await fetch(`/api/admin/media-items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -354,6 +363,7 @@ const updateProductUrl = async (itemId: number, product_url: string) => {
             {filteredItems.map(item => (
               <MediaCard key={item.id} item={item} folders={folders}
                 onSetFolders={(folderIds) => setItemFolders(item.id, folderIds)}
+                onLabel={(l) => updateLabel(item.id, l)}
                 onProductUrl={(url) => updateProductUrl(item.id, url)}
                 onDimensions={(w, h) => reportAspect(item.id, w, h)}
                 onDelete={() => deleteItem(item.id)} />
@@ -408,15 +418,17 @@ const updateProductUrl = async (itemId: number, product_url: string) => {
   )
 }
 
-function MediaCard({ item, folders, onSetFolders, onProductUrl, onDimensions, onDelete }: {
+function MediaCard({ item, folders, onSetFolders, onLabel, onProductUrl, onDimensions, onDelete }: {
   item: MediaItem
   folders: Folder[]
   onSetFolders: (folderIds: number[]) => void
+  onLabel: (label: string) => void
   onProductUrl: (url: string) => void
   onDimensions: (w: number, h: number) => void
   onDelete: () => void
 }) {
   const currentFolderIds = item.folder_ids ?? (item.folder_id != null ? [item.folder_id] : [])
+  const [labelDraft, setLabelDraft] = useState(item.label ?? '')
   const [urlDraft, setUrlDraft] = useState(item.product_url ?? '')
   const [showPreview, setShowPreview] = useState(false)
   const [showFolderPicker, setShowFolderPicker] = useState(false)
@@ -475,7 +487,15 @@ return (
         </div>
       </div>
 
-<div className="relative">
+<input
+        placeholder="Omschrijving (optioneel)"
+        className="w-full text-xs px-2 py-1 border border-gravida-cream rounded mb-1"
+        value={labelDraft}
+        onChange={e => setLabelDraft(e.target.value)}
+        onBlur={() => { if (labelDraft !== (item.label ?? '')) onLabel(labelDraft) }}
+      />
+
+      <div className="relative">
         <div className="flex flex-wrap gap-1 mb-1">
           {currentFolderIds.length === 0 && (
             <span className="text-[10px] text-amber-600 italic">⚠️ Geen map</span>
