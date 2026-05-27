@@ -183,16 +183,7 @@ export default function MediaLibraryPage() {
     await loadFolders()
   }
 
-  const updateLabels = async (itemId: number, labels: string[]) => {
-    await fetch(`/api/admin/media-items/${itemId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ labels }),
-    })
-    setItems(prev => prev.map(i => i.id === itemId ? { ...i, labels } : i))
-  }
-
-  const updateProductUrl = async (itemId: number, product_url: string) => {
+const updateProductUrl = async (itemId: number, product_url: string) => {
     await fetch(`/api/admin/media-items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -363,7 +354,6 @@ export default function MediaLibraryPage() {
             {filteredItems.map(item => (
               <MediaCard key={item.id} item={item} folders={folders}
                 onSetFolders={(folderIds) => setItemFolders(item.id, folderIds)}
-                onLabels={(labels) => updateLabels(item.id, labels)}
                 onProductUrl={(url) => updateProductUrl(item.id, url)}
                 onDimensions={(w, h) => reportAspect(item.id, w, h)}
                 onDelete={() => deleteItem(item.id)} />
@@ -418,18 +408,15 @@ export default function MediaLibraryPage() {
   )
 }
 
-function MediaCard({ item, folders, onSetFolders, onLabels, onProductUrl, onDimensions, onDelete }: {
+function MediaCard({ item, folders, onSetFolders, onProductUrl, onDimensions, onDelete }: {
   item: MediaItem
   folders: Folder[]
   onSetFolders: (folderIds: number[]) => void
-  onLabels: (labels: string[]) => void
   onProductUrl: (url: string) => void
   onDimensions: (w: number, h: number) => void
   onDelete: () => void
 }) {
-  const currentLabels = item.labels ?? (item.label ? [item.label] : [])
   const currentFolderIds = item.folder_ids ?? (item.folder_id != null ? [item.folder_id] : [])
-  const [labelInput, setLabelInput] = useState('')
   const [urlDraft, setUrlDraft] = useState(item.product_url ?? '')
   const [showPreview, setShowPreview] = useState(false)
   const [showFolderPicker, setShowFolderPicker] = useState(false)
@@ -444,18 +431,7 @@ function MediaCard({ item, folders, onSetFolders, onLabels, onProductUrl, onDime
     else onSetFolders([...currentFolderIds, fid])
   }
 
-  const addLabel = () => {
-    const v = labelInput.trim()
-    if (!v) return
-    if (currentLabels.includes(v)) { setLabelInput(''); return }
-    onLabels([...currentLabels, v])
-    setLabelInput('')
-  }
-  const removeLabel = (l: string) => {
-    onLabels(currentLabels.filter(x => x !== l))
-  }
-
-  return (
+return (
     <div className="card p-3 group">
       <div className="relative mb-2"
         onMouseEnter={() => setShowPreview(true)}
@@ -499,31 +475,7 @@ function MediaCard({ item, folders, onSetFolders, onLabels, onProductUrl, onDime
         </div>
       </div>
 
-      {/* Multi-label chip input */}
-      <div className="mb-1">
-        {currentLabels.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-1">
-            {currentLabels.map(l => (
-              <span key={l} className="inline-flex items-center gap-1 text-[10px] bg-gravida-sage/10 text-gravida-green px-1.5 py-0.5 rounded">
-                {l}
-                <button onClick={() => removeLabel(l)} className="text-gravida-light-sage hover:text-red-600" title="Verwijder label">✕</button>
-              </span>
-            ))}
-          </div>
-        )}
-        <input
-          placeholder="+ label (Enter)"
-          className="w-full text-xs px-2 py-1 border border-gravida-cream rounded"
-          value={labelInput}
-          onChange={e => setLabelInput(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addLabel() }
-          }}
-          onBlur={addLabel}
-        />
-      </div>
-
-      <div className="relative">
+<div className="relative">
         <div className="flex flex-wrap gap-1 mb-1">
           {currentFolderIds.length === 0 && (
             <span className="text-[10px] text-amber-600 italic">⚠️ Geen map</span>
