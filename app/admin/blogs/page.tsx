@@ -31,6 +31,9 @@ export default function BlogsPage() {
   const [tagsText, setTagsText] = useState('')
   const [showEditor, setShowEditor] = useState(false)
   const [uploadingHero, setUploadingHero] = useState(false)
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const [aiInstructions, setAiInstructions] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -45,6 +48,7 @@ export default function BlogsPage() {
     setEditingId(null)
     setForm(EMPTY)
     setTagsText('')
+    setAiInstructions(''); setAiError('')
     setShowEditor(true)
   }
 
@@ -65,6 +69,7 @@ export default function BlogsPage() {
         published_at: d.post.published_at,
       })
       setTagsText((d.post.tags ?? []).join(', '))
+      setAiInstructions(''); setAiError('')
       setShowEditor(true)
     }
   }
@@ -95,6 +100,38 @@ export default function BlogsPage() {
     if (!confirm('Blogpost verwijderen?')) return
     await fetch(`/api/admin/blogs/${id}`, { method: 'DELETE' })
     await load()
+  }
+
+  const generateWithAI = async () => {
+    if (!form.title.trim()) { setAiError('Vul eerst een titel in'); return }
+    setAiBusy(true); setAiError('')
+    try {
+      const res = await fetch('/api/admin/blogs/ai-write', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title,
+          excerpt: form.excerpt,
+          category: form.category,
+          extra_instructions: aiInstructions,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setAiError(data.error ?? 'AI mislukt'); return }
+      setForm(f => ({
+        ...f,
+        excerpt: data.excerpt || f.excerpt,
+        content: data.content || f.content,
+      }))
+      if (Array.isArray(data.tags) && data.tags.length > 0) {
+        setTagsText(data.tags.join(', '))
+      }
+      setAiInstructions('')
+    } catch (err) {
+      setAiError('AI mislukt: ' + String(err))
+    } finally {
+      setAiBusy(false)
+    }
   }
 
   const uploadHero = async (file: File) => {
@@ -184,6 +221,33 @@ export default function BlogsPage() {
               <div>
                 <label className="label">Excerpt (korte intro)</label>
                 <textarea rows={2} className="input-field" value={form.excerpt ?? ''} onChange={e => setForm({ ...form, excerpt: e.target.value })} />
+              </div>
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="text-xs text-purple-900">
+                    <strong>✨ AI concept schrijven</strong>
+                    <p className="text-purple-700 text-[11px] mt-0.5">Op basis van de titel hierboven schrijft Claude een volledige blogpost in Gravida-stijl, ondertekend door Laila. Excerpt, content en tags worden gevuld.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={generateWithAI}
+                    disabled={aiBusy || !form.title.trim()}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
+                  >
+                    {aiBusy ? 'Bezig... (kan 30s duren)' : '✨ Genereer met AI'}
+                  </button>
+                </div>
+                <input
+                  className="input-field text-xs"
+                  placeholder="Extra wensen (optioneel) bv. 'focus op DIY proces' of 'noem dat het beeldje 6 weken duurt'"
+                  value={aiInstructions}
+                  onChange={e => setAiInstructions(e.target.value)}
+                  disabled={aiBusy}
+                />
+                {aiError && <p className="text-xs text-red-600">{aiError}</p>}
+                {form.content && form.content.length > 100 && (
+                  <p className="text-[11px] text-purple-600 italic">Let op: bestaande content wordt overschreven.</p>
+                )}
               </div>
               <div>
                 <label className="label">
