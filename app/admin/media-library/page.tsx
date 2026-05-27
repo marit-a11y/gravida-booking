@@ -373,16 +373,37 @@ function MediaCard({ item, folders, onMove, onLabel, onProductUrl, onDelete }: {
 }) {
   const [labelDraft, setLabelDraft] = useState(item.label ?? '')
   const [urlDraft, setUrlDraft] = useState(item.product_url ?? '')
+  const [showPreview, setShowPreview] = useState(false)
   const isVideo = item.type === 'video' || isVideoUrl(item.blob_url)
 
   return (
     <div className="card p-3 group">
-      <div className="relative mb-2">
+      <div className="relative mb-2"
+        onMouseEnter={() => setShowPreview(true)}
+        onMouseLeave={() => setShowPreview(false)}>
         {isVideo ? (
           <video src={item.blob_url} className="w-full h-40 object-cover rounded-lg bg-black" muted playsInline />
         ) : (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img src={item.blob_url} alt="" className="w-full h-40 object-cover rounded-lg" />
+        )}
+
+        {/* Grote preview-popover op hover */}
+        {showPreview && (
+          <div className="hidden md:block absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 pointer-events-none">
+            <div className="bg-white rounded-xl shadow-2xl border border-gravida-cream p-2 w-[480px] max-w-[80vw]">
+              {isVideo ? (
+                <video src={item.blob_url} className="w-full max-h-[60vh] object-contain rounded-lg bg-black"
+                  autoPlay muted playsInline loop />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={item.blob_url} alt="" className="w-full max-h-[60vh] object-contain rounded-lg" />
+              )}
+              {item.label && (
+                <p className="text-xs text-gravida-green font-medium mt-2 px-1 truncate">{item.label}</p>
+              )}
+            </div>
+          </div>
         )}
         <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
           <a href={item.blob_url} target="_blank" rel="noopener noreferrer"
