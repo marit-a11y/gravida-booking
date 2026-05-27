@@ -18,13 +18,13 @@ export async function GET(request: NextRequest) {
         `
       : folderId
         ? await sql`
-            SELECT id, folder_id, blob_url, type, filename, label, caption,
+            SELECT id, folder_id, blob_url, type, filename, label, labels, caption, product_url,
                    size_bytes, width, height, created_at::text
             FROM media_items WHERE folder_id = ${parseInt(folderId, 10)}
             ORDER BY created_at DESC
           `
         : await sql`
-            SELECT id, folder_id, blob_url, type, filename, label, caption,
+            SELECT id, folder_id, blob_url, type, filename, label, labels, caption, product_url,
                    size_bytes, width, height, created_at::text
             FROM media_items
             ORDER BY created_at DESC
