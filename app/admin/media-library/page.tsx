@@ -519,13 +519,17 @@ return (
           {showFolderPicker ? 'Klaar' : '+ Map toevoegen'}
         </button>
         {showFolderPicker && (
-          <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-gravida-cream rounded-lg shadow-lg max-h-56 overflow-y-auto">
+          <div className="absolute z-30 left-0 mt-1 bg-white border border-gravida-cream rounded-lg shadow-lg max-h-72 overflow-y-auto min-w-full w-max max-w-[320px]">
             {folders.map(f => {
               const checked = currentFolderIds.includes(f.id)
+              const parent = f.parent_id ? folders.find(p => p.id === f.parent_id) : null
               return (
-                <label key={f.id} className="flex items-center gap-2 text-xs px-2 py-1 hover:bg-gravida-off-white cursor-pointer">
-                  <input type="checkbox" checked={checked} onChange={() => toggleFolder(f.id)} />
-                  <span className="truncate">{folderLabel(f)}</span>
+                <label key={f.id} className={`flex items-start gap-2 text-xs px-2 py-1 hover:bg-gravida-off-white cursor-pointer ${parent ? 'pl-5' : 'font-semibold'}`}>
+                  <input type="checkbox" checked={checked} onChange={() => toggleFolder(f.id)} className="mt-0.5 shrink-0" />
+                  <span className="whitespace-nowrap">
+                    {parent ? <span className="text-gravida-light-sage">{parent.name} › </span> : null}
+                    {f.name}
+                  </span>
                 </label>
               )
             })}
