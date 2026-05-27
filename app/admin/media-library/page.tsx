@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 interface Folder {
   id: number
@@ -39,6 +39,7 @@ export default function MediaLibraryPage() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [showNewFolder, setShowNewFolder] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [folderForm, setFolderForm] = useState({ name: '', category: 'Materiaal', description: '', parent_id: '' as string })
 
   const loadFolders = async () => {
@@ -266,11 +267,29 @@ export default function MediaLibraryPage() {
                activeFolderObj?.description ?? `${items.length} bestanden`}
             </p>
           </div>
-          <label className={`cursor-pointer btn-primary ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => {
+              console.log('[media-library] upload button clicked')
+              fileInputRef.current?.click()
+            }}
+            className="btn-primary disabled:opacity-50"
+          >
             {uploading ? 'Uploaden...' : '+ Upload media'}
-            <input type="file" className="hidden" accept="image/*,video/*" multiple
-              onChange={e => { uploadFiles(e.target.files); e.target.value = '' }} />
-          </label>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={e => {
+              console.log('[media-library] file input changed', e.target.files?.length)
+              uploadFiles(e.target.files)
+              e.target.value = ''
+            }}
+          />
         </div>
 
         {uploading && uploadProgress && (
