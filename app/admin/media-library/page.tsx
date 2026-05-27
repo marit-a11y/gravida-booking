@@ -16,6 +16,7 @@ interface Folder {
 interface MediaItem {
   id: number
   folder_id: number | null
+  folder_ids: number[] | null
   blob_url: string
   type: 'image' | 'video'
   filename: string | null
@@ -171,13 +172,15 @@ export default function MediaLibraryPage() {
     await loadAll()
   }
 
-  const moveToFolder = async (itemId: number, folderId: number | null) => {
+  const setItemFolders = async (itemId: number, folderIds: number[]) => {
     await fetch(`/api/admin/media-items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder_id: folderId }),
+      body: JSON.stringify({ folder_ids: folderIds }),
     })
-    await loadAll()
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, folder_ids: folderIds, folder_id: folderIds[0] ?? null } : i))
+    // Reload folders so item_count badges update
+    await loadFolders()
   }
 
   const updateLabels = async (itemId: number, labels: string[]) => {
@@ -359,7 +362,7 @@ export default function MediaLibraryPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredItems.map(item => (
               <MediaCard key={item.id} item={item} folders={folders}
-                onMove={(folderId) => moveToFolder(item.id, folderId)}
+                onSetFolders={(folderIds) => setItemFolders(item.id, folderIds)}
                 onLabels={(labels) => updateLabels(item.id, labels)}
                 onProductUrl={(url) => updateProductUrl(item.id, url)}
                 onDimensions={(w, h) => reportAspect(item.id, w, h)}
@@ -415,20 +418,31 @@ export default function MediaLibraryPage() {
   )
 }
 
-function MediaCard({ item, folders, onMove, onLabels, onProductUrl, onDimensions, onDelete }: {
+function MediaCard({ item, folders, onSetFolders, onLabels, onProductUrl, onDimensions, onDelete }: {
   item: MediaItem
   folders: Folder[]
-  onMove: (folderId: number | null) => void
+  onSetFolders: (folderIds: number[]) => void
   onLabels: (labels: string[]) => void
   onProductUrl: (url: string) => void
   onDimensions: (w: number, h: number) => void
   onDelete: () => void
 }) {
   const currentLabels = item.labels ?? (item.label ? [item.label] : [])
+  const currentFolderIds = item.folder_ids ?? (item.folder_id != null ? [item.folder_id] : [])
   const [labelInput, setLabelInput] = useState('')
   const [urlDraft, setUrlDraft] = useState(item.product_url ?? '')
   const [showPreview, setShowPreview] = useState(false)
+  const [showFolderPicker, setShowFolderPicker] = useState(false)
   const isVideo = item.type === 'video' || isVideoUrl(item.blob_url)
+
+  const folderLabel = (f: Folder) => {
+    const parent = f.parent_id ? folders.find(p => p.id === f.parent_id) : null
+    return parent ? `${parent.name} › ${f.name}` : f.name
+  }
+  const toggleFolder = (fid: number) => {
+    if (currentFolderIds.includes(fid)) onSetFolders(currentFolderIds.filter(x => x !== fid))
+    else onSetFolders([...currentFolderIds, fid])
+  }
 
   const addLabel = () => {
     const v = labelInput.trim()
@@ -509,18 +523,43 @@ function MediaCard({ item, folders, onMove, onLabels, onProductUrl, onDimensions
         />
       </div>
 
-      <select
-        className="w-full text-xs px-2 py-1 border border-gravida-cream rounded text-gravida-sage"
-        value={item.folder_id ?? ''}
-        onChange={e => onMove(e.target.value ? parseInt(e.target.value, 10) : null)}
-      >
-        <option value="">— Geen map —</option>
-        {folders.map(f => {
-          const parent = f.parent_id ? folders.find(p => p.id === f.parent_id) : null
-          const label = parent ? `${parent.name} › ${f.name}` : f.name
-          return <option key={f.id} value={f.id}>{label}</option>
-        })}
-      </select>
+      <div className="relative">
+        <div className="flex flex-wrap gap-1 mb-1">
+          {currentFolderIds.length === 0 && (
+            <span className="text-[10px] text-amber-600 italic">⚠️ Geen map</span>
+          )}
+          {currentFolderIds.map(fid => {
+            const f = folders.find(x => x.id === fid)
+            if (!f) return null
+            return (
+              <span key={fid} className="inline-flex items-center gap-1 text-[10px] bg-gravida-sage text-white px-1.5 py-0.5 rounded">
+                {folderLabel(f)}
+                <button onClick={() => toggleFolder(fid)} className="text-white/80 hover:text-white" title="Uit map halen">✕</button>
+              </span>
+            )
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowFolderPicker(v => !v)}
+          className="w-full text-xs px-2 py-1 border border-gravida-cream rounded text-gravida-sage hover:bg-gravida-off-white text-left"
+        >
+          {showFolderPicker ? 'Klaar' : '+ Map toevoegen'}
+        </button>
+        {showFolderPicker && (
+          <div className="absolute z-30 left-0 right-0 mt-1 bg-white border border-gravida-cream rounded-lg shadow-lg max-h-56 overflow-y-auto">
+            {folders.map(f => {
+              const checked = currentFolderIds.includes(f.id)
+              return (
+                <label key={f.id} className="flex items-center gap-2 text-xs px-2 py-1 hover:bg-gravida-off-white cursor-pointer">
+                  <input type="checkbox" checked={checked} onChange={() => toggleFolder(f.id)} />
+                  <span className="truncate">{folderLabel(f)}</span>
+                </label>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       <input
         placeholder="Product-link (optioneel)"

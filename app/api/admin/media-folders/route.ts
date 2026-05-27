@@ -14,7 +14,7 @@ export async function GET() {
   try {
     const r = await sql`
       SELECT f.id, f.name, f.slug, f.category, f.description, f.sort_order, f.parent_id,
-             (SELECT COUNT(*) FROM media_items i WHERE i.folder_id = f.id)::int AS item_count
+             (SELECT COUNT(*) FROM media_item_folders mif WHERE mif.folder_id = f.id)::int AS item_count
       FROM media_folders f
       ORDER BY f.sort_order ASC, f.name ASC
     `
