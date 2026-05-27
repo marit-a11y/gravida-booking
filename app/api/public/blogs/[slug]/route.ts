@@ -7,6 +7,7 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
   try {
     const r = await sql`
       SELECT id, slug, title, excerpt, content, hero_image_url, category, tags, author,
+             meta_title, meta_description, focus_keyword, key_takeaway, faq_json, related_keywords,
              published_at::text, created_at::text
       FROM blog_posts
       WHERE slug = ${params.slug} AND is_published = true

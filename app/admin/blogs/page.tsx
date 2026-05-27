@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 
+interface FAQItem { question: string; answer: string }
+
 interface BlogPost {
   id: number
   slug: string
@@ -14,6 +16,12 @@ interface BlogPost {
   author: string | null
   is_published: boolean
   published_at: string | null
+  meta_title: string | null
+  meta_description: string | null
+  focus_keyword: string | null
+  key_takeaway: string | null
+  faq_json: FAQItem[] | null
+  related_keywords: string[] | null
   created_at: string
   updated_at: string
 }
@@ -21,6 +29,8 @@ interface BlogPost {
 const EMPTY: Omit<BlogPost, 'id' | 'slug' | 'created_at' | 'updated_at'> = {
   title: '', excerpt: '', content: '', hero_image_url: null, category: '',
   tags: [], author: 'Laila', is_published: false, published_at: null,
+  meta_title: '', meta_description: '', focus_keyword: '', key_takeaway: '',
+  faq_json: [], related_keywords: [],
 }
 
 export default function BlogsPage() {
@@ -67,6 +77,12 @@ export default function BlogsPage() {
         author: d.post.author ?? 'Laila',
         is_published: d.post.is_published,
         published_at: d.post.published_at,
+        meta_title: d.post.meta_title ?? '',
+        meta_description: d.post.meta_description ?? '',
+        focus_keyword: d.post.focus_keyword ?? '',
+        key_takeaway: d.post.key_takeaway ?? '',
+        faq_json: Array.isArray(d.post.faq_json) ? d.post.faq_json : [],
+        related_keywords: Array.isArray(d.post.related_keywords) ? d.post.related_keywords : [],
       })
       setTagsText((d.post.tags ?? []).join(', '))
       setAiInstructions(''); setAiError('')
@@ -78,6 +94,7 @@ export default function BlogsPage() {
     const payload = {
       ...form,
       tags: tagsText.split(',').map(t => t.trim()).filter(Boolean),
+      faq_json: (form.faq_json ?? []).filter(f => f.question.trim() && f.answer.trim()),
     }
     if (editingId) {
       await fetch(`/api/admin/blogs/${editingId}`, {
@@ -126,6 +143,15 @@ export default function BlogsPage() {
       if (Array.isArray(data.tags) && data.tags.length > 0) {
         setTagsText(data.tags.join(', '))
       }
+      setForm(f => ({
+        ...f,
+        meta_title: data.meta_title || f.meta_title,
+        meta_description: data.meta_description || f.meta_description,
+        focus_keyword: data.focus_keyword || f.focus_keyword,
+        key_takeaway: data.key_takeaway || f.key_takeaway,
+        faq_json: Array.isArray(data.faq) && data.faq.length > 0 ? data.faq : f.faq_json,
+        related_keywords: Array.isArray(data.related_keywords) ? data.related_keywords : f.related_keywords,
+      }))
       setAiInstructions('')
     } catch (err) {
       setAiError('AI mislukt: ' + String(err))
@@ -276,6 +302,81 @@ export default function BlogsPage() {
                     value={tagsText} onChange={e => setTagsText(e.target.value)} />
                 </div>
               </div>
+              <details className="border border-gravida-cream rounded-lg p-3 bg-gravida-off-white">
+                <summary className="cursor-pointer text-sm font-semibold text-gravida-green">
+                  🔍 SEO & AI-vindbaarheid (geavanceerd)
+                </summary>
+                <div className="mt-3 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">Focus-keyword</label>
+                      <input className="input-field" placeholder="bv. 3d zwangerschapsscan haarlem"
+                        value={form.focus_keyword ?? ''} onChange={e => setForm({ ...form, focus_keyword: e.target.value })} />
+                      <p className="text-[10px] text-gravida-light-sage mt-1">De zoekterm waarop deze post moet ranken.</p>
+                    </div>
+                    <div>
+                      <label className="label">Verwante zoektermen (komma-gescheiden)</label>
+                      <input className="input-field" placeholder="3d echo, 4d scan, pretecho"
+                        value={(form.related_keywords ?? []).join(', ')}
+                        onChange={e => setForm({ ...form, related_keywords: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label">
+                      Meta titel <span className="text-[10px] font-normal text-gravida-light-sage">({(form.meta_title ?? '').length}/65 tekens, ideaal 50-65)</span>
+                    </label>
+                    <input className="input-field" maxLength={70} value={form.meta_title ?? ''}
+                      onChange={e => setForm({ ...form, meta_title: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label">
+                      Meta description <span className="text-[10px] font-normal text-gravida-light-sage">({(form.meta_description ?? '').length}/160 tekens, ideaal 140-160)</span>
+                    </label>
+                    <textarea rows={2} className="input-field" maxLength={180} value={form.meta_description ?? ''}
+                      onChange={e => setForm({ ...form, meta_description: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label">
+                      Key takeaway <span className="text-[10px] font-normal text-gravida-light-sage">(citeerbare 1-2 zin, wat AI graag pakt)</span>
+                    </label>
+                    <textarea rows={2} className="input-field" value={form.key_takeaway ?? ''}
+                      onChange={e => setForm({ ...form, key_takeaway: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="label">FAQ (voor AI-vindbaarheid + FAQ schema)</label>
+                    <div className="space-y-2">
+                      {(form.faq_json ?? []).map((item, idx) => (
+                        <div key={idx} className="bg-white border border-gravida-cream rounded-lg p-2 space-y-1">
+                          <div className="flex gap-2 items-start">
+                            <input className="input-field flex-1 text-sm" placeholder="Vraag"
+                              value={item.question}
+                              onChange={e => {
+                                const next = [...(form.faq_json ?? [])]
+                                next[idx] = { ...next[idx], question: e.target.value }
+                                setForm({ ...form, faq_json: next })
+                              }} />
+                            <button type="button" onClick={() => {
+                              const next = [...(form.faq_json ?? [])]
+                              next.splice(idx, 1)
+                              setForm({ ...form, faq_json: next })
+                            }} className="text-red-500 hover:text-red-700 text-sm px-1">✕</button>
+                          </div>
+                          <textarea rows={2} className="input-field text-sm" placeholder="Antwoord (zelfstandig leesbaar, 40-80 woorden)"
+                            value={item.answer}
+                            onChange={e => {
+                              const next = [...(form.faq_json ?? [])]
+                              next[idx] = { ...next[idx], answer: e.target.value }
+                              setForm({ ...form, faq_json: next })
+                            }} />
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setForm({ ...form, faq_json: [...(form.faq_json ?? []), { question: '', answer: '' }] })}
+                        className="text-xs text-gravida-sage hover:text-gravida-green">+ FAQ vraag toevoegen</button>
+                    </div>
+                  </div>
+                </div>
+              </details>
+
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={form.is_published} onChange={e => setForm({ ...form, is_published: e.target.checked })} />
                 <span>Gepubliceerd (zichtbaar op de website)</span>

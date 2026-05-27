@@ -27,7 +27,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { title, excerpt, content, hero_image_url, category, tags, author, is_published, published_at } = body
+    const {
+      title, excerpt, content, hero_image_url, category, tags, author, is_published, published_at,
+      meta_title, meta_description, focus_keyword, key_takeaway, faq_json, related_keywords,
+    } = body
     if (!title?.trim() || !content?.trim()) {
       return NextResponse.json({ error: 'Titel en content zijn verplicht' }, { status: 400 })
     }
@@ -37,13 +40,20 @@ export async function POST(request: NextRequest) {
       slug = `${slugify(title)}-${++n}`
     }
     const tagsArr = Array.isArray(tags) ? tags : []
+    const faqArr = Array.isArray(faq_json) ? faq_json : []
+    const relArr = Array.isArray(related_keywords) ? related_keywords : []
     const r = await sql`
-      INSERT INTO blog_posts (slug, title, excerpt, content, hero_image_url, category, tags, author, is_published, published_at)
+      INSERT INTO blog_posts (
+        slug, title, excerpt, content, hero_image_url, category, tags, author, is_published, published_at,
+        meta_title, meta_description, focus_keyword, key_takeaway, faq_json, related_keywords
+      )
       VALUES (
         ${slug}, ${title.trim()}, ${excerpt ?? null}, ${content},
         ${hero_image_url ?? null}, ${category ?? null}, ${JSON.stringify(tagsArr)}::jsonb,
         ${author ?? null}, ${is_published ?? false},
-        ${is_published && !published_at ? new Date().toISOString() : (published_at ?? null)}
+        ${is_published && !published_at ? new Date().toISOString() : (published_at ?? null)},
+        ${meta_title ?? null}, ${meta_description ?? null}, ${focus_keyword ?? null},
+        ${key_takeaway ?? null}, ${JSON.stringify(faqArr)}::jsonb, ${JSON.stringify(relArr)}::jsonb
       )
       RETURNING id, slug, title, is_published
     `
