@@ -41,6 +41,20 @@ export default function MediaLibraryPage() {
   const [uploadError, setUploadError] = useState('')
   const [showNewFolder, setShowNewFolder] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [aspects, setAspects] = useState<Record<number, number>>({})
+  const [aspectFilter, setAspectFilter] = useState<'all' | 'vierkant' | 'portret' | 'liggend'>('all')
+
+  const reportAspect = (id: number, w: number, h: number) => {
+    if (!w || !h) return
+    setAspects(prev => prev[id] ? prev : { ...prev, [id]: w / h })
+  }
+
+  const aspectCategoryOf = (ratio: number | undefined): 'vierkant' | 'portret' | 'liggend' | null => {
+    if (!ratio) return null
+    if (ratio >= 0.95 && ratio <= 1.05) return 'vierkant'
+    if (ratio < 0.95) return 'portret'
+    return 'liggend'
+  }
   const [folderForm, setFolderForm] = useState({ name: '', category: 'Materiaal', description: '', parent_id: '' as string })
 
   const loadFolders = async () => {
@@ -193,6 +207,21 @@ export default function MediaLibraryPage() {
   const activeFolderObj = typeof activeFolder === 'number' ? folders.find(f => f.id === activeFolder) : null
   const unfiledCount = items.filter(i => !i.folder_id).length
 
+  const aspectCounts = useMemo(() => {
+    const c = { vierkant: 0, portret: 0, liggend: 0, onbekend: 0 }
+    for (const it of items) {
+      const cat = aspectCategoryOf(aspects[it.id])
+      if (cat) c[cat]++
+      else c.onbekend++
+    }
+    return c
+  }, [items, aspects])
+
+  const filteredItems = useMemo(() => {
+    if (aspectFilter === 'all') return items
+    return items.filter(it => aspectCategoryOf(aspects[it.id]) === aspectFilter)
+  }, [items, aspects, aspectFilter])
+
   return (
     <div className="flex gap-6">
       {/* Sidebar */}
@@ -301,17 +330,39 @@ export default function MediaLibraryPage() {
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">{uploadError}</div>
         )}
 
+        {!loading && items.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-4 text-xs">
+            <span className="text-gravida-light-sage self-center mr-1">Aspect:</span>
+            {([
+              ['all', 'Alles', items.length],
+              ['vierkant', 'Vierkant 1:1', aspectCounts.vierkant],
+              ['portret', 'Portret', aspectCounts.portret],
+              ['liggend', 'Liggend', aspectCounts.liggend],
+            ] as const).map(([key, label, count]) => (
+              <button key={key} onClick={() => setAspectFilter(key as typeof aspectFilter)}
+                className={`px-2 py-1 rounded ${aspectFilter === key
+                  ? 'bg-gravida-sage text-white'
+                  : 'bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white'}`}>
+                {label} <span className="opacity-70">({count})</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <p className="text-sm text-gravida-light-sage">Laden...</p>
         ) : items.length === 0 ? (
           <p className="text-sm text-gravida-light-sage italic">Geen bestanden in deze map. Upload via de knop rechtsboven.</p>
+        ) : filteredItems.length === 0 ? (
+          <p className="text-sm text-gravida-light-sage italic">Geen bestanden met dit aspect ratio. Probeer een andere filter.</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {items.map(item => (
+            {filteredItems.map(item => (
               <MediaCard key={item.id} item={item} folders={folders}
                 onMove={(folderId) => moveToFolder(item.id, folderId)}
                 onLabels={(labels) => updateLabels(item.id, labels)}
                 onProductUrl={(url) => updateProductUrl(item.id, url)}
+                onDimensions={(w, h) => reportAspect(item.id, w, h)}
                 onDelete={() => deleteItem(item.id)} />
             ))}
           </div>
@@ -364,12 +415,13 @@ export default function MediaLibraryPage() {
   )
 }
 
-function MediaCard({ item, folders, onMove, onLabels, onProductUrl, onDelete }: {
+function MediaCard({ item, folders, onMove, onLabels, onProductUrl, onDimensions, onDelete }: {
   item: MediaItem
   folders: Folder[]
   onMove: (folderId: number | null) => void
   onLabels: (labels: string[]) => void
   onProductUrl: (url: string) => void
+  onDimensions: (w: number, h: number) => void
   onDelete: () => void
 }) {
   const currentLabels = item.labels ?? (item.label ? [item.label] : [])
@@ -395,10 +447,12 @@ function MediaCard({ item, folders, onMove, onLabels, onProductUrl, onDelete }: 
         onMouseEnter={() => setShowPreview(true)}
         onMouseLeave={() => setShowPreview(false)}>
         {isVideo ? (
-          <video src={item.blob_url} className="w-full h-40 object-cover rounded-lg bg-black" muted playsInline />
+          <video src={item.blob_url} className="w-full h-40 object-cover rounded-lg bg-black" muted playsInline
+            onLoadedMetadata={e => onDimensions(e.currentTarget.videoWidth, e.currentTarget.videoHeight)} />
         ) : (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={item.blob_url} alt="" className="w-full h-40 object-cover rounded-lg" />
+          <img src={item.blob_url} alt="" className="w-full h-40 object-cover rounded-lg"
+            onLoad={e => onDimensions(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)} />
         )}
 
         {/* Grote preview-popover op hover */}
