@@ -97,9 +97,9 @@ export default function MediaLibraryPage() {
 
   const [uploadProgress, setUploadProgress] = useState<string>('')
 
-  const uploadFiles = async (files: FileList | null) => {
-    console.log('[media-library] uploadFiles called', files?.length, 'files')
-    if (!files || files.length === 0) return
+  const uploadFiles = async (files: File[]) => {
+    console.log('[media-library] uploadFiles called', files.length, 'files')
+    if (files.length === 0) return
     setUploading(true); setUploadError(''); setUploadProgress(`Voorbereiden ${files.length} bestand(en)...`)
 
     let upload: typeof import('@vercel/blob/client').upload
@@ -115,7 +115,7 @@ export default function MediaLibraryPage() {
     }
 
     let done = 0
-    for (const file of Array.from(files)) {
+    for (const file of files) {
       setUploadProgress(`Uploading ${file.name} (${done + 1}/${files.length})...`)
       console.log('[media-library] upload start', file.name, file.size, file.type)
       try {
@@ -285,9 +285,10 @@ export default function MediaLibraryPage() {
             multiple
             style={{ display: 'none' }}
             onChange={e => {
-              console.log('[media-library] file input changed', e.target.files?.length)
-              uploadFiles(e.target.files)
+              const fileArray = e.target.files ? Array.from(e.target.files) : []
+              console.log('[media-library] file input changed', fileArray.length)
               e.target.value = ''
+              uploadFiles(fileArray)
             }}
           />
         </div>
