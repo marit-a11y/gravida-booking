@@ -44,6 +44,7 @@ export default function MediaLibraryPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [aspects, setAspects] = useState<Record<number, number>>({})
   const [aspectFilter, setAspectFilter] = useState<'all' | 'vierkant' | 'portret' | 'liggend'>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'image' | 'video'>('all')
 
   const reportAspect = (id: number, w: number, h: number) => {
     if (!w || !h) return
@@ -220,10 +221,24 @@ export default function MediaLibraryPage() {
     return c
   }, [items, aspects])
 
+  const typeOf = (it: MediaItem): 'image' | 'video' =>
+    (it.type === 'video' || isVideoUrl(it.blob_url)) ? 'video' : 'image'
+
+  const typeCounts = useMemo(() => {
+    let image = 0, video = 0
+    for (const it of items) {
+      if (typeOf(it) === 'video') video++; else image++
+    }
+    return { image, video }
+  }, [items])
+
   const filteredItems = useMemo(() => {
-    if (aspectFilter === 'all') return items
-    return items.filter(it => aspectCategoryOf(aspects[it.id]) === aspectFilter)
-  }, [items, aspects, aspectFilter])
+    return items.filter(it => {
+      if (aspectFilter !== 'all' && aspectCategoryOf(aspects[it.id]) !== aspectFilter) return false
+      if (typeFilter !== 'all' && typeOf(it) !== typeFilter) return false
+      return true
+    })
+  }, [items, aspects, aspectFilter, typeFilter])
 
   return (
     <div className="flex gap-6">
@@ -334,21 +349,38 @@ export default function MediaLibraryPage() {
         )}
 
         {!loading && items.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-4 text-xs">
-            <span className="text-gravida-light-sage self-center mr-1">Aspect:</span>
-            {([
-              ['all', 'Alles', items.length],
-              ['vierkant', 'Vierkant 1:1', aspectCounts.vierkant],
-              ['portret', 'Portret', aspectCounts.portret],
-              ['liggend', 'Liggend', aspectCounts.liggend],
-            ] as const).map(([key, label, count]) => (
-              <button key={key} onClick={() => setAspectFilter(key as typeof aspectFilter)}
-                className={`px-2 py-1 rounded ${aspectFilter === key
-                  ? 'bg-gravida-sage text-white'
-                  : 'bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white'}`}>
-                {label} <span className="opacity-70">({count})</span>
-              </button>
-            ))}
+          <div className="space-y-1 mb-4 text-xs">
+            <div className="flex flex-wrap gap-1">
+              <span className="text-gravida-light-sage self-center mr-1 w-12">Type:</span>
+              {([
+                ['all', 'Alles', items.length],
+                ['image', '📷 Foto', typeCounts.image],
+                ['video', '🎬 Video', typeCounts.video],
+              ] as const).map(([key, label, count]) => (
+                <button key={key} onClick={() => setTypeFilter(key as typeof typeFilter)}
+                  className={`px-2 py-1 rounded ${typeFilter === key
+                    ? 'bg-gravida-sage text-white'
+                    : 'bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white'}`}>
+                  {label} <span className="opacity-70">({count})</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <span className="text-gravida-light-sage self-center mr-1 w-12">Aspect:</span>
+              {([
+                ['all', 'Alles', items.length],
+                ['vierkant', 'Vierkant 1:1', aspectCounts.vierkant],
+                ['portret', 'Portret', aspectCounts.portret],
+                ['liggend', 'Liggend', aspectCounts.liggend],
+              ] as const).map(([key, label, count]) => (
+                <button key={key} onClick={() => setAspectFilter(key as typeof aspectFilter)}
+                  className={`px-2 py-1 rounded ${aspectFilter === key
+                    ? 'bg-gravida-sage text-white'
+                    : 'bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white'}`}>
+                  {label} <span className="opacity-70">({count})</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
