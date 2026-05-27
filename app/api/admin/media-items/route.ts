@@ -25,7 +25,12 @@ export async function GET(request: NextRequest) {
                    i.size_bytes, i.width, i.height, i.created_at::text,
                    COALESCE((SELECT array_agg(folder_id) FROM media_item_folders mif WHERE mif.item_id = i.id), '{}') AS folder_ids
             FROM media_items i
-            WHERE EXISTS (SELECT 1 FROM media_item_folders mif WHERE mif.item_id = i.id AND mif.folder_id = ${parseInt(folderId, 10)})
+            WHERE EXISTS (
+              SELECT 1 FROM media_item_folders mif
+              WHERE mif.item_id = i.id
+                AND (mif.folder_id = ${parseInt(folderId, 10)}
+                     OR mif.folder_id IN (SELECT id FROM media_folders WHERE parent_id = ${parseInt(folderId, 10)}))
+            )
             ORDER BY i.created_at DESC
           `
         : await sql`
