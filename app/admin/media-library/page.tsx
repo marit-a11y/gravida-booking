@@ -94,11 +94,29 @@ export default function MediaLibraryPage() {
     await loadFolders()
   }
 
+  const [uploadProgress, setUploadProgress] = useState<string>('')
+
   const uploadFiles = async (files: FileList | null) => {
+    console.log('[media-library] uploadFiles called', files?.length, 'files')
     if (!files || files.length === 0) return
-    setUploading(true); setUploadError('')
-    const { upload } = await import('@vercel/blob/client')
+    setUploading(true); setUploadError(''); setUploadProgress(`Voorbereiden ${files.length} bestand(en)...`)
+
+    let upload: typeof import('@vercel/blob/client').upload
+    try {
+      const mod = await import('@vercel/blob/client')
+      upload = mod.upload
+      console.log('[media-library] @vercel/blob/client loaded')
+    } catch (err) {
+      console.error('[media-library] failed to load @vercel/blob/client', err)
+      setUploadError('Library laden mislukt: ' + String(err))
+      setUploading(false); setUploadProgress('')
+      return
+    }
+
+    let done = 0
     for (const file of Array.from(files)) {
+      setUploadProgress(`Uploading ${file.name} (${done + 1}/${files.length})...`)
+      console.log('[media-library] upload start', file.name, file.size, file.type)
       try {
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)
         const pathname = `media-library/${Date.now()}-${safe}`
@@ -107,10 +125,10 @@ export default function MediaLibraryPage() {
           handleUploadUrl: '/api/admin/media-library/upload',
           contentType: file.type,
         })
+        console.log('[media-library] upload ok', blob.url)
         const isVideo = file.type.startsWith('video/')
-        // Sla item meta op met folder (uitgekozen folder of unfiled)
         const targetFolder = typeof activeFolder === 'number' ? activeFolder : null
-        await fetch('/api/admin/media-items', {
+        const res = await fetch('/api/admin/media-items', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -121,11 +139,19 @@ export default function MediaLibraryPage() {
             size_bytes: file.size,
           }),
         })
+        console.log('[media-library] db save status', res.status)
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}))
+          setUploadError(`DB save mislukt: ${file.name} - ${d.error ?? res.status}`)
+        }
+        done++
       } catch (err) {
-        setUploadError(`Upload mislukt: ${file.name} - ${String(err)}`)
+        console.error('[media-library] upload failed', file.name, err)
+        const msg = err instanceof Error ? err.message : String(err)
+        setUploadError(`Upload mislukt voor ${file.name}: ${msg}`)
       }
     }
-    setUploading(false)
+    setUploading(false); setUploadProgress('')
     await loadAll()
   }
 
@@ -247,6 +273,9 @@ export default function MediaLibraryPage() {
           </label>
         </div>
 
+        {uploading && uploadProgress && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-700">⏳ {uploadProgress}</div>
+        )}
         {uploadError && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">{uploadError}</div>
         )}
