@@ -21,6 +21,7 @@ interface MediaItem {
   filename: string | null
   label: string | null
   caption: string | null
+  product_url: string | null
   created_at: string
 }
 
@@ -146,6 +147,15 @@ export default function MediaLibraryPage() {
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, label } : i))
   }
 
+  const updateProductUrl = async (itemId: number, product_url: string) => {
+    await fetch(`/api/admin/media-items/${itemId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product_url: product_url || null }),
+    })
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, product_url: product_url || null } : i))
+  }
+
   const deleteItem = async (id: number) => {
     if (!confirm('Bestand verwijderen?')) return
     await fetch(`/api/admin/media-items/${id}`, { method: 'DELETE' })
@@ -251,6 +261,7 @@ export default function MediaLibraryPage() {
               <MediaCard key={item.id} item={item} folders={folders}
                 onMove={(folderId) => moveToFolder(item.id, folderId)}
                 onLabel={(label) => updateLabel(item.id, label)}
+                onProductUrl={(url) => updateProductUrl(item.id, url)}
                 onDelete={() => deleteItem(item.id)} />
             ))}
           </div>
@@ -303,14 +314,16 @@ export default function MediaLibraryPage() {
   )
 }
 
-function MediaCard({ item, folders, onMove, onLabel, onDelete }: {
+function MediaCard({ item, folders, onMove, onLabel, onProductUrl, onDelete }: {
   item: MediaItem
   folders: Folder[]
   onMove: (folderId: number | null) => void
   onLabel: (label: string) => void
+  onProductUrl: (url: string) => void
   onDelete: () => void
 }) {
   const [labelDraft, setLabelDraft] = useState(item.label ?? '')
+  const [urlDraft, setUrlDraft] = useState(item.product_url ?? '')
   const isVideo = item.type === 'video' || isVideoUrl(item.blob_url)
 
   return (
@@ -355,6 +368,23 @@ function MediaCard({ item, folders, onMove, onLabel, onDelete }: {
           return <option key={f.id} value={f.id}>{label}</option>
         })}
       </select>
+
+      <input
+        placeholder="Product-link (optioneel)"
+        type="url"
+        className="w-full text-xs px-2 py-1 border border-gravida-cream rounded mt-1"
+        value={urlDraft}
+        onChange={e => setUrlDraft(e.target.value)}
+        onBlur={() => { if (urlDraft !== (item.product_url ?? '')) onProductUrl(urlDraft) }}
+      />
+
+      {item.product_url && (
+        <a href={item.product_url} target="_blank" rel="noopener noreferrer"
+          className="block mt-1 text-[11px] text-gravida-sage hover:text-gravida-green underline truncate"
+          title={item.product_url}>
+          🔗 Bekijk product
+        </a>
+      )}
 
       {item.filename && (
         <p className="text-[10px] text-gravida-light-sage mt-1 truncate" title={item.filename}>{item.filename}</p>

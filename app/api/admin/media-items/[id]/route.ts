@@ -15,7 +15,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         folder_id = ${body.folder_id !== undefined ? body.folder_id : ex.folder_id},
         label = ${body.label !== undefined ? body.label : ex.label},
         caption = ${body.caption !== undefined ? body.caption : ex.caption},
-        filename = ${body.filename !== undefined ? body.filename : ex.filename}
+        filename = ${body.filename !== undefined ? body.filename : ex.filename},
+        product_url = ${body.product_url !== undefined ? body.product_url : ex.product_url}
       WHERE id = ${id}
     `
     return NextResponse.json({ ok: true })
