@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     const r = unfiled
       ? await sql`
-          SELECT id, folder_id, blob_url, type, filename, label, caption, product_url,
+          SELECT id, folder_id, blob_url, type, filename, label, labels, caption, product_url,
                  size_bytes, width, height, created_at::text
           FROM media_items WHERE folder_id IS NULL
           ORDER BY created_at DESC

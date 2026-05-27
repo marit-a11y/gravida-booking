@@ -20,12 +20,13 @@ interface MediaItem {
   type: 'image' | 'video'
   filename: string | null
   label: string | null
+  labels: string[] | null
   caption: string | null
   product_url: string | null
   created_at: string
 }
 
-const CATEGORY_ORDER = ['Materiaal', 'Sieraad', 'Webshop', 'Sfeer']
+const CATEGORY_ORDER = ['Materiaal', 'Sieraad', "Productfoto's", 'Sfeer']
 
 function isVideoUrl(url: string) {
   return /\.(mp4|mov|webm)(\?|$)/i.test(url)
@@ -165,13 +166,13 @@ export default function MediaLibraryPage() {
     await loadAll()
   }
 
-  const updateLabel = async (itemId: number, label: string) => {
+  const updateLabels = async (itemId: number, labels: string[]) => {
     await fetch(`/api/admin/media-items/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label }),
+      body: JSON.stringify({ labels }),
     })
-    setItems(prev => prev.map(i => i.id === itemId ? { ...i, label } : i))
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, labels } : i))
   }
 
   const updateProductUrl = async (itemId: number, product_url: string) => {
@@ -309,7 +310,7 @@ export default function MediaLibraryPage() {
             {items.map(item => (
               <MediaCard key={item.id} item={item} folders={folders}
                 onMove={(folderId) => moveToFolder(item.id, folderId)}
-                onLabel={(label) => updateLabel(item.id, label)}
+                onLabels={(labels) => updateLabels(item.id, labels)}
                 onProductUrl={(url) => updateProductUrl(item.id, url)}
                 onDelete={() => deleteItem(item.id)} />
             ))}
@@ -332,7 +333,7 @@ export default function MediaLibraryPage() {
               <select className="input-field" value={folderForm.category} onChange={e => setFolderForm({ ...folderForm, category: e.target.value })}>
                 <option>Materiaal</option>
                 <option>Sieraad</option>
-                <option>Webshop</option>
+                <option>Productfoto&apos;s</option>
                 <option>Sfeer</option>
                 <option>Overig</option>
               </select>
@@ -363,18 +364,30 @@ export default function MediaLibraryPage() {
   )
 }
 
-function MediaCard({ item, folders, onMove, onLabel, onProductUrl, onDelete }: {
+function MediaCard({ item, folders, onMove, onLabels, onProductUrl, onDelete }: {
   item: MediaItem
   folders: Folder[]
   onMove: (folderId: number | null) => void
-  onLabel: (label: string) => void
+  onLabels: (labels: string[]) => void
   onProductUrl: (url: string) => void
   onDelete: () => void
 }) {
-  const [labelDraft, setLabelDraft] = useState(item.label ?? '')
+  const currentLabels = item.labels ?? (item.label ? [item.label] : [])
+  const [labelInput, setLabelInput] = useState('')
   const [urlDraft, setUrlDraft] = useState(item.product_url ?? '')
   const [showPreview, setShowPreview] = useState(false)
   const isVideo = item.type === 'video' || isVideoUrl(item.blob_url)
+
+  const addLabel = () => {
+    const v = labelInput.trim()
+    if (!v) return
+    if (currentLabels.includes(v)) { setLabelInput(''); return }
+    onLabels([...currentLabels, v])
+    setLabelInput('')
+  }
+  const removeLabel = (l: string) => {
+    onLabels(currentLabels.filter(x => x !== l))
+  }
 
   return (
     <div className="card p-3 group">
@@ -418,13 +431,29 @@ function MediaCard({ item, folders, onMove, onLabel, onProductUrl, onDelete }: {
         </div>
       </div>
 
-      <input
-        placeholder="Label (bv. MB3A polished)"
-        className="w-full text-xs px-2 py-1 border border-gravida-cream rounded mb-1"
-        value={labelDraft}
-        onChange={e => setLabelDraft(e.target.value)}
-        onBlur={() => { if (labelDraft !== (item.label ?? '')) onLabel(labelDraft) }}
-      />
+      {/* Multi-label chip input */}
+      <div className="mb-1">
+        {currentLabels.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-1">
+            {currentLabels.map(l => (
+              <span key={l} className="inline-flex items-center gap-1 text-[10px] bg-gravida-sage/10 text-gravida-green px-1.5 py-0.5 rounded">
+                {l}
+                <button onClick={() => removeLabel(l)} className="text-gravida-light-sage hover:text-red-600" title="Verwijder label">✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <input
+          placeholder="+ label (Enter)"
+          className="w-full text-xs px-2 py-1 border border-gravida-cream rounded"
+          value={labelInput}
+          onChange={e => setLabelInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addLabel() }
+          }}
+          onBlur={addLabel}
+        />
+      </div>
 
       <select
         className="w-full text-xs px-2 py-1 border border-gravida-cream rounded text-gravida-sage"
