@@ -13,7 +13,7 @@ function slugify(s: string): string {
 export async function GET() {
   try {
     const r = await sql`
-      SELECT f.id, f.name, f.slug, f.category, f.description, f.sort_order,
+      SELECT f.id, f.name, f.slug, f.category, f.description, f.sort_order, f.parent_id,
              (SELECT COUNT(*) FROM media_items i WHERE i.folder_id = f.id)::int AS item_count
       FROM media_folders f
       ORDER BY f.sort_order ASC, f.name ASC
@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, category, description, sort_order } = body
+    const { name, category, description, sort_order, parent_id } = body
     if (!name?.trim()) return NextResponse.json({ error: 'Naam verplicht' }, { status: 400 })
     let slug = slugify(name)
     let n = 1
@@ -35,9 +35,10 @@ export async function POST(request: NextRequest) {
       slug = `${slugify(name)}-${++n}`
     }
     const r = await sql`
-      INSERT INTO media_folders (name, slug, category, description, sort_order)
-      VALUES (${name.trim()}, ${slug}, ${category ?? null}, ${description ?? null}, ${sort_order ?? 0})
-      RETURNING id, name, slug, category, description, sort_order
+      INSERT INTO media_folders (name, slug, category, description, sort_order, parent_id)
+      VALUES (${name.trim()}, ${slug}, ${category ?? null}, ${description ?? null},
+              ${sort_order ?? 0}, ${parent_id ?? null})
+      RETURNING id, name, slug, category, description, sort_order, parent_id
     `
     return NextResponse.json({ folder: r.rows[0] }, { status: 201 })
   } catch (err) {

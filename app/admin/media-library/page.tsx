@@ -9,6 +9,7 @@ interface Folder {
   category: string | null
   description: string | null
   sort_order: number
+  parent_id: number | null
   item_count: number
 }
 
@@ -37,7 +38,7 @@ export default function MediaLibraryPage() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [showNewFolder, setShowNewFolder] = useState(false)
-  const [folderForm, setFolderForm] = useState({ name: '', category: 'Materiaal', description: '' })
+  const [folderForm, setFolderForm] = useState({ name: '', category: 'Materiaal', description: '', parent_id: '' as string })
 
   const loadFolders = async () => {
     const r = await fetch('/api/admin/media-folders')
@@ -82,10 +83,13 @@ export default function MediaLibraryPage() {
     await fetch('/api/admin/media-folders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(folderForm),
+      body: JSON.stringify({
+        ...folderForm,
+        parent_id: folderForm.parent_id ? parseInt(folderForm.parent_id, 10) : null,
+      }),
     })
     setShowNewFolder(false)
-    setFolderForm({ name: '', category: 'Materiaal', description: '' })
+    setFolderForm({ name: '', category: 'Materiaal', description: '', parent_id: '' })
     await loadFolders()
   }
 
@@ -171,20 +175,43 @@ export default function MediaLibraryPage() {
             ⚠️ Zonder map
           </button>
 
-          {grouped.map(([cat, fldrs]) => (
-            <div key={cat} className="mb-3">
-              <p className="text-[10px] uppercase tracking-wider text-gravida-light-sage font-semibold mb-1 px-2">{cat}</p>
-              {fldrs.map(f => (
-                <button key={f.id} onClick={() => setActiveFolder(f.id)}
-                  className={`w-full text-left text-sm px-2 py-1.5 rounded flex items-center justify-between ${activeFolder === f.id ? 'bg-gravida-sage text-white' : 'hover:bg-gravida-off-white text-gravida-sage'}`}>
-                  <span className="truncate">{f.name}</span>
-                  <span className={`text-[10px] ml-1 px-1.5 py-0.5 rounded ${activeFolder === f.id ? 'bg-white/20 text-white' : 'bg-gravida-cream text-gravida-light-sage'}`}>
-                    {f.item_count}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ))}
+          {grouped.map(([cat, fldrs]) => {
+            // Maak parent → children map zodat we 2 niveaus diep kunnen renderen
+            const roots = fldrs.filter(f => !f.parent_id)
+            const childrenOf = (pid: number) => fldrs.filter(f => f.parent_id === pid)
+            return (
+              <div key={cat} className="mb-3">
+                <p className="text-[10px] uppercase tracking-wider text-gravida-light-sage font-semibold mb-1 px-2">{cat}</p>
+                {roots.map(f => {
+                  const kids = childrenOf(f.id)
+                  return (
+                    <div key={f.id}>
+                      <button onClick={() => setActiveFolder(f.id)}
+                        className={`w-full text-left text-sm px-2 py-1.5 rounded flex items-center justify-between ${activeFolder === f.id ? 'bg-gravida-sage text-white' : 'hover:bg-gravida-off-white text-gravida-sage'}`}>
+                        <span className="truncate">{f.name}</span>
+                        <span className={`text-[10px] ml-1 px-1.5 py-0.5 rounded ${activeFolder === f.id ? 'bg-white/20 text-white' : 'bg-gravida-cream text-gravida-light-sage'}`}>
+                          {f.item_count}
+                        </span>
+                      </button>
+                      {kids.length > 0 && (
+                        <div className="ml-3 border-l border-gravida-cream pl-2 mt-0.5 mb-1">
+                          {kids.map(c => (
+                            <button key={c.id} onClick={() => setActiveFolder(c.id)}
+                              className={`w-full text-left text-xs px-2 py-1 rounded flex items-center justify-between ${activeFolder === c.id ? 'bg-gravida-sage text-white' : 'hover:bg-gravida-off-white text-gravida-sage'}`}>
+                              <span className="truncate">{c.name}</span>
+                              <span className={`text-[10px] ml-1 px-1.5 py-0.5 rounded ${activeFolder === c.id ? 'bg-white/20 text-white' : 'bg-gravida-cream text-gravida-light-sage'}`}>
+                                {c.item_count}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
         </div>
       </aside>
 
@@ -251,6 +278,16 @@ export default function MediaLibraryPage() {
               </select>
             </div>
             <div>
+              <label className="label">Submap van (optioneel)</label>
+              <select className="input-field" value={folderForm.parent_id}
+                onChange={e => setFolderForm({ ...folderForm, parent_id: e.target.value })}>
+                <option value="">— geen, hoofdmap —</option>
+                {folders.filter(f => !f.parent_id).map(f => (
+                  <option key={f.id} value={f.id}>{f.category ? `${f.category}: ` : ''}{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="label">Beschrijving (optioneel)</label>
               <textarea rows={2} className="input-field" value={folderForm.description}
                 onChange={e => setFolderForm({ ...folderForm, description: e.target.value })} />
@@ -312,9 +349,11 @@ function MediaCard({ item, folders, onMove, onLabel, onDelete }: {
         onChange={e => onMove(e.target.value ? parseInt(e.target.value, 10) : null)}
       >
         <option value="">— Geen map —</option>
-        {folders.map(f => (
-          <option key={f.id} value={f.id}>{f.category ? `${f.category}: ` : ''}{f.name}</option>
-        ))}
+        {folders.map(f => {
+          const parent = f.parent_id ? folders.find(p => p.id === f.parent_id) : null
+          const label = parent ? `${parent.name} › ${f.name}` : f.name
+          return <option key={f.id} value={f.id}>{label}</option>
+        })}
       </select>
 
       {item.filename && (

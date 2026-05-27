@@ -15,7 +15,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         name = ${body.name !== undefined ? body.name : ex.name},
         category = ${body.category !== undefined ? body.category : ex.category},
         description = ${body.description !== undefined ? body.description : ex.description},
-        sort_order = ${body.sort_order !== undefined ? body.sort_order : ex.sort_order}
+        sort_order = ${body.sort_order !== undefined ? body.sort_order : ex.sort_order},
+        parent_id = ${body.parent_id !== undefined ? body.parent_id : ex.parent_id}
       WHERE id = ${id}
     `
     return NextResponse.json({ ok: true })
