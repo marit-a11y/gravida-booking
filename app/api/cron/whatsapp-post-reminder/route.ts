@@ -17,12 +17,13 @@ interface DuePost {
  * Runs every 15 minutes. Sends a WhatsApp reminder for posts that go live
  * within the next 15 minutes (if their reminder hasn't been sent yet).
  *
- * Uses template `gravida_post_reminder` with parameters:
- *   {{1}} = title (or category)
- *   {{2}} = time (HH:MM)
- *   {{3}} = post_type
+ * IDEMPOTENT: we eerst atomair `reminder_sent = true` zetten en de geclaimde
+ * rijen teruggeven. Daarna sturen we WhatsApp. Zo kan dezelfde post nooit
+ * twee keer worden gereminded, ook niet als de cron parallel of dubbel
+ * runt of als WhatsApp traag/onverwacht antwoordt.
  *
- * Sets reminder_sent = true after successful delivery so we don't double-fire.
+ * Trade-off: als WhatsApp echt faalt zien we hem wel terug in errors, maar
+ * de post wordt niet opnieuw geprobeerd. Liever 1x missen dan 6x spammen.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -35,19 +36,22 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Find posts scheduled in the next 15 minutes (window includes "right now"
-    // up to 15 min ahead) that are still scheduled and haven't been reminded.
-    const result = await sql<DuePost>`
-      SELECT id, scheduled_for::text, title, category, post_type
-      FROM social_posts
-      WHERE scheduled_for >= NOW()
-        AND scheduled_for <= NOW() + INTERVAL '15 minutes'
-        AND status IN ('draft', 'scheduled', 'klaargezet')
-        AND reminder_sent = false
-      ORDER BY scheduled_for ASC
+    // Atomair claimen: markeer als reminded EN geef de rijen terug.
+    const claimed = await sql<DuePost>`
+      UPDATE social_posts
+      SET reminder_sent = true
+      WHERE id IN (
+        SELECT id FROM social_posts
+        WHERE scheduled_for >= NOW()
+          AND scheduled_for <= NOW() + INTERVAL '15 minutes'
+          AND status IN ('draft', 'scheduled', 'klaargezet')
+          AND reminder_sent = false
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING id, scheduled_for::text, title, category, post_type
     `
 
-    const items = result.rows
+    const items = claimed.rows
     if (items.length === 0) {
       return NextResponse.json({ ok: true, sent: 0 })
     }
@@ -65,10 +69,9 @@ export async function GET(request: NextRequest) {
         [titleOrCategory, time, post.post_type],
         'nl',
         undefined,
-        String(post.id),  // dynamic button URL param (alleen gebruikt als WHATSAPP_DYNAMIC_BUTTON=true)
+        String(post.id),
       )
       if (result.ok) {
-        await sql`UPDATE social_posts SET reminder_sent = true WHERE id = ${post.id}`
         sent++
       } else {
         errors.push(`#${post.id}: ${result.error}`)

@@ -11,18 +11,14 @@ interface IncompletePost {
   title: string | null
   category: string | null
   post_type: string
-  image_urls: string[]
-  caption: string | null
 }
 
 /**
- * Daily check (around 17:00): are there any posts scheduled for tomorrow that
- * are still missing media OR caption? If so, send a WhatsApp reminder per post.
+ * Daily check (around 17:00 UTC): are there posts scheduled for tomorrow that
+ * still miss media OR caption? If so, send a WhatsApp reminder per post.
  *
- * Uses template `gravida_content_missing` with parameters:
- *   {{1}} = time (HH:MM)
- *   {{2}} = title (or category)
- *   {{3}} = post_type (feed/story/reel)
+ * IDEMPOTENT: claimt rijen atomair via content_missing_sent flag, zodat
+ * herhaald draaien van de cron op dezelfde dag nooit dubbele berichten oplevert.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -35,19 +31,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await sql<IncompletePost>`
-      SELECT id, scheduled_for::text, title, category, post_type, image_urls, caption
-      FROM social_posts
-      WHERE scheduled_for::date = CURRENT_DATE + INTERVAL '1 day'
-        AND status IN ('draft', 'scheduled')
-        AND (
-          (jsonb_typeof(image_urls) = 'array' AND jsonb_array_length(image_urls) = 0)
-          OR caption IS NULL OR caption = ''
-        )
-      ORDER BY scheduled_for ASC
+    const claimed = await sql<IncompletePost>`
+      UPDATE social_posts
+      SET content_missing_sent = true
+      WHERE id IN (
+        SELECT id FROM social_posts
+        WHERE scheduled_for::date = CURRENT_DATE + INTERVAL '1 day'
+          AND status IN ('draft', 'scheduled')
+          AND content_missing_sent = false
+          AND (
+            (jsonb_typeof(image_urls) = 'array' AND jsonb_array_length(image_urls) = 0)
+            OR caption IS NULL OR caption = ''
+          )
+        FOR UPDATE SKIP LOCKED
+      )
+      RETURNING id, scheduled_for::text, title, category, post_type
     `
 
-    const items = result.rows
+    const items = claimed.rows
     if (items.length === 0) {
       return NextResponse.json({ ok: true, sent: 0, message: 'Geen incomplete posts voor morgen' })
     }
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
         [time, titleOrCategory, post.post_type],
         'nl',
         undefined,
-        String(post.id),  // dynamic button URL param (opt-in via WHATSAPP_DYNAMIC_BUTTON)
+        String(post.id),
       )
       if (result.ok) sent++
       else errors.push(`#${post.id}: ${result.error}`)
