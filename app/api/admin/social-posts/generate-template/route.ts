@@ -7,23 +7,22 @@ export const maxDuration = 60
 /**
  * Generate an algorithm-optimised content rotation for the entire month.
  *
- * Per week (based on 2026 IG algorithm best practices):
- * - 3 Reels    (recommended 4-7/week — kies 3 om haalbaar te houden)
- * - 2 Feedposts (recommended 2-3/week wanneer ook Reels)
- * - 14+ Stories (recommended 2-3/dag gemiddeld, gespreid ochtend/middag/avond)
+ * Per maand (updated mei 2026):
+ * - 6 Reels      (1 vaste reel op donderdag elke week + 2 extra op maandag in weken 1 & 3)
+ * - 4 Feedposts  (1 per week op woensdag lunch — data-driven peak)
+ * - 14+ Stories  (gespreid ochtend / middag / vroege avond)
  *
- * Content mix volgt 3:2:1 regel — educatief / entertainment / promotie.
- * Tijden afgestemd op data-driven IG peak hours:
- *   - Ochtend: 9-10u (woon-werk scrollen)
- *   - Lunch:   12-13u (Wed-Thu peak voor feed)
- *   - Eind v.d. middag: 17-18u (afhalen kinderen, koken)
- *   - AVOND:   20-22u (bank, scrollen voor het slapen — prime time IG!)
+ * Tijden:
+ *   - Ochtend: 9-10u
+ *   - Lunch:   12-13u  (Wed-Thu peak voor feed)
+ *   - Middag:  17-18u  (afhalen kinderen, koken)
+ *   - Avond:   19-20u  (na avondeten, geen posts meer na 20:00)
  *
  * Categorieën roteren per week zodat de feed niet repetitief is:
- *   Week 1: Beeldjes-focus      (educatief over producten)
- *   Week 2: Atelier             (entertainment / persoonlijk, achter-de-schermen)
- *   Week 3: Bedels + Review     (variatie + social proof)
- *   Week 4: Algemeen / promo    (boekingen, scannen, info)
+ *   Week 1: Beeldjes-focus
+ *   Week 2: Atelier
+ *   Week 3: Bedels + Review
+ *   Week 4: Algemeen / promo
  */
 
 interface TemplateItem {
@@ -38,25 +37,23 @@ interface TemplateItem {
 
 const TEMPLATE: TemplateItem[] = [
   // ──────────────────────── MAANDAG ────────────────────────
-  // Reel om 20:00 (peak time, prime time avond)
+  // Extra reel om 20:00 alleen in weken 1 en 3 (samen met donderdag = 6 reels/maand)
   { dow: 0, hour: 20, minute: 0, category: 'Beeldjes',     post_type: 'reel',  weekIndex: [1], title: 'Reel: beeldjes proces' },
-  { dow: 0, hour: 20, minute: 0, category: 'Atelier', post_type: 'reel',  weekIndex: [2], title: 'Reel: atelier sneak peek'},
   { dow: 0, hour: 20, minute: 0, category: 'Bedels',       post_type: 'reel',  weekIndex: [3], title: 'Reel: bedels' },
-  { dow: 0, hour: 20, minute: 0, category: 'Algemeen',     post_type: 'reel',  weekIndex: [4], title: 'Reel: scan ervaring' },
-  // Stories — ochtend, middag, avond
+  // Stories — ochtend, middag, vroege avond
   { dow: 0, hour: 10, minute: 0, category: 'Beeldjes',     post_type: 'story' },
   { dow: 0, hour: 17, minute: 0, category: 'Beeldjes',     post_type: 'story' },
-  { dow: 0, hour: 21, minute: 30, category: 'Beeldjes',    post_type: 'story', title: 'Avond-story (bedtime scroll)' },
+  { dow: 0, hour: 19, minute: 30, category: 'Beeldjes',    post_type: 'story', title: 'Vroege avond story' },
 
   // ──────────────────────── DINSDAG ────────────────────────
   { dow: 1, hour: 10, minute: 0, category: 'This or that', post_type: 'story', weekIndex: [1, 3], title: 'This or that' },
-  { dow: 1, hour: 10, minute: 0, category: 'Atelier', post_type: 'story', weekIndex: [2], title: 'Achter de schermen' },
+  { dow: 1, hour: 10, minute: 0, category: 'Atelier',      post_type: 'story', weekIndex: [2], title: 'Achter de schermen' },
   { dow: 1, hour: 10, minute: 0, category: 'Review',       post_type: 'story', weekIndex: [4], title: 'Review highlight' },
   { dow: 1, hour: 17, minute: 0, category: 'Beeldjes',     post_type: 'story' },
-  { dow: 1, hour: 20, minute: 30, category: 'This or that', post_type: 'story', title: 'Avond-poll (interactie boost)' },
+  { dow: 1, hour: 19, minute: 0, category: 'This or that', post_type: 'story', title: 'Avond-poll' },
 
   // ──────────────────────── WOENSDAG ────────────────────────
-  // Feedpost om 12:00 (peak time)
+  // Feedpost om 12:00 (peak time, 1 per week)
   { dow: 2, hour: 12, minute: 0, category: 'FAQ',      post_type: 'feed',  weekIndex: [1], title: 'FAQ carousel: 3D scan basics' },
   { dow: 2, hour: 12, minute: 0, category: 'Beeldjes', post_type: 'feed',  weekIndex: [2], title: 'Beeldje feedpost' },
   { dow: 2, hour: 12, minute: 0, category: 'Bedels',   post_type: 'feed',  weekIndex: [3], title: 'Bedels feedpost' },
@@ -65,50 +62,47 @@ const TEMPLATE: TemplateItem[] = [
   { dow: 2, hour: 10, minute: 0, category: 'FAQ',      post_type: 'story', weekIndex: [1] },
   { dow: 2, hour: 10, minute: 0, category: 'Beeldjes', post_type: 'story', weekIndex: [2, 3, 4] },
   { dow: 2, hour: 18, minute: 0, category: 'Beeldjes', post_type: 'story' },
-  { dow: 2, hour: 21, minute: 0, category: 'FAQ',      post_type: 'story', weekIndex: [1], title: 'Avond-story bij feed' },
-  { dow: 2, hour: 21, minute: 0, category: 'Beeldjes', post_type: 'story', weekIndex: [2, 3, 4], title: 'Avond-story bij feed' },
+  { dow: 2, hour: 19, minute: 30, category: 'FAQ',     post_type: 'story', weekIndex: [1], title: 'Story bij feedpost' },
+  { dow: 2, hour: 19, minute: 30, category: 'Beeldjes', post_type: 'story', weekIndex: [2, 3, 4], title: 'Story bij feedpost' },
 
   // ──────────────────────── DONDERDAG ────────────────────────
-  // Reel om 20:00 — categorie roteert
+  // Vaste reel om 20:00 elke week — categorie roteert (4 reels per maand)
   { dow: 3, hour: 20, minute: 0, category: 'FAQ',          post_type: 'reel', weekIndex: [1], title: 'Reel: veelgestelde vraag' },
-  { dow: 3, hour: 20, minute: 0, category: 'Atelier', post_type: 'reel', weekIndex: [2], title: 'Reel: atelier proces'},
+  { dow: 3, hour: 20, minute: 0, category: 'Atelier',      post_type: 'reel', weekIndex: [2], title: 'Reel: atelier proces' },
   { dow: 3, hour: 20, minute: 0, category: 'Review',       post_type: 'reel', weekIndex: [3], title: 'Reel: klant ervaring' },
   { dow: 3, hour: 20, minute: 0, category: 'This or that', post_type: 'reel', weekIndex: [4], title: 'Reel: this or that' },
-  // Stories — ochtend, middag, avond
+  // Stories
   { dow: 3, hour: 10, minute: 0, category: 'Beeldjes', post_type: 'story' },
   { dow: 3, hour: 17, minute: 0, category: 'Bedels',   post_type: 'story', weekIndex: [3], title: 'Bedel close-up' },
   { dow: 3, hour: 17, minute: 0, category: 'Beeldjes', post_type: 'story', weekIndex: [1, 2, 4] },
-  { dow: 3, hour: 21, minute: 30, category: 'Beeldjes', post_type: 'story', title: 'Avond-story' },
+  { dow: 3, hour: 19, minute: 30, category: 'Beeldjes', post_type: 'story', title: 'Vroege avond' },
 
   // ──────────────────────── VRIJDAG ────────────────────────
   { dow: 4, hour: 10, minute: 0, category: 'Algemeen', post_type: 'story', title: 'Weekend boekingstip' },
   { dow: 4, hour: 17, minute: 0, category: 'Beeldjes', post_type: 'story' },
-  { dow: 4, hour: 20, minute: 30, category: 'Beeldjes', post_type: 'story', title: 'Vrijdagavond cosy story' },
+  { dow: 4, hour: 19, minute: 0, category: 'Beeldjes', post_type: 'story', title: 'Vrijdagavond cosy story' },
 
   // ──────────────────────── ZATERDAG ────────────────────────
-  // Reel om 20:00 (zaterdagavond peak — hoge engagement)
-  { dow: 5, hour: 20, minute: 0, category: 'Beeldjes',     post_type: 'reel',  weekIndex: [1, 4], title: 'Reel: beeldje highlight' },
-  { dow: 5, hour: 20, minute: 0, category: 'This or that', post_type: 'reel',  weekIndex: [2], title: 'Reel: this or that' },
-  { dow: 5, hour: 20, minute: 0, category: 'Bedels',       post_type: 'reel',  weekIndex: [3], title: 'Reel: bedels in het wild' },
-  { dow: 5, hour: 12, minute: 0, category: 'Beeldjes',     post_type: 'story' },
-  { dow: 5, hour: 21, minute: 30, category: 'Beeldjes',    post_type: 'story', title: 'Zaterdagavond' },
+  // Geen reel meer op zaterdag (te veel reels, verplaatst naar maandag/donderdag)
+  { dow: 5, hour: 12, minute: 0, category: 'Beeldjes', post_type: 'story' },
+  { dow: 5, hour: 19, minute: 30, category: 'Beeldjes', post_type: 'story', title: 'Zaterdagavond' },
 
   // ──────────────────────── ZONDAG ────────────────────────
-  // Feedpost om 11:00 — categorie roteert per week
-  { dow: 6, hour: 11, minute: 0, category: 'Beeldjes',     post_type: 'feed', weekIndex: [1], title: 'Beeldje feedpost' },
-  { dow: 6, hour: 11, minute: 0, category: 'Atelier', post_type: 'feed', weekIndex: [2], title: 'Atelier feedpost'},
-  { dow: 6, hour: 11, minute: 0, category: 'Review',       post_type: 'feed', weekIndex: [3], title: 'Review feedpost' },
-  { dow: 6, hour: 11, minute: 0, category: 'Algemeen',     post_type: 'feed', weekIndex: [4], title: 'Algemeen feedpost' },
-  // Ondersteunende stories
+  // Geen feedpost meer op zondag (1 feed per week, blijft op woensdag)
+  // Ondersteunende stories per week-thema
+  { dow: 6, hour: 11, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
   { dow: 6, hour: 13, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
   { dow: 6, hour: 16, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
   { dow: 6, hour: 19, minute: 0, category: 'Beeldjes',     post_type: 'story', weekIndex: [1] },
+  { dow: 6, hour: 11, minute: 0, category: 'Atelier',      post_type: 'story', weekIndex: [2] },
   { dow: 6, hour: 13, minute: 0, category: 'This or that', post_type: 'story', weekIndex: [2] },
-  { dow: 6, hour: 16, minute: 0, category: 'Atelier', post_type: 'story', weekIndex: [2] },
-  { dow: 6, hour: 19, minute: 0, category: 'Atelier', post_type: 'story', weekIndex: [2] },
+  { dow: 6, hour: 16, minute: 0, category: 'Atelier',      post_type: 'story', weekIndex: [2] },
+  { dow: 6, hour: 19, minute: 0, category: 'Atelier',      post_type: 'story', weekIndex: [2] },
+  { dow: 6, hour: 11, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3] },
   { dow: 6, hour: 13, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3] },
   { dow: 6, hour: 16, minute: 0, category: 'Review',       post_type: 'story', weekIndex: [3] },
   { dow: 6, hour: 19, minute: 0, category: 'Bedels',       post_type: 'story', weekIndex: [3] },
+  { dow: 6, hour: 11, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
   { dow: 6, hour: 13, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
   { dow: 6, hour: 16, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
   { dow: 6, hour: 19, minute: 0, category: 'Algemeen',     post_type: 'story', weekIndex: [4] },
@@ -134,7 +128,6 @@ export async function POST(request: NextRequest) {
       SELECT scheduled_for::text, category, post_type FROM social_posts
       WHERE scheduled_for >= ${fromIso}::timestamptz AND scheduled_for <= ${toIso}::timestamptz
     `
-    // Skip an exact (date, hour, minute, category, post_type) combination if already there
     const existingKeys = new Set(
       existingResult.rows.map(r => {
         const d = new Date(r.scheduled_for)
