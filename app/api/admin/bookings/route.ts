@@ -14,12 +14,26 @@ export async function GET(request: NextRequest) {
     const status   = searchParams.get('status') || null
     const exportCsv    = searchParams.get('export') === 'csv'
     const includeStats = searchParams.get('stats') === '1'
+    const createdToday = searchParams.get('created_today') === '1'
 
     // Use COALESCE so bookings survive availability deletion
     // b.date / b.region are the denormalised copies; a.date / a.region are the JOIN fallbacks
     let bookings: Record<string, unknown>[] = []
 
-    if (date && region && status) {
+    if (createdToday) {
+      // Reserveringen die VANDAAG zijn aangemaakt (gebaseerd op created_at)
+      const r = await sql`
+        SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
+               b.first_name, b.last_name, b.email, b.phone, b.address,
+               b.city, b.zip_code, b.pregnancy_weeks, b.notes, b.status,
+               b.created_at::text,
+               COALESCE(b.date, a.date)::text as date,
+               COALESCE(b.region, a.region) as region
+        FROM bookings b LEFT JOIN availability a ON b.availability_id = a.id
+        WHERE b.created_at::date = CURRENT_DATE
+        ORDER BY b.created_at DESC`
+      bookings = r.rows
+    } else if (date && region && status) {
       const r = await sql`
         SELECT b.id, b.customer_number, b.availability_id, b.time_slot,
                b.first_name, b.last_name, b.email, b.phone, b.address,

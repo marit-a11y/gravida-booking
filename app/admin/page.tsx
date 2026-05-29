@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { formatDutchDate, formatDutchDateShort, toLocalDateString } from '@/lib/utils'
 
 interface Stats {
@@ -14,11 +14,18 @@ interface Booking {
   customer_number: string
   first_name: string
   last_name: string
+  email?: string
   time_slot: string
   date: string
   region: string
   phone: string
+  address?: string
+  city?: string
+  zip_code?: string
+  pregnancy_weeks?: number | null
+  notes?: string | null
   status: string
+  created_at?: string
 }
 
 interface Availability {
@@ -46,6 +53,7 @@ function getWeekDays(): string[] {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [todayBookings, setTodayBookings] = useState<Booking[]>([])
+  const [newReservations, setNewReservations] = useState<Booking[]>([])
   const [weekAvailability, setWeekAvailability] = useState<Availability[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -55,9 +63,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [statsRes, bookingsRes, availRes] = await Promise.all([
+        const [statsRes, bookingsRes, newResRes, availRes] = await Promise.all([
           fetch('/api/admin/bookings?stats=1'),
           fetch(`/api/admin/bookings?date=${todayStr}`),
+          fetch('/api/admin/bookings?created_today=1'),
           fetch('/api/admin/availability'),
         ])
 
@@ -69,9 +78,12 @@ export default function AdminDashboard() {
           const data = await bookingsRes.json()
           setTodayBookings(data.bookings ?? [])
         }
+        if (newResRes.ok) {
+          const data = await newResRes.json()
+          setNewReservations(data.bookings ?? [])
+        }
         if (availRes.ok) {
           const data = await availRes.json()
-          // Only show this week
           const thisWeek = (data.availability ?? []).filter((a: Availability) =>
             weekDays.includes(a.date)
           )
@@ -108,12 +120,12 @@ export default function AdminDashboard() {
         <div className="card">
           <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Vandaag</p>
           <p className="text-4xl font-bold text-gravida-green">{stats?.today ?? 0}</p>
-          <p className="text-sm text-gravida-sage mt-1">boekingen</p>
+          <p className="text-sm text-gravida-sage mt-1">afspraken</p>
         </div>
         <div className="card">
           <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Deze week</p>
           <p className="text-4xl font-bold text-gravida-green">{stats?.thisWeek ?? 0}</p>
-          <p className="text-sm text-gravida-sage mt-1">boekingen</p>
+          <p className="text-sm text-gravida-sage mt-1">afspraken</p>
         </div>
         <div className="card">
           <p className="text-xs font-medium text-gravida-light-sage uppercase tracking-wide mb-2">Totaal</p>
@@ -163,61 +175,162 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Today's bookings */}
-      <div className="card">
-        <h2 className="section-title mb-4">Boekingen vandaag</h2>
+      {/* Today's appointments */}
+      <div className="card mb-8">
+        <h2 className="section-title mb-4">Afspraken vandaag</h2>
         {todayBookings.length === 0 ? (
           <p className="text-gravida-light-sage text-sm py-4 text-center">
-            Geen boekingen vandaag.
+            Geen afspraken vandaag.
           </p>
         ) : (
-          <>
-          {/* Mobile cards */}
-          <div className="sm:hidden space-y-3">
-            {todayBookings.map((b) => (
-              <div key={b.id} className="border border-gravida-cream rounded-xl p-4 space-y-2">
+          <BookingList bookings={todayBookings} mode="today" />
+        )}
+      </div>
+
+      {/* New reservations (booked today) */}
+      <div className="card">
+        <h2 className="section-title mb-1">Nieuwe reserveringen</h2>
+        <p className="text-xs text-gravida-light-sage mb-4">Vandaag geboekt, voor welke datum dan ook.</p>
+        {newReservations.length === 0 ? (
+          <p className="text-gravida-light-sage text-sm py-4 text-center">
+            Nog geen nieuwe reserveringen vandaag.
+          </p>
+        ) : (
+          <BookingList bookings={newReservations} mode="new" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function BookingList({ bookings, mode }: { bookings: Booking[]; mode: 'today' | 'new' }) {
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const toggle = (id: number) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  return (
+    <>
+      {/* Mobile cards */}
+      <div className="sm:hidden space-y-3">
+        {bookings.map((b) => {
+          const isOpen = expanded.has(b.id)
+          return (
+            <div key={b.id} className="border border-gravida-cream rounded-xl">
+              <button onClick={() => toggle(b.id)} className="w-full text-left p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-mono font-semibold text-gravida-sage text-sm">{b.customer_number}</span>
                   <StatusBadge status={b.status} />
                 </div>
                 <p className="font-medium">{b.first_name} {b.last_name}</p>
                 <div className="flex items-center gap-4 text-sm text-gravida-sage">
-                  <span>{b.time_slot}</span>
-                  <span>{b.phone}</span>
+                  <span>{mode === 'new' ? formatDutchDateShort(b.date) : b.time_slot}</span>
+                  <span>{mode === 'new' ? b.time_slot : b.phone}</span>
                 </div>
-              </div>
-            ))}
-          </div>
-          {/* Desktop table */}
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gravida-cream">
-                  <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Nr</th>
-                  <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Naam</th>
-                  <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Tijdslot</th>
-                  <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Telefoon</th>
-                  <th className="text-left py-2 font-medium text-gravida-light-sage">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {todayBookings.map((b) => (
-                  <tr key={b.id} className="border-b border-gravida-cream last:border-0 hover:bg-gravida-off-white transition-colors">
+                <p className="text-xs text-gravida-light-sage">{isOpen ? '▲ minder' : '▼ details'}</p>
+              </button>
+              {isOpen && <BookingDetails b={b} />}
+            </div>
+          )
+        })}
+      </div>
+      {/* Desktop table */}
+      <div className="hidden sm:block overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gravida-cream">
+              <th className="w-8"></th>
+              <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Nr</th>
+              <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Naam</th>
+              {mode === 'new' && (
+                <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Datum</th>
+              )}
+              <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Tijdslot</th>
+              {mode === 'new' && (
+                <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Regio</th>
+              )}
+              <th className="text-left py-2 pr-4 font-medium text-gravida-light-sage">Telefoon</th>
+              <th className="text-left py-2 font-medium text-gravida-light-sage">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bookings.map((b) => {
+              const isOpen = expanded.has(b.id)
+              return (
+                <Fragment key={b.id}>
+                  <tr
+                    onClick={() => toggle(b.id)}
+                    className="border-b border-gravida-cream last:border-0 hover:bg-gravida-off-white transition-colors cursor-pointer">
+                    <td className="py-3 pr-2 text-center text-gravida-light-sage text-xs">{isOpen ? '▼' : '▶'}</td>
                     <td className="py-3 pr-4 font-mono font-semibold text-gravida-sage">{b.customer_number}</td>
                     <td className="py-3 pr-4 font-medium">{b.first_name} {b.last_name}</td>
+                    {mode === 'new' && (
+                      <td className="py-3 pr-4 text-gravida-sage">{formatDutchDateShort(b.date)}</td>
+                    )}
                     <td className="py-3 pr-4">{b.time_slot}</td>
+                    {mode === 'new' && (
+                      <td className="py-3 pr-4 text-gravida-sage text-xs">{b.region}</td>
+                    )}
                     <td className="py-3 pr-4 text-gravida-sage">{b.phone}</td>
                     <td className="py-3">
                       <StatusBadge status={b.status} />
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          </>
-        )}
+                  {isOpen && (
+                    <tr className="border-b border-gravida-cream bg-gravida-off-white/60">
+                      <td colSpan={mode === 'new' ? 8 : 6} className="p-4">
+                        <BookingDetails b={b} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
+    </>
+  )
+}
+
+function BookingDetails({ b }: { b: Booking }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm px-4 pb-4 sm:p-0">
+      <DetailRow label="Datum" value={formatDutchDate(b.date)} />
+      <DetailRow label="Tijdslot" value={b.time_slot} />
+      <DetailRow label="Regio" value={b.region} />
+      <DetailRow label="Telefoon" value={b.phone} />
+      <DetailRow label="E-mail" value={b.email} />
+      <DetailRow label="Zwangerschapsweken" value={b.pregnancy_weeks?.toString()} />
+      <DetailRow label="Adres" value={[b.address, b.zip_code, b.city].filter(Boolean).join(', ')} />
+      {b.notes && (
+        <div className="sm:col-span-2">
+          <p className="text-xs text-gravida-light-sage uppercase tracking-wide">Opmerking klant</p>
+          <p className="text-gravida-green whitespace-pre-wrap">{b.notes}</p>
+        </div>
+      )}
+      {b.created_at && (
+        <DetailRow label="Geboekt op" value={formatDutchDate(b.created_at.split(' ')[0])} />
+      )}
+      <div className="sm:col-span-2 pt-2 flex gap-2">
+        <a href={`/admin/bookings/${b.id}`} className="text-xs text-gravida-sage hover:text-gravida-green underline">
+          Volledig openen ➔
+        </a>
+      </div>
+    </div>
+  )
+}
+
+function DetailRow({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null
+  return (
+    <div>
+      <p className="text-[10px] text-gravida-light-sage uppercase tracking-wide">{label}</p>
+      <p className="text-gravida-green">{value}</p>
     </div>
   )
 }
