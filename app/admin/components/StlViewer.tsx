@@ -59,7 +59,7 @@ export default function StlViewer({ url, height = 360, className = '' }: StlView
 
       // Load STL
       const loader = new STLLoader()
-      let mesh: THREE.Mesh | null = null
+      let mesh: InstanceType<typeof THREE.Mesh> | null = null
       loader.load(url, (geometry) => {
         if (cancelled) return
         geometry.computeBoundingBox()
@@ -107,7 +107,7 @@ export default function StlViewer({ url, height = 360, className = '' }: StlView
         renderer.dispose()
         if (mesh) {
           mesh.geometry.dispose()
-          if (Array.isArray(mesh.material)) mesh.material.forEach(m => m.dispose())
+          if (Array.isArray(mesh.material)) mesh.material.forEach((m: { dispose: () => void }) => m.dispose())
           else mesh.material.dispose()
         }
         if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement)
