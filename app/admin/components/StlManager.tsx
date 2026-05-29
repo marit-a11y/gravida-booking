@@ -33,8 +33,10 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
   const ownerKey = rentalId ? `rental_id=${rentalId}` : bookingId ? `booking_id=${bookingId}` : ''
   const ownerPathSeg = rentalId ? `rental-${rentalId}` : bookingId ? `booking-${bookingId}` : 'unknown'
   const [files, setFiles] = useState<ScanFile[]>([])
-  const [chosenLabel, setChosenLabel] = useState<number | null>(null)
+  const [consentChosenLabel, setConsentChosenLabel] = useState<number | null>(null)
+  const [manualChosenLabel, setManualChosenLabel] = useState<number | null>(null)
   const [consentSubmittedAt, setConsentSubmittedAt] = useState<string | null>(null)
+  const chosenLabel = consentChosenLabel ?? manualChosenLabel
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
@@ -53,7 +55,7 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
       const d = await r.json()
       if (r.ok) {
         setFiles(d.files ?? [])
-        setChosenLabel(d.chosen_label ?? null)
+        setConsentChosenLabel(d.chosen_label ?? null)
         setConsentSubmittedAt(d.consent_submitted_at ?? null)
       } else {
         setError(d.error ?? 'Laden mislukt')
@@ -224,11 +226,11 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">{error}</div>
       )}
 
-      {/* Klantkeuze banner */}
-      {chosenLabel && (
+      {/* Klantkeuze banner OF handmatige keuze (voor aan-huis zonder consent) */}
+      {consentChosenLabel ? (
         <div className="mb-4 p-3 rounded-xl bg-gravida-green/5 border border-gravida-green/30">
           <p className="text-sm">
-            <span className="font-semibold text-gravida-green">Klantkeuze ontvangen:</span> Scan {chosenLabel}.
+            <span className="font-semibold text-gravida-green">Klantkeuze ontvangen via toestemmingsformulier:</span> Scan {consentChosenLabel}.
             {consentSubmittedAt && (
               <span className="text-gravida-sage ml-1 text-xs">
                 ({new Date(consentSubmittedAt).toLocaleString('nl-NL')})
@@ -238,6 +240,41 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
           <p className="text-xs text-gravida-sage mt-1">
             De niet-gekozen scan staat hieronder voorgesteld om te verwijderen. Pas aan als je iets wil bewaren.
           </p>
+        </div>
+      ) : files.length > 0 && (
+        <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200">
+          <p className="text-xs text-amber-800 mb-2">
+            <strong>Geen toestemmingsformulier?</strong> Markeer hieronder zelf welke scan de klant heeft gekozen, dan stellen we de andere scan voor om te verwijderen.
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            {[1, 2].map(n => {
+              const isActive = manualChosenLabel === n
+              const hasFiles = filesByLabel(n as 1 | 2).length > 0
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  disabled={!hasFiles}
+                  onClick={() => {
+                    setManualChosenLabel(isActive ? null : n)
+                    if (isActive) setDeleteMarks(new Set())
+                  }}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors disabled:opacity-40 ${
+                    isActive
+                      ? 'bg-gravida-green text-white border-gravida-green'
+                      : 'bg-white border-gravida-cream text-gravida-sage hover:border-gravida-sage'
+                  }`}
+                >
+                  {isActive ? '✓ ' : ''}Scan {n} gekozen
+                </button>
+              )
+            })}
+            {manualChosenLabel && (
+              <span className="text-xs text-gravida-sage self-center">
+                → de andere scan staat hieronder voorgesteld om te verwijderen
+              </span>
+            )}
+          </div>
         </div>
       )}
 
