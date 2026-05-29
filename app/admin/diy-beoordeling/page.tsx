@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import StlManager from '@/app/admin/components/StlManager'
 
 type Bijzonderheid = 'moedervlek' | 'tattoo' | 'sieraden' | 'anders'
 
@@ -266,6 +267,13 @@ export default function DiyBeoordelingPage() {
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm font-medium">
           ✓ Goedkeuringsmail verzonden naar {sentNaam}.
           <button className="ml-3 underline text-green-700" onClick={() => setSent(false)}>Nieuwe beoordeling</button>
+        </div>
+      )}
+
+      {/* ── STL bestanden van de geselecteerde klant ── */}
+      {selectedRentalId && (
+        <div className="max-w-2xl mb-6">
+          <StlManager rentalId={selectedRentalId} customerNumber={klantNummer || null} />
         </div>
       )}
 
