@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 // Proxy naar gravida.nl/api/admin/submissions zodat de admin-secret veilig
 // server-side blijft en niet in de browser komt.
 
-const SITE_URL = process.env.GRAVIDA_SITE_URL ?? 'https://gravida-new-o7di.vercel.app'
+const SITE_URL = process.env.GRAVIDA_SITE_URL ?? 'https://gravida-new.vercel.app'
 const SECRET = process.env.GRAVIDA_SITE_SECRET ?? ''
 
 export async function GET() {

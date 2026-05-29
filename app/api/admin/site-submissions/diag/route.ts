@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
  *  - status + body van gravida-new
  */
 export async function GET() {
-  const SITE_URL = process.env.GRAVIDA_SITE_URL ?? 'https://gravida-new-o7di.vercel.app'
+  const SITE_URL = process.env.GRAVIDA_SITE_URL ?? 'https://gravida-new.vercel.app'
   const SECRET = process.env.GRAVIDA_SITE_SECRET ?? ''
 
   const secretInfo = SECRET ? {
