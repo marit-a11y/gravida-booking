@@ -32,6 +32,9 @@ function formatSize(bytes: number | null): string {
 export default function StlManager({ rentalId, bookingId, customerNumber }: Props) {
   const ownerKey = rentalId ? `rental_id=${rentalId}` : bookingId ? `booking_id=${bookingId}` : ''
   const ownerPathSeg = rentalId ? `rental-${rentalId}` : bookingId ? `booking-${bookingId}` : 'unknown'
+  // Aan-huis (booking) = simpel: één bucket, geen scan-keuze
+  // DIY (rental) = twee opties Scan 1 / Scan 2 met klantkeuze
+  const simpleMode = !!bookingId && !rentalId
   const [files, setFiles] = useState<ScanFile[]>([])
   const [consentChosenLabel, setConsentChosenLabel] = useState<number | null>(null)
   const [manualChosenLabel, setManualChosenLabel] = useState<number | null>(null)
@@ -169,31 +172,36 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
     <div className="card p-6">
       <h2 className="section-title mb-1">3D scanbestanden (STL)</h2>
       <p className="text-xs text-gravida-sage mb-4">
-        Upload de .stl bestanden die uit de DIY scanner komen. Groepeer ze als <strong>Scan 1</strong> of <strong>Scan 2</strong> zodat de klant zijn voorkeur kan koppelen via het toestemmingsformulier.
+        {simpleMode
+          ? 'Upload de .stl bestand(en) van de aan-huis scan voor deze klant.'
+          : <>Upload de .stl bestanden die uit de DIY scanner komen. Groepeer ze als <strong>Scan 1</strong> of <strong>Scan 2</strong> zodat de klant zijn voorkeur kan koppelen via het toestemmingsformulier.</>
+        }
       </p>
 
-      {/* Tab voor actieve scan-groep (waar nieuwe uploads heen gaan) */}
-      <div className="flex gap-2 mb-4">
-        {[1, 2].map(n => {
-          const isActive = activeLabel === n
-          const count = filesByLabel(n as 1 | 2).length
-          return (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setActiveLabel(n as 1 | 2)}
-              className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${
-                isActive
-                  ? 'bg-gravida-green text-white border-gravida-green'
-                  : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage'
-              }`}
-            >
-              Scan {customerNumber ? `${customerNumber}-${n}` : n}
-              <span className={`ml-2 text-xs ${isActive ? 'opacity-80' : 'opacity-60'}`}>({count})</span>
-            </button>
-          )
-        })}
-      </div>
+      {/* Tab voor actieve scan-groep — alleen DIY */}
+      {!simpleMode && (
+        <div className="flex gap-2 mb-4">
+          {[1, 2].map(n => {
+            const isActive = activeLabel === n
+            const count = filesByLabel(n as 1 | 2).length
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setActiveLabel(n as 1 | 2)}
+                className={`flex-1 px-3 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${
+                  isActive
+                    ? 'bg-gravida-green text-white border-gravida-green'
+                    : 'border-gravida-cream text-gravida-sage hover:border-gravida-sage'
+                }`}
+              >
+                Scan {customerNumber ? `${customerNumber}-${n}` : n}
+                <span className={`ml-2 text-xs ${isActive ? 'opacity-80' : 'opacity-60'}`}>({count})</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Upload knop */}
       <div className="flex items-center gap-2 mb-4">
@@ -203,7 +211,7 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
           onClick={() => fileInputRef.current?.click()}
           className="btn-secondary text-sm disabled:opacity-50"
         >
-          {uploading ? 'Uploaden...' : `+ Upload STL naar Scan ${activeLabel}`}
+          {uploading ? 'Uploaden...' : simpleMode ? '+ Upload STL' : `+ Upload STL naar Scan ${activeLabel}`}
         </button>
         <input
           ref={fileInputRef}
@@ -226,8 +234,8 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">{error}</div>
       )}
 
-      {/* Klantkeuze banner OF handmatige keuze (voor aan-huis zonder consent) */}
-      {consentChosenLabel ? (
+      {/* Klantkeuze banner OF handmatige keuze — alleen DIY */}
+      {!simpleMode && consentChosenLabel ? (
         <div className="mb-4 p-3 rounded-xl bg-gravida-green/5 border border-gravida-green/30">
           <p className="text-sm">
             <span className="font-semibold text-gravida-green">Klantkeuze ontvangen via toestemmingsformulier:</span> Scan {consentChosenLabel}.
@@ -241,7 +249,7 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
             De niet-gekozen scan staat hieronder voorgesteld om te verwijderen. Pas aan als je iets wil bewaren.
           </p>
         </div>
-      ) : files.length > 0 && (
+      ) : !simpleMode && files.length > 0 && (
         <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200">
           <p className="text-xs text-amber-800 mb-2">
             <strong>Geen toestemmingsformulier?</strong> Markeer hieronder zelf welke scan de klant heeft gekozen, dan stellen we de andere scan voor om te verwijderen.
@@ -278,11 +286,55 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
         </div>
       )}
 
-      {/* Bestanden per groep */}
+      {/* Bestanden */}
       {loading ? (
         <p className="text-sm text-gravida-light-sage">Laden...</p>
       ) : files.length === 0 ? (
         <p className="text-sm text-gravida-light-sage italic">Nog geen STL bestanden geüpload.</p>
+      ) : simpleMode ? (
+        <div className="space-y-2">
+          {files.map(f => {
+            const isOpen = openViewer === f.id
+            return (
+              <div key={f.id} className="border-2 border-gravida-cream rounded-xl">
+                <div className="flex items-center justify-between p-3 gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gravida-green truncate" title={f.filename ?? ''}>
+                      {f.filename ?? 'STL bestand'}
+                    </p>
+                    <p className="text-[11px] text-gravida-light-sage">
+                      {formatSize(f.size_bytes)} · {new Date(f.created_at).toLocaleString('nl-NL')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setOpenViewer(isOpen ? null : f.id)}
+                      className="text-xs px-2 py-1 rounded-lg bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white"
+                    >
+                      {isOpen ? '▲ sluiten' : '👁 3D'}
+                    </button>
+                    <a href={f.blob_url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs px-2 py-1 rounded-lg bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white">
+                      ⬇
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => deleteOne(f.id)}
+                      className="text-xs px-2 py-1 rounded-lg text-red-500 hover:bg-red-50"
+                      title="Verwijder dit bestand"
+                    >✕</button>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div className="px-3 pb-3">
+                    <StlViewer url={f.blob_url} height={360} />
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       ) : (
         <div className="space-y-5">
           {[1, 2].map(label => {
@@ -351,8 +403,8 @@ export default function StlManager({ rentalId, bookingId, customerNumber }: Prop
         </div>
       )}
 
-      {/* Batch delete actie */}
-      {chosenLabel && deleteMarks.size > 0 && (
+      {/* Batch delete actie — alleen DIY */}
+      {!simpleMode && chosenLabel && deleteMarks.size > 0 && (
         <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-center justify-between gap-3">
           <p className="text-sm text-red-700">
             <strong>{deleteMarks.size}</strong> bestand(en) gemarkeerd om te verwijderen.
