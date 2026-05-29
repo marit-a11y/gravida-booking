@@ -18,7 +18,8 @@ interface ScanFile {
 }
 
 interface Props {
-  rentalId: number
+  rentalId?: number
+  bookingId?: number
   customerNumber?: string | null
 }
 
@@ -28,7 +29,9 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-export default function StlManager({ rentalId, customerNumber }: Props) {
+export default function StlManager({ rentalId, bookingId, customerNumber }: Props) {
+  const ownerKey = rentalId ? `rental_id=${rentalId}` : bookingId ? `booking_id=${bookingId}` : ''
+  const ownerPathSeg = rentalId ? `rental-${rentalId}` : bookingId ? `booking-${bookingId}` : 'unknown'
   const [files, setFiles] = useState<ScanFile[]>([])
   const [chosenLabel, setChosenLabel] = useState<number | null>(null)
   const [consentSubmittedAt, setConsentSubmittedAt] = useState<string | null>(null)
@@ -43,9 +46,10 @@ export default function StlManager({ rentalId, customerNumber }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
+    if (!ownerKey) { setLoading(false); return }
     setLoading(true)
     try {
-      const r = await fetch(`/api/admin/diy-scan-files?rental_id=${rentalId}`, { credentials: 'include' })
+      const r = await fetch(`/api/admin/diy-scan-files?${ownerKey}`, { credentials: 'include' })
       const d = await r.json()
       if (r.ok) {
         setFiles(d.files ?? [])
@@ -57,7 +61,7 @@ export default function StlManager({ rentalId, customerNumber }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [rentalId])
+  }, [ownerKey])
 
   useEffect(() => { load() }, [load])
 
@@ -86,7 +90,7 @@ export default function StlManager({ rentalId, customerNumber }: Props) {
       setUploadProgress(`Uploaden ${file.name} (${done + 1}/${selected.length})`)
       try {
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)
-        const pathname = `diy-scans/rental-${rentalId}/scan${activeLabel}-${Date.now()}-${safe}`
+        const pathname = `scans/${ownerPathSeg}/scan${activeLabel}-${Date.now()}-${safe}`
         const blob = await upload(pathname, file, {
           access: 'public',
           handleUploadUrl: '/api/admin/diy-scan-files/upload',
@@ -97,7 +101,8 @@ export default function StlManager({ rentalId, customerNumber }: Props) {
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            rental_id: rentalId,
+            rental_id: rentalId ?? null,
+            booking_id: bookingId ?? null,
             scan_label: activeLabel,
             blob_url: blob.url,
             blob_pathname: pathname,

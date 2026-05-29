@@ -3,29 +3,42 @@ import { sql } from '@vercel/postgres'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/admin/diy-scan-files?rental_id=123
-// → lijst van actieve scan-bestanden voor een rental, plus de klantkeuze
+function parseOwner(searchParams: URLSearchParams): { kind: 'rental' | 'booking'; id: number } | null {
+  const r = searchParams.get('rental_id')
+  const b = searchParams.get('booking_id')
+  if (r) return { kind: 'rental', id: parseInt(r, 10) }
+  if (b) return { kind: 'booking', id: parseInt(b, 10) }
+  return null
+}
+
+// GET ?rental_id=X | ?booking_id=X → bestanden + klantkeuze
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const rentalId = searchParams.get('rental_id')
-    if (!rentalId) return NextResponse.json({ error: 'rental_id verplicht' }, { status: 400 })
+    const owner = parseOwner(searchParams)
+    if (!owner) return NextResponse.json({ error: 'rental_id of booking_id verplicht' }, { status: 400 })
 
-    const files = await sql`
-      SELECT id, rental_id, scan_label, blob_url, blob_pathname, filename,
-             size_bytes, notes, is_chosen, created_at::text
-      FROM diy_scan_files
-      WHERE rental_id = ${parseInt(rentalId, 10)} AND deleted_at IS NULL
-      ORDER BY scan_label ASC, created_at ASC
-    `
+    const files = owner.kind === 'rental'
+      ? await sql`
+          SELECT id, rental_id, booking_id, scan_label, blob_url, blob_pathname, filename,
+                 size_bytes, notes, is_chosen, created_at::text
+          FROM diy_scan_files
+          WHERE rental_id = ${owner.id} AND deleted_at IS NULL
+          ORDER BY scan_label ASC, created_at ASC
+        `
+      : await sql`
+          SELECT id, rental_id, booking_id, scan_label, blob_url, blob_pathname, filename,
+                 size_bytes, notes, is_chosen, created_at::text
+          FROM diy_scan_files
+          WHERE booking_id = ${owner.id} AND deleted_at IS NULL
+          ORDER BY scan_label ASC, created_at ASC
+        `
 
-    // Klantkeuze uit scan_consents (kan nog null zijn)
-    const consent = await sql`
-      SELECT preferred_scan_number, submitted_at::text
-      FROM scan_consents
-      WHERE diy_rental_id = ${parseInt(rentalId, 10)}
-      ORDER BY id DESC LIMIT 1
-    `
+    const consent = owner.kind === 'rental'
+      ? await sql`SELECT preferred_scan_number, submitted_at::text FROM scan_consents
+                  WHERE diy_rental_id = ${owner.id} ORDER BY id DESC LIMIT 1`
+      : await sql`SELECT preferred_scan_number, submitted_at::text FROM scan_consents
+                  WHERE booking_id = ${owner.id} ORDER BY id DESC LIMIT 1`
     const chosenLabel = consent.rows[0]?.preferred_scan_number ?? null
     const consentSubmittedAt = consent.rows[0]?.submitted_at ?? null
 
@@ -39,21 +52,23 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/admin/diy-scan-files
-// → registreer een nieuw geüpload bestand (na client-upload naar Blob)
+// POST → registreer een geüpload bestand (rental_id OF booking_id)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { rental_id, scan_label, blob_url, blob_pathname, filename, size_bytes, notes } = body
-    if (!rental_id || !blob_url) {
-      return NextResponse.json({ error: 'rental_id en blob_url verplicht' }, { status: 400 })
+    const { rental_id, booking_id, scan_label, blob_url, blob_pathname, filename, size_bytes, notes } = body
+    if (!blob_url) {
+      return NextResponse.json({ error: 'blob_url verplicht' }, { status: 400 })
+    }
+    if (!rental_id && !booking_id) {
+      return NextResponse.json({ error: 'rental_id of booking_id verplicht' }, { status: 400 })
     }
     const label = [1, 2].includes(Number(scan_label)) ? Number(scan_label) : 1
     const r = await sql`
-      INSERT INTO diy_scan_files (rental_id, scan_label, blob_url, blob_pathname, filename, size_bytes, notes)
-      VALUES (${rental_id}, ${label}, ${blob_url}, ${blob_pathname ?? null}, ${filename ?? null},
-              ${size_bytes ?? null}, ${notes ?? null})
-      RETURNING id, scan_label, blob_url, filename, size_bytes, created_at::text
+      INSERT INTO diy_scan_files (rental_id, booking_id, scan_label, blob_url, blob_pathname, filename, size_bytes, notes)
+      VALUES (${rental_id ?? null}, ${booking_id ?? null}, ${label}, ${blob_url}, ${blob_pathname ?? null},
+              ${filename ?? null}, ${size_bytes ?? null}, ${notes ?? null})
+      RETURNING id, rental_id, booking_id, scan_label, blob_url, filename, size_bytes, created_at::text
     `
     return NextResponse.json({ file: r.rows[0] }, { status: 201 })
   } catch (err) {

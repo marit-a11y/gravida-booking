@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { formatDutchDateShort } from '@/lib/utils'
 import { ScanConsentSection } from '@/app/admin/components/ScanConsentSection'
+import StlManager from '@/app/admin/components/StlManager'
 
 interface Booking {
   id: number
@@ -813,6 +814,10 @@ export default function BoekingenPage() {
                 )}
 
                 <ScanConsentSection bookingId={detailBooking.id} />
+
+                <Section title="3D scanbestanden (STL)">
+                  <StlManager bookingId={detailBooking.id} customerNumber={detailBooking.customer_number} />
+                </Section>
 
                 <div>
                   <label className="label">Status wijzigen</label>

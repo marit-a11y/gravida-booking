@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import StlManager from '@/app/admin/components/StlManager'
 
-interface RentalRow {
+interface OverviewRow {
+  kind: 'rental' | 'booking'
   id: number
   first_name: string
   last_name: string
   email: string
   customer_number: string | null
   status: string
-  rental_week: string
-  created_at: string
+  reference_date: string
   file_count: number
   count_1: number
   count_2: number
@@ -30,6 +30,7 @@ function formatSize(bytes: number): string {
 function statusBadge(status: string) {
   const map: Record<string, string> = {
     geboekt: 'bg-blue-100 text-blue-700',
+    bevestigd: 'bg-green-100 text-green-700',
     verzonden: 'bg-purple-100 text-purple-700',
     retour: 'bg-amber-100 text-amber-700',
     uitzoeken: 'bg-pink-100 text-pink-700',
@@ -41,30 +42,33 @@ function statusBadge(status: string) {
 }
 
 export default function ScanArchiefPage() {
-  const [rentals, setRentals] = useState<RentalRow[]>([])
+  const [rows, setRows] = useState<OverviewRow[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [includeEmpty, setIncludeEmpty] = useState(false)
-  const [openId, setOpenId] = useState<number | null>(null)
+  const [kindFilter, setKindFilter] = useState<'all' | 'rental' | 'booking'>('all')
+  const [openKey, setOpenKey] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await fetch(`/api/admin/diy-scan-files/overview?q=${encodeURIComponent(q)}&include_empty=${includeEmpty ? 1 : 0}`, { credentials: 'include' })
+      const r = await fetch(`/api/admin/diy-scan-files/overview?q=${encodeURIComponent(q)}&include_empty=${includeEmpty ? 1 : 0}&kind=${kindFilter}`, { credentials: 'include' })
       const d = await r.json()
-      setRentals(d.rentals ?? [])
+      setRows(d.rentals ?? [])
     } finally {
       setLoading(false)
     }
-  }, [q, includeEmpty])
+  }, [q, includeEmpty, kindFilter])
 
   useEffect(() => {
     const t = setTimeout(load, 250)
     return () => clearTimeout(t)
   }, [load])
 
-  const totalFiles = rentals.reduce((s, r) => s + r.file_count, 0)
-  const totalBytes = rentals.reduce((s, r) => s + Number(r.total_bytes || 0), 0)
+  const totalFiles = rows.reduce((s, r) => s + r.file_count, 0)
+  const totalBytes = rows.reduce((s, r) => s + Number(r.total_bytes || 0), 0)
+
+  const keyOf = (r: OverviewRow) => `${r.kind}-${r.id}`
 
   return (
     <div>
@@ -72,7 +76,7 @@ export default function ScanArchiefPage() {
         <div>
           <h1 className="page-title">Scan archief</h1>
           <p className="text-gravida-sage mt-1 text-sm">
-            Alle DIY verhuringen met geüploade 3D scan bestanden. Klik een rij open om de STLs te bekijken, 3D te previewen of te verwijderen.
+            Alle DIY verhuringen en aan-huis afspraken met geüploade 3D scan bestanden. Klik een rij open om STLs te bekijken, 3D te previewen, te uploaden of te verwijderen.
           </p>
         </div>
         <div className="text-right">
@@ -89,6 +93,20 @@ export default function ScanArchiefPage() {
           value={q}
           onChange={e => setQ(e.target.value)}
         />
+        <div className="flex gap-1">
+          {([
+            ['all', 'Alles'],
+            ['booking', 'Aan-huis / studio'],
+            ['rental', 'DIY verhuur'],
+          ] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setKindFilter(key)}
+              className={`text-xs px-3 py-1.5 rounded-full ${kindFilter === key
+                ? 'bg-gravida-sage text-white'
+                : 'bg-white border border-gravida-cream text-gravida-sage hover:border-gravida-sage'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
         <label className="flex items-center gap-2 text-sm text-gravida-sage cursor-pointer">
           <input type="checkbox" checked={includeEmpty} onChange={e => setIncludeEmpty(e.target.checked)} />
           Toon ook klanten zonder bestanden
@@ -97,22 +115,26 @@ export default function ScanArchiefPage() {
 
       {loading ? (
         <p className="text-sm text-gravida-light-sage">Laden...</p>
-      ) : rentals.length === 0 ? (
+      ) : rows.length === 0 ? (
         <p className="text-sm text-gravida-light-sage italic">Geen klanten gevonden.</p>
       ) : (
         <div className="space-y-2">
-          {rentals.map(r => {
-            const isOpen = openId === r.id
+          {rows.map(r => {
+            const k = keyOf(r)
+            const isOpen = openKey === k
             return (
-              <div key={r.id} className="card p-0 overflow-hidden">
+              <div key={k} className="card p-0 overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setOpenId(isOpen ? null : r.id)}
+                  onClick={() => setOpenKey(isOpen ? null : k)}
                   className="w-full text-left p-4 hover:bg-gravida-off-white transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-[10px] px-2 py-0.5 rounded ${r.kind === 'rental' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {r.kind === 'rental' ? 'DIY' : 'Aan-huis'}
+                        </span>
                         <h3 className="font-semibold text-gravida-green">{r.first_name} {r.last_name}</h3>
                         {r.customer_number && (
                           <span className="font-mono text-xs text-gravida-sage">{r.customer_number}</span>
@@ -125,7 +147,8 @@ export default function ScanArchiefPage() {
                         )}
                       </div>
                       <p className="text-xs text-gravida-sage mt-1">
-                        Verhuurweek {new Date(r.rental_week).toLocaleDateString('nl-NL')} · {r.email}
+                        {r.kind === 'rental' ? 'Verhuurweek' : 'Afspraakdatum'}{' '}
+                        {new Date(r.reference_date).toLocaleDateString('nl-NL')} · {r.email}
                       </p>
                     </div>
                     <div className="text-right text-xs text-gravida-sage shrink-0">
@@ -142,7 +165,9 @@ export default function ScanArchiefPage() {
                 </button>
                 {isOpen && (
                   <div className="border-t border-gravida-cream p-4 bg-gravida-off-white/40">
-                    <StlManager rentalId={r.id} customerNumber={r.customer_number} />
+                    {r.kind === 'rental'
+                      ? <StlManager rentalId={r.id} customerNumber={r.customer_number} />
+                      : <StlManager bookingId={r.id} customerNumber={r.customer_number} />}
                   </div>
                 )}
               </div>
