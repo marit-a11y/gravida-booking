@@ -1219,23 +1219,76 @@ function SocialPlannerPage() {
                     value={form.image_urls_text ?? ''}
                     onChange={e => setForm(f => ({ ...f, image_urls_text: e.target.value }))}
                   />
-                  {form.image_urls_text && form.image_urls_text.trim() && (
-                    <div className="flex gap-2 mt-2 overflow-x-auto">
-                      {form.image_urls_text.split('\n').map(s => s.trim()).filter(Boolean).map((url, i) => {
-                        const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(url)
-                        return isVideo ? (
-                          <video key={i} src={url} muted playsInline
-                            className="w-16 h-16 rounded-lg object-cover border border-gravida-cream shrink-0 bg-black"
-                          />
-                        ) : (
-                          <img key={i} src={url} alt={`preview ${i+1}`}
-                            className="w-16 h-16 rounded-lg object-cover border border-gravida-cream shrink-0"
-                            onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.3' }}
-                          />
-                        )
-                      })}
-                    </div>
-                  )}
+                  {form.image_urls_text && form.image_urls_text.trim() && (() => {
+                    const urls = form.image_urls_text.split('\n').map(s => s.trim()).filter(Boolean)
+                    const updateUrls = (next: string[]) => setForm(f => ({ ...f, image_urls_text: next.join('\n') }))
+                    const move = (i: number, dir: -1 | 1) => {
+                      const target = i + dir
+                      if (target < 0 || target >= urls.length) return
+                      const next = [...urls]
+                      ;[next[i], next[target]] = [next[target], next[i]]
+                      updateUrls(next)
+                    }
+                    const removeAt = (i: number) => updateUrls(urls.filter((_, k) => k !== i))
+                    const isCarousel = urls.length > 1
+                    return (
+                      <>
+                        {isCarousel && (
+                          <div className="mt-2 mb-1 flex items-center gap-2">
+                            <span className="text-[11px] text-gravida-sage">
+                              {urls.length} dia&apos;s · sleep volgorde met de pijltjes
+                            </span>
+                            {form.post_type !== 'carousel' && form.post_type !== 'reel' && (
+                              <button type="button"
+                                onClick={() => setForm(f => ({ ...f, post_type: 'carousel' }))}
+                                className="text-[11px] text-emerald-700 hover:underline">
+                                → Markeer als carousel
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex gap-2 mt-2 overflow-x-auto pb-2">
+                          {urls.map((url, i) => {
+                            const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(url)
+                            return (
+                              <div key={i} className="relative shrink-0 group">
+                                {isVideo ? (
+                                  <video src={url} muted playsInline
+                                    className="w-20 h-20 rounded-lg object-cover border border-gravida-cream bg-black"
+                                  />
+                                ) : (
+                                  /* eslint-disable-next-line @next/next/no-img-element */
+                                  <img src={url} alt={`dia ${i+1}`}
+                                    className="w-20 h-20 rounded-lg object-cover border border-gravida-cream"
+                                    onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.3' }}
+                                  />
+                                )}
+                                {/* slide nummer */}
+                                <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-gravida-green text-white text-[10px] font-bold flex items-center justify-center">
+                                  {i + 1}
+                                </div>
+                                {/* verwijder */}
+                                <button type="button" onClick={() => removeAt(i)}
+                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Verwijder uit selectie">✕</button>
+                                {/* pijltjes */}
+                                {urls.length > 1 && (
+                                  <div className="absolute bottom-0 left-0 right-0 flex justify-between px-0.5">
+                                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
+                                      className="w-5 h-5 rounded bg-white/90 text-gravida-sage text-[10px] disabled:opacity-30 hover:bg-white"
+                                      title="Naar voren">‹</button>
+                                    <button type="button" onClick={() => move(i, 1)} disabled={i === urls.length - 1}
+                                      className="w-5 h-5 rounded bg-white/90 text-gravida-sage text-[10px] disabled:opacity-30 hover:bg-white"
+                                      title="Naar achteren">›</button>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
                 <div className="sm:col-span-2">
                   <label className="label">Link toevoegen (optioneel)</label>
