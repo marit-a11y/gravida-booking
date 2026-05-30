@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { getEventsForMonth, getEventForDate, CONTENT_IDEAS, type ThemeEvent, type CategoryIdea } from '@/lib/social-themes'
 import { nlLocalToIso, isoToNlLocal, formatNlTime, getNlDateKey, getNlHourMinute } from '@/lib/nl-time'
+import MediaLibraryPicker from '@/app/admin/components/MediaLibraryPicker'
 
 interface SocialPost {
   id: number
@@ -115,6 +116,7 @@ function SocialPlannerPage() {
   const [filterCategory, setFilterCategory] = useState('alle')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false)
   // Ideeen-modal (statische lijst per categorie)
   const [ideasModalOpen, setIdeasModalOpen] = useState(false)
   const [ideasCategory, setIdeasCategory] = useState<string>('Beeldjes')
@@ -1165,6 +1167,13 @@ function SocialPlannerPage() {
                     </span>
                   </label>
                   <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setLibraryPickerOpen(true)}
+                      className="flex-1 text-center py-2 px-4 rounded-lg border-2 border-gravida-sage bg-gravida-sage/5 hover:bg-gravida-sage/10 text-gravida-sage text-xs font-medium transition-colors"
+                    >
+                      🗂 Kies uit mediabibliotheek
+                    </button>
                     <label className={`flex-1 cursor-pointer text-center py-2 px-4 rounded-lg border-2 border-dashed border-gravida-cream hover:border-gravida-sage transition-colors text-xs ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
                       📎 Bestand kiezen (jpg/png/mp4)
                       <input type="file" className="hidden"
@@ -1390,6 +1399,17 @@ function SocialPlannerPage() {
           </div>
         </div>
       )}
+
+      <MediaLibraryPicker
+        open={libraryPickerOpen}
+        onClose={() => setLibraryPickerOpen(false)}
+        onPick={(urls) => {
+          if (urls.length === 0) return
+          const existing = form.image_urls_text ?? ''
+          const combined = (existing.trim() + '\n' + urls.join('\n')).trim()
+          setForm(f => ({ ...f, image_urls_text: combined }))
+        }}
+      />
     </div>
   )
 }
