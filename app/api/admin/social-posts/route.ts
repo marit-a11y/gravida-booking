@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSocialPosts, createSocialPost } from '@/lib/db'
+import { autoImportMediaUrls } from '@/lib/auto-import-media'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,10 @@ export async function POST(request: NextRequest) {
       canva_url: body.canva_url,
       internal_notes: body.internal_notes,
     })
+    // Auto-import nieuwe media naar de mediabibliotheek (niet-blokkerend op faal)
+    if (Array.isArray(body.image_urls) && body.image_urls.length > 0) {
+      autoImportMediaUrls(body.image_urls).catch(err => console.error('autoImport (social POST):', err))
+    }
     return NextResponse.json({ post }, { status: 201 })
   } catch (err) {
     console.error('POST /api/admin/social-posts error:', err)
