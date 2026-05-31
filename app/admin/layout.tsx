@@ -24,6 +24,7 @@ const navItems = [
   { href: '/admin/whatsapp-test',   slug: 'whatsapp-test',   label: 'WhatsApp test',  icon: '💬' },
   { href: '/admin/task-tracker',    slug: 'task-tracker',    label: 'Task tracker',   icon: '🐞' },
   { href: '/admin/gebruikers',      slug: 'gebruikers',      label: 'Gebruikers',     icon: '👤', adminOnly: true },
+  { href: 'https://clarity.microsoft.com/projects', slug: 'clarity', label: 'Bezoekersanalyse', icon: '📊', external: true, adminOnly: true },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -135,27 +136,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1">
           {visibleNavItems.map((item) => {
-            const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+            const active = !item.external && (pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href)))
             const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : (item.badge ? uitzoekCount : 0)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
-                  ${active
-                    ? 'bg-white/15 text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                  }
-                `}
-              >
+            const className = `
+              flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+              ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}
+            `
+            const inner = (
+              <>
                 <span className="text-base">{item.icon}</span>
                 <span className="flex-1">{item.label}</span>
+                {item.external && <span className="text-[10px] opacity-60">↗</span>}
                 {count > 0 && (
                   <span className="bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none">
                     {count > 9 ? '9+' : count}
                   </span>
                 )}
+              </>
+            )
+            return item.external ? (
+              <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" className={className}>
+                {inner}
+              </a>
+            ) : (
+              <Link key={item.href} href={item.href} className={className}>
+                {inner}
               </Link>
             )
           })}
@@ -215,28 +220,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />
           <nav className="absolute top-[60px] left-0 right-0 bg-gravida-green px-3 py-3 space-y-1 shadow-xl">
             {visibleNavItems.map((item) => {
-              const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+              const active = !item.external && (pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href)))
               const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : (item.badge ? uitzoekCount : 0)
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMenuOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors
-                    ${active
-                      ? 'bg-white/15 text-white'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
-                    }
-                  `}
-                >
+              const className = `
+                flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors
+                ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}
+              `
+              const inner = (
+                <>
                   <span className="text-base">{item.icon}</span>
                   <span className="flex-1">{item.label}</span>
+                  {item.external && <span className="text-[10px] opacity-60">↗</span>}
                   {count > 0 && (
                     <span className="bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center leading-none">
                       {count > 9 ? '9+' : count}
                     </span>
                   )}
+                </>
+              )
+              return item.external ? (
+                <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)} className={className}>
+                  {inner}
+                </a>
+              ) : (
+                <Link key={item.href} href={item.href} onClick={() => setMenuOpen(false)} className={className}>
+                  {inner}
                 </Link>
               )
             })}
