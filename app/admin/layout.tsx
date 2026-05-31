@@ -15,7 +15,7 @@ const navItems = [
   { href: '/admin/diy-beoordeling', label: 'Scan beoordeling', icon: '✓', badge: true },
   { href: '/admin/scan-archief',    label: 'Scan archief',     icon: '🗄' },
   { href: '/admin/cadeaubonnen',    label: 'Cadeaubonnen',   icon: '🎁' },
-  { href: '/admin/bestellingen',    label: 'Webshop orders', icon: '🛒' },
+  { href: '/admin/bestellingen',    label: 'Webshop orders', icon: '🛒', wooBadge: true },
   { href: '/admin/social',          label: 'Social planner', icon: '📅' },
   { href: '/admin/media-library',   label: 'Mediabibliotheek', icon: '📂' },
   { href: '/admin/galleries',       label: 'Galerijen',      icon: '🖼️' },
@@ -31,6 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [menuOpen, setMenuOpen] = useState(false)
   const [uitzoekCount, setUitzoekCount] = useState(0)
   const [inboxCount, setInboxCount] = useState(0)
+  const [wooCount, setWooCount] = useState(0)
 
   // Poll for pending scan reviews
   useEffect(() => {
@@ -51,6 +52,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     fetchCount()
     const interval = setInterval(fetchCount, 30_000)
+    return () => clearInterval(interval)
+  }, [pathname])
+
+  // Poll for new WooCommerce orders (processing + on-hold)
+  useEffect(() => {
+    if (pathname === '/admin/login') return
+    const fetchWoo = async () => {
+      try {
+        const r = await fetch('/api/admin/woo-orders/count', { credentials: 'include' })
+        if (r.ok) {
+          const d = await r.json()
+          setWooCount(d.count ?? 0)
+        }
+      } catch { /* ignore */ }
+    }
+    fetchWoo()
+    const interval = setInterval(fetchWoo, 60_000)  // 1 minuut
     return () => clearInterval(interval)
   }, [pathname])
 
@@ -100,7 +118,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="flex-1 px-3 py-4 space-y-1">
           {navItems.map((item) => {
             const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-            const count = item.inboxBadge ? inboxCount : (item.badge ? uitzoekCount : 0)
+            const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : (item.badge ? uitzoekCount : 0)
             return (
               <Link
                 key={item.href}
@@ -180,7 +198,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="absolute top-[60px] left-0 right-0 bg-gravida-green px-3 py-3 space-y-1 shadow-xl">
             {navItems.map((item) => {
               const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
-              const count = item.inboxBadge ? inboxCount : (item.badge ? uitzoekCount : 0)
+              const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : (item.badge ? uitzoekCount : 0)
               return (
                 <Link
                   key={item.href}
