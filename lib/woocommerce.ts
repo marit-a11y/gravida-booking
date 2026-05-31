@@ -23,6 +23,27 @@ function authHeader(): string {
   return 'Basic ' + Buffer.from(`${key}:${secret}`).toString('base64')
 }
 
+// Sommige WordPress security plugins (Wordfence, Cloudflare) blokkeren
+// server-to-server requests zonder echte User-Agent. Daarom mimicen we
+// een browser-achtige UA.
+const WOO_HEADERS: HeadersInit = {
+  'Authorization': '',  // wordt per call gezet
+  'User-Agent': 'Gravida-Dashboard/1.0 (+https://dashboard.gravida.nl)',
+  'Accept': 'application/json',
+}
+
+function wooHeaders(): HeadersInit {
+  return { ...WOO_HEADERS, Authorization: authHeader() }
+}
+
+// Als Authorization-header door WAF wordt gestript, valt WooCommerce
+// terug op consumer_key/consumer_secret in query string.
+function authQueryString(): string {
+  const key = process.env.WOOCOMMERCE_KEY!
+  const secret = process.env.WOOCOMMERCE_SECRET!
+  return `consumer_key=${encodeURIComponent(key)}&consumer_secret=${encodeURIComponent(secret)}`
+}
+
 interface WooCouponInput {
   code: string
   discount_type?: 'fixed_cart' | 'fixed_product' | 'percent'
@@ -115,38 +136,64 @@ export async function getWooOrders(q: WooOrdersQuery = {}): Promise<WooOrdersRes
   params.set('orderby', 'date')
   params.set('order', 'desc')
 
-  try {
-    const res = await fetch(`${base}/wp-json/wc/v3/orders?${params.toString()}`, {
-      headers: { Authorization: authHeader() },
-      cache: 'no-store',
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      return { ok: false, error: `WC API gaf ${res.status}: ${text.slice(0, 300)}` }
+  const urlBasic = `${base}/wp-json/wc/v3/orders?${params.toString()}`
+  const urlQuery = `${base}/wp-json/wc/v3/orders?${params.toString()}&${authQueryString()}`
+
+  // 1e poging: Basic auth header + browser UA
+  // 2e poging (bij 401/403): query string auth (omzeilt WAFs die Authorization strippen)
+  for (const url of [urlBasic, urlQuery]) {
+    try {
+      const useQuery = url === urlQuery
+      const res = await fetch(url, {
+        headers: useQuery
+          ? { 'User-Agent': 'Gravida-Dashboard/1.0', 'Accept': 'application/json' }
+          : wooHeaders(),
+        cache: 'no-store',
+      })
+      if (!res.ok) {
+        // Probeer fallback alleen bij auth-achtige fouten
+        if ((res.status === 401 || res.status === 403) && url === urlBasic) continue
+        const text = await res.text().catch(() => '')
+        return { ok: false, error: `WC API gaf ${res.status}: ${text.slice(0, 300)}` }
+      }
+      const totalPages = parseInt(res.headers.get('x-wp-totalpages') ?? '1', 10)
+      const totalCount = parseInt(res.headers.get('x-wp-total') ?? '0', 10)
+      const orders = (await res.json()) as WooOrder[]
+      return { ok: true, orders, totalPages, totalCount }
+    } catch (err) {
+      if (url === urlBasic) continue
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
-    const totalPages = parseInt(res.headers.get('x-wp-totalpages') ?? '1', 10)
-    const totalCount = parseInt(res.headers.get('x-wp-total') ?? '0', 10)
-    const orders = (await res.json()) as WooOrder[]
-    return { ok: true, orders, totalPages, totalCount }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
+  return { ok: false, error: 'Onbereikbaar' }
 }
 
 export async function getWooOrder(id: number): Promise<{ ok: boolean; order?: WooOrder; error?: string }> {
   if (!isWooCommerceConfigured()) return { ok: false, error: 'WooCommerce niet geconfigureerd' }
   const base = process.env.WOOCOMMERCE_URL!.replace(/\/$/, '')
-  try {
-    const res = await fetch(`${base}/wp-json/wc/v3/orders/${id}`, {
-      headers: { Authorization: authHeader() },
-      cache: 'no-store',
-    })
-    if (!res.ok) return { ok: false, error: `WC API gaf ${res.status}` }
-    const order = (await res.json()) as WooOrder
-    return { ok: true, order }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  const urlBasic = `${base}/wp-json/wc/v3/orders/${id}`
+  const urlQuery = `${urlBasic}?${authQueryString()}`
+  for (const url of [urlBasic, urlQuery]) {
+    try {
+      const useQuery = url === urlQuery
+      const res = await fetch(url, {
+        headers: useQuery
+          ? { 'User-Agent': 'Gravida-Dashboard/1.0', 'Accept': 'application/json' }
+          : wooHeaders(),
+        cache: 'no-store',
+      })
+      if (!res.ok) {
+        if ((res.status === 401 || res.status === 403) && url === urlBasic) continue
+        return { ok: false, error: `WC API gaf ${res.status}` }
+      }
+      const order = (await res.json()) as WooOrder
+      return { ok: true, order }
+    } catch (err) {
+      if (url === urlBasic) continue
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
   }
+  return { ok: false, error: 'Onbereikbaar' }
 }
 
 export async function createWooCoupon(input: WooCouponInput): Promise<{ ok: boolean; id?: number; error?: string }> {
