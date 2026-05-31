@@ -35,6 +35,120 @@ interface WooCouponInput {
   minimum_amount?: string
 }
 
+export interface WooOrderLine {
+  id: number
+  name: string
+  product_id: number
+  quantity: number
+  subtotal: string
+  total: string
+  sku?: string
+}
+
+export interface WooOrder {
+  id: number
+  number: string
+  status: string
+  currency: string
+  date_created: string
+  date_modified: string
+  date_paid: string | null
+  total: string
+  total_tax: string
+  shipping_total: string
+  discount_total: string
+  payment_method_title: string
+  customer_note?: string
+  billing: {
+    first_name: string
+    last_name: string
+    email: string
+    phone: string
+    address_1: string
+    address_2: string
+    postcode: string
+    city: string
+    country: string
+  }
+  shipping: {
+    first_name: string
+    last_name: string
+    address_1: string
+    address_2: string
+    postcode: string
+    city: string
+    country: string
+  }
+  line_items: WooOrderLine[]
+  coupon_lines?: { code: string; discount: string }[]
+}
+
+export interface WooOrdersResult {
+  ok: boolean
+  orders?: WooOrder[]
+  totalPages?: number
+  totalCount?: number
+  error?: string
+}
+
+interface WooOrdersQuery {
+  page?: number
+  perPage?: number
+  status?: string
+  search?: string
+  after?: string  // ISO datum
+  before?: string
+}
+
+export async function getWooOrders(q: WooOrdersQuery = {}): Promise<WooOrdersResult> {
+  if (!isWooCommerceConfigured()) {
+    return { ok: false, error: 'WooCommerce niet geconfigureerd (zet WOOCOMMERCE_URL, WOOCOMMERCE_KEY, WOOCOMMERCE_SECRET in Vercel env)' }
+  }
+  const base = process.env.WOOCOMMERCE_URL!.replace(/\/$/, '')
+  const params = new URLSearchParams()
+  params.set('page', String(q.page ?? 1))
+  params.set('per_page', String(q.perPage ?? 25))
+  if (q.status && q.status !== 'all') params.set('status', q.status)
+  if (q.search) params.set('search', q.search)
+  if (q.after) params.set('after', q.after)
+  if (q.before) params.set('before', q.before)
+  params.set('orderby', 'date')
+  params.set('order', 'desc')
+
+  try {
+    const res = await fetch(`${base}/wp-json/wc/v3/orders?${params.toString()}`, {
+      headers: { Authorization: authHeader() },
+      cache: 'no-store',
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      return { ok: false, error: `WC API gaf ${res.status}: ${text.slice(0, 300)}` }
+    }
+    const totalPages = parseInt(res.headers.get('x-wp-totalpages') ?? '1', 10)
+    const totalCount = parseInt(res.headers.get('x-wp-total') ?? '0', 10)
+    const orders = (await res.json()) as WooOrder[]
+    return { ok: true, orders, totalPages, totalCount }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+export async function getWooOrder(id: number): Promise<{ ok: boolean; order?: WooOrder; error?: string }> {
+  if (!isWooCommerceConfigured()) return { ok: false, error: 'WooCommerce niet geconfigureerd' }
+  const base = process.env.WOOCOMMERCE_URL!.replace(/\/$/, '')
+  try {
+    const res = await fetch(`${base}/wp-json/wc/v3/orders/${id}`, {
+      headers: { Authorization: authHeader() },
+      cache: 'no-store',
+    })
+    if (!res.ok) return { ok: false, error: `WC API gaf ${res.status}` }
+    const order = (await res.json()) as WooOrder
+    return { ok: true, order }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
 export async function createWooCoupon(input: WooCouponInput): Promise<{ ok: boolean; id?: number; error?: string }> {
   if (!isWooCommerceConfigured()) {
     console.warn('WooCommerce env vars not set, skipping coupon create')

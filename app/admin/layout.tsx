@@ -15,6 +15,7 @@ const navItems = [
   { href: '/admin/diy-beoordeling', label: 'Scan beoordeling', icon: '✓', badge: true },
   { href: '/admin/scan-archief',    label: 'Scan archief',     icon: '🗄' },
   { href: '/admin/cadeaubonnen',    label: 'Cadeaubonnen',   icon: '🎁' },
+  { href: '/admin/bestellingen',    label: 'Webshop orders', icon: '🛒' },
   { href: '/admin/social',          label: 'Social planner', icon: '📅' },
   { href: '/admin/media-library',   label: 'Mediabibliotheek', icon: '📂' },
   { href: '/admin/galleries',       label: 'Galerijen',      icon: '🖼️' },
