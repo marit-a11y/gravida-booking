@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import crypto from 'crypto'
-import { verifyToken, COOKIE_NAME } from '@/lib/auth'
+import { verifyTokenValid as verifyToken, COOKIE_NAME } from '@/lib/auth'
 import { sendDiyReviewEmail, DiyBijzonderheid } from '@/lib/email'
 import { sql } from '@vercel/postgres'
 

@@ -5,24 +5,25 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 const navItems = [
-  { href: '/admin/inbox',           label: 'Inbox',          icon: '📥', inboxBadge: true },
-  { href: '/admin', label: 'Dashboard', icon: '◈' },
-  { href: '/admin/beschikbaarheid', label: 'Beschikbaarheid', icon: '◷' },
-  { href: '/admin/boekingen', label: 'Boekingen', icon: '◻' },
-  { href: '/admin/medewerkers', label: 'Medewerkers', icon: '◎' },
-  { href: '/admin/afwezigheid', label: 'Afwezigheid', icon: '◌' },
-  { href: '/admin/diy-scanners',    label: 'DIY Scanners',   icon: '◆' },
-  { href: '/admin/diy-beoordeling', label: 'Scan beoordeling', icon: '✓', badge: true },
-  { href: '/admin/scan-archief',    label: 'Scan archief',     icon: '🗄' },
-  { href: '/admin/cadeaubonnen',    label: 'Cadeaubonnen',   icon: '🎁' },
-  { href: '/admin/bestellingen',    label: 'Webshop orders', icon: '🛒', wooBadge: true },
-  { href: '/admin/social',          label: 'Social planner', icon: '📅' },
-  { href: '/admin/media-library',   label: 'Mediabibliotheek', icon: '📂' },
-  { href: '/admin/galleries',       label: 'Galerijen',      icon: '🖼️' },
-  { href: '/admin/blogs',           label: 'Blogs',          icon: '✍️' },
-  { href: '/admin/gedeelde-beelden', label: 'Gedeelde beelden', icon: '💝' },
-  { href: '/admin/whatsapp-test',   label: 'WhatsApp test',  icon: '💬' },
-  { href: '/admin/task-tracker',    label: 'Task tracker',   icon: '🐞' },
+  { href: '/admin/inbox',           slug: 'inbox',           label: 'Inbox',          icon: '📥', inboxBadge: true },
+  { href: '/admin',                 slug: 'dashboard',       label: 'Dashboard',      icon: '◈' },
+  { href: '/admin/beschikbaarheid', slug: 'beschikbaarheid', label: 'Beschikbaarheid', icon: '◷' },
+  { href: '/admin/boekingen',       slug: 'boekingen',       label: 'Boekingen',      icon: '◻' },
+  { href: '/admin/medewerkers',     slug: 'medewerkers',     label: 'Medewerkers',    icon: '◎' },
+  { href: '/admin/afwezigheid',     slug: 'afwezigheid',     label: 'Afwezigheid',    icon: '◌' },
+  { href: '/admin/diy-scanners',    slug: 'diy-scanners',    label: 'DIY Scanners',   icon: '◆' },
+  { href: '/admin/diy-beoordeling', slug: 'diy-beoordeling', label: 'Scan beoordeling', icon: '✓', badge: true },
+  { href: '/admin/scan-archief',    slug: 'scan-archief',    label: 'Scan archief',   icon: '🗄' },
+  { href: '/admin/cadeaubonnen',    slug: 'cadeaubonnen',    label: 'Cadeaubonnen',   icon: '🎁' },
+  { href: '/admin/bestellingen',    slug: 'bestellingen',    label: 'Webshop orders', icon: '🛒', wooBadge: true },
+  { href: '/admin/social',          slug: 'social',          label: 'Social planner', icon: '📅' },
+  { href: '/admin/media-library',   slug: 'media-library',   label: 'Mediabibliotheek', icon: '📂' },
+  { href: '/admin/galleries',       slug: 'galleries',       label: 'Galerijen',      icon: '🖼️' },
+  { href: '/admin/blogs',           slug: 'blogs',           label: 'Blogs',          icon: '✍️' },
+  { href: '/admin/gedeelde-beelden', slug: 'gedeelde-beelden', label: 'Gedeelde beelden', icon: '💝' },
+  { href: '/admin/whatsapp-test',   slug: 'whatsapp-test',   label: 'WhatsApp test',  icon: '💬' },
+  { href: '/admin/task-tracker',    slug: 'task-tracker',    label: 'Task tracker',   icon: '🐞' },
+  { href: '/admin/gebruikers',      slug: 'gebruikers',      label: 'Gebruikers',     icon: '👤', adminOnly: true },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -32,6 +33,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [uitzoekCount, setUitzoekCount] = useState(0)
   const [inboxCount, setInboxCount] = useState(0)
   const [wooCount, setWooCount] = useState(0)
+  const [me, setMe] = useState<{ name: string; is_admin: boolean; allowed_pages: string[] } | null>(null)
+
+  // Load current user
+  useEffect(() => {
+    if (pathname === '/admin/login') return
+    fetch('/api/admin/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.user) setMe({ name: d.user.name, is_admin: d.user.is_admin, allowed_pages: d.user.allowed_pages ?? [] }) })
+      .catch(() => {})
+  }, [pathname])
+
+  const visibleNavItems = navItems.filter(item => {
+    if (!me) return false
+    if (me.is_admin) return true
+    if (item.adminOnly) return false
+    return me.allowed_pages.includes(item.slug)
+  })
 
   // Poll for pending scan reviews
   useEffect(() => {
@@ -116,7 +134,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
             const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : (item.badge ? uitzoekCount : 0)
             return (
@@ -196,7 +214,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="md:hidden fixed inset-0 z-30">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMenuOpen(false)} />
           <nav className="absolute top-[60px] left-0 right-0 bg-gravida-green px-3 py-3 space-y-1 shadow-xl">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
               const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : (item.badge ? uitzoekCount : 0)
               return (

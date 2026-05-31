@@ -9,6 +9,7 @@ function LoginForm() {
   const params = useSearchParams()
   const redirect = params.get('redirect') ?? '/admin'
 
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -22,7 +23,7 @@ function LoginForm() {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       })
 
       if (res.ok) {
@@ -53,6 +54,19 @@ function LoginForm() {
         <div className="card">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
+              <label className="label">E-mailadres</label>
+              <input
+                type="email"
+                className="input-field"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="naam@gravida.nl"
+                autoFocus
+                disabled={loading}
+                autoComplete="email"
+              />
+            </div>
+            <div>
               <label className="label">Wachtwoord</label>
               <input
                 type="password"
@@ -60,8 +74,8 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                autoFocus
                 disabled={loading}
+                autoComplete="current-password"
               />
             </div>
 
@@ -73,7 +87,7 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={loading || !password}
+              disabled={loading || !password || !email}
               className="btn-primary w-full"
             >
               {loading ? (

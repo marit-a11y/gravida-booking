@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdmin, createToken, COOKIE_NAME } from '@/lib/auth'
+import { verifyLogin, createToken, COOKIE_NAME } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const { password } = await request.json()
+    const body = await request.json()
+    const email = (body.email ?? '').toString().trim()
+    const password = (body.password ?? '').toString()
 
     if (!password) {
       return NextResponse.json({ error: 'Wachtwoord is verplicht' }, { status: 400 })
     }
 
-    const valid = await verifyAdmin(password)
-    if (!valid) {
-      return NextResponse.json({ error: 'Ongeldig wachtwoord' }, { status: 401 })
+    const user = await verifyLogin(email, password)
+    if (!user) {
+      return NextResponse.json({ error: 'Ongeldige inloggegevens' }, { status: 401 })
     }
 
     const secret = process.env.JWT_SECRET
@@ -22,14 +24,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Server configuratiefout' }, { status: 500 })
     }
 
-    const token = await createToken(secret)
+    const token = await createToken(secret, user)
 
-    const response = NextResponse.json({ success: true })
+    const response = NextResponse.json({
+      success: true,
+      user: { id: user.id, name: user.name, email: user.email, is_admin: user.is_admin },
+    })
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 8, // 8 hours
+      maxAge: 60 * 60 * 8,
       path: '/',
     })
 
