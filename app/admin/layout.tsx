@@ -21,6 +21,7 @@ const navItems = [
   { href: '/admin/galleries',       slug: 'galleries',       label: 'Galerijen',      icon: '🖼️' },
   { href: '/admin/blogs',           slug: 'blogs',           label: 'Blogs',          icon: '✍️' },
   { href: '/admin/gedeelde-beelden', slug: 'gedeelde-beelden', label: 'Gedeelde beelden', icon: '💝' },
+  { href: '/admin/scanweek',        slug: 'scanweek',        label: 'Scanweek aanmeldingen', icon: '🔔' },
   { href: '/admin/whatsapp-test',   slug: 'whatsapp-test',   label: 'WhatsApp test',  icon: '💬' },
   { href: '/admin/task-tracker',    slug: 'task-tracker',    label: 'Task tracker',   icon: '🐞' },
   { href: '/admin/gebruikers',      slug: 'gebruikers',      label: 'Gebruikers',     icon: '👤', adminOnly: true },

@@ -41,6 +41,7 @@ export const PAGES: PageDef[] = [
   { slug: 'galleries',          label: 'Galerijen',         group: 'Content' },
   { slug: 'blogs',              label: 'Blogs',             group: 'Content' },
   { slug: 'gedeelde-beelden',   label: 'Gedeelde beelden',  group: 'Content' },
+  { slug: 'scanweek',           label: 'Scanweek aanmeldingen', group: 'Content' },
 
   // Configuratie
   { slug: 'whatsapp-test',      label: 'WhatsApp test',     group: 'Configuratie' },
