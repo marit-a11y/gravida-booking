@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
   }
 
   // Refresh (respecteert het 10/dag limiet via TTL)
-  const res = await fetchClarityInsights({ numOfDays: 3 })
+  // dimension1=Source geeft per-metric een breakdown per verkeersbron én
+  // we kunnen daar de totalen uit afleiden. Dat scheelt een extra API call.
+  const res = await fetchClarityInsights({ numOfDays: 3, dimension1: 'Source' })
   if (!res.ok || !res.metrics) {
     // Geef oude cache terug met waarschuwing
     if (cached) {

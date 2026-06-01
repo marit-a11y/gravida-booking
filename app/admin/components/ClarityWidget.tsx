@@ -28,6 +28,49 @@ function pickNumber(obj: Record<string, string | number> | undefined, ...keys: s
   return 0
 }
 
+function sumRows(rows: Array<Record<string, string | number>> | undefined, ...keys: string[]): number {
+  if (!rows) return 0
+  return rows.reduce((s, r) => s + pickNumber(r, ...keys), 0)
+}
+
+function weightedAvgRows(
+  rows: Array<Record<string, string | number>> | undefined,
+  valueKeys: string[],
+  weightKeys: string[],
+): number {
+  if (!rows || rows.length === 0) return 0
+  let totalW = 0, totalVW = 0
+  for (const r of rows) {
+    const v = pickNumber(r, ...valueKeys)
+    const w = pickNumber(r, ...weightKeys) || 1
+    totalVW += v * w
+    totalW += w
+  }
+  return totalW > 0 ? totalVW / totalW : 0
+}
+
+// Normaliseer source naam zodat 'google.com' en 'https://www.google.com' samen worden gegroepeerd
+function normSource(raw: string): { label: string; group: string } {
+  const s = (raw || '').toString().trim().toLowerCase()
+  if (!s || s === 'direct' || s === '(direct)' || s === 'none') return { label: 'Direct / app', group: 'direct' }
+  // strip protocol + www
+  const host = s.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]
+  if (!host) return { label: 'Direct / app', group: 'direct' }
+  // Groepeer bekende bronnen
+  if (host.includes('google')) return { label: 'Google', group: 'google' }
+  if (host.includes('bing') || host.includes('msn') || host.includes('yahoo') || host.includes('duckduckgo')) return { label: host, group: 'other-search' }
+  if (host.includes('instagram') || host.includes('l.instagram') || host.includes('lm.facebook') || host.includes('facebook') || host.includes('fb.com')) {
+    return { label: host.includes('insta') ? 'Instagram' : 'Facebook', group: 'social' }
+  }
+  if (host.includes('tiktok')) return { label: 'TikTok', group: 'social' }
+  if (host.includes('pinterest')) return { label: 'Pinterest', group: 'social' }
+  if (host.includes('youtube') || host.includes('youtu.be')) return { label: 'YouTube', group: 'social' }
+  if (host.includes('linkedin')) return { label: 'LinkedIn', group: 'social' }
+  if (host.includes('whatsapp') || host.includes('wa.me')) return { label: 'WhatsApp', group: 'messaging' }
+  if (host.includes('gmail') || host.includes('outlook') || host.includes('mail.')) return { label: 'E-mail', group: 'email' }
+  return { label: host, group: 'referral' }
+}
+
 function fmtNum(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
   return String(Math.round(n))
@@ -86,26 +129,41 @@ export default function ClarityWidget() {
   }
 
   const metrics = data.metrics ?? []
-  const traffic = metrics.find(m => m.metricName === 'Traffic')?.information[0]
-  const sessions = pickNumber(traffic, 'totalSessionCount', 'sessions')
-  const users = pickNumber(traffic, 'distinctUserCount', 'distinctUsers')
-  const pageViews = pickNumber(traffic, 'pagesPerSessionPercentage', 'pageviews', 'pageViews')
-  const bots = pickNumber(traffic, 'botSessionCount', 'botSessions')
+  const trafficRows = metrics.find(m => m.metricName === 'Traffic')?.information
+  // Met dimension1=Source bestaat trafficRows uit één rij per bron — som over rijen
+  const sessions = sumRows(trafficRows, 'totalSessionCount', 'sessions')
+  const users = sumRows(trafficRows, 'distinctUserCount', 'distinctUsers')
+  const bots = sumRows(trafficRows, 'botSessionCount', 'botSessions')
 
-  const engaged = metrics.find(m => m.metricName === 'EngagementTime')?.information[0]
-  const engagedTime = pickNumber(engaged, 'totalTime', 'averageEngagementTime')
+  const engagedRows = metrics.find(m => m.metricName === 'EngagementTime')?.information
+  const engagedTime = weightedAvgRows(engagedRows, ['averageEngagementTime', 'totalTime'], ['totalSessionCount', 'sessions'])
 
-  const scrollDepth = metrics.find(m => m.metricName === 'ScrollDepth')?.information[0]
-  const avgScroll = pickNumber(scrollDepth, 'averageScrollDepth', 'totalScrollDepth')
+  const scrollRows = metrics.find(m => m.metricName === 'ScrollDepth')?.information
+  const avgScroll = weightedAvgRows(scrollRows, ['averageScrollDepth', 'totalScrollDepth'], ['totalSessionCount', 'sessions'])
 
-  const rageClicks = metrics.find(m => m.metricName === 'RageClickCount')?.information[0]
-  const rageClickPct = pickNumber(rageClicks, 'subTotal', 'pagesWithRageClicksPercent')
+  const rageRows = metrics.find(m => m.metricName === 'RageClickCount')?.information
+  const rageClickPct = weightedAvgRows(rageRows, ['subTotal', 'pagesWithRageClicksPercent'], ['totalSessionCount', 'sessions'])
 
-  const deadClicks = metrics.find(m => m.metricName === 'DeadClickCount')?.information[0]
-  const deadClickPct = pickNumber(deadClicks, 'subTotal', 'pagesWithDeadClicksPercent')
+  const deadRows = metrics.find(m => m.metricName === 'DeadClickCount')?.information
+  const deadClickPct = weightedAvgRows(deadRows, ['subTotal', 'pagesWithDeadClicksPercent'], ['totalSessionCount', 'sessions'])
 
-  const quickBacks = metrics.find(m => m.metricName === 'QuickbackClick')?.information[0]
-  const quickBackPct = pickNumber(quickBacks, 'subTotal', 'pagesWithQuickbacksPercent')
+  const quickRows = metrics.find(m => m.metricName === 'QuickbackClick')?.information
+  const quickBackPct = weightedAvgRows(quickRows, ['subTotal', 'pagesWithQuickbacksPercent'], ['totalSessionCount', 'sessions'])
+
+  // Top bronnen: groepeer per source, sorteer op sessions
+  const sourceMap = new Map<string, { label: string; sessions: number }>()
+  for (const row of trafficRows ?? []) {
+    const rawSource = (row.Source ?? row.source ?? '') as string
+    const { label, group } = normSource(rawSource)
+    const ses = pickNumber(row, 'totalSessionCount', 'sessions')
+    const prev = sourceMap.get(group)
+    if (prev) prev.sessions += ses
+    else sourceMap.set(group, { label, sessions: ses })
+  }
+  const topSources = Array.from(sourceMap.values())
+    .sort((a, b) => b.sessions - a.sessions)
+    .slice(0, 8)
+  const totalForSources = topSources.reduce((s, r) => s + r.sessions, 0) || 1
 
   const cardClass = 'bg-white border border-gravida-cream rounded-xl p-3'
 
@@ -157,6 +215,30 @@ export default function ClarityWidget() {
         <p className="text-[11px] text-gravida-light-sage mt-2">
           🤖 {fmtNum(bots)} bot-sessies uitgesloten van bovenstaande cijfers
         </p>
+      )}
+
+      {/* Verkeersbronnen */}
+      {topSources.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-gravida-cream">
+          <h3 className="text-xs font-semibold text-gravida-light-sage uppercase tracking-wide mb-2">
+            🔗 Top verkeersbronnen
+          </h3>
+          <div className="space-y-1">
+            {topSources.map((s, i) => {
+              const pct = (s.sessions / totalForSources) * 100
+              return (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className="w-28 text-gravida-green truncate" title={s.label}>{s.label}</span>
+                  <div className="flex-1 bg-gravida-cream rounded-full h-2 overflow-hidden">
+                    <div className="h-full bg-gravida-sage" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-12 text-right text-gravida-sage">{fmtNum(s.sessions)}</span>
+                  <span className="w-10 text-right text-gravida-light-sage">{Math.round(pct)}%</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       )}
 
       <p className="text-[10px] text-gravida-light-sage mt-3">
