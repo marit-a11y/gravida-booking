@@ -79,7 +79,8 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       return 'klant'
     })()
 
-    for (const recipient of ['Marit', 'Laila']) {
+    const recipients = await (await import('@/lib/inbox-recipients')).getRecipientsForPage('boekingen')
+    for (const recipient of recipients) {
       await sql`
         INSERT INTO inbox_items (recipient, type, title, body, link)
         VALUES (

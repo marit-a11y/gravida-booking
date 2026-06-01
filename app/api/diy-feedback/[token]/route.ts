@@ -137,7 +137,8 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       order_credit: `volledig verrekenen met beeldje, kortingscode ${createdCode ?? '?'} (200 euro) automatisch aangemaakt en gemaild${wcStatus}`,
       giftcard: `cadeaubon ${createdCode ?? '?'} (100 euro) automatisch aangemaakt en gemaild, 100 euro borg nog terugstorten${wcStatus}`,
     }
-    for (const recipient of ['Marit', 'Laila']) {
+    const recipients = await (await import('@/lib/inbox-recipients')).getRecipientsForPage('diy-scanners')
+    for (const recipient of recipients) {
       await sql`
         INSERT INTO inbox_items (recipient, type, title, body, link)
         VALUES (
