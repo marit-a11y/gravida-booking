@@ -16,7 +16,7 @@ interface InboxItem {
   created_at: string
 }
 
-const USERS = ['Marit', 'Laila']
+// USERS wordt nu dynamisch geladen vanuit dashboard_users (zie state)
 
 const TYPE_INFO: Record<string, { icon: string; bg: string }> = {
   task_assigned: { icon: '📋', bg: 'bg-blue-50 border-blue-200' },
@@ -35,9 +35,19 @@ function formatRelative(iso: string): string {
 }
 
 export default function InboxPage() {
-  const [me, setMe] = useState<string>(() =>
-    (typeof window !== 'undefined' && localStorage.getItem('inbox_me')) || 'Marit'
-  )
+  const [me, setMe] = useState<string>('')
+  const [users, setUsers] = useState<string[]>([])
+  // Haal de ingelogde gebruiker + lijst van users op
+  useEffect(() => {
+    fetch('/api/admin/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.user?.name) setMe(d.user.name) })
+      .catch(() => {})
+    fetch('/api/admin/dashboard-users/names', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.names) setUsers(d.names) })
+      .catch(() => {})
+  }, [])
   const [items, setItems] = useState<InboxItem[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'unread'>('unread')
@@ -50,6 +60,7 @@ export default function InboxPage() {
   const [sending, setSending] = useState(false)
 
   const load = async () => {
+    if (!me) return  // wacht op /api/admin/me
     setLoading(true)
     try {
       const params = new URLSearchParams({ recipient: me })
@@ -93,7 +104,7 @@ export default function InboxPage() {
   }
 
   const openCompose = (toUser?: string) => {
-    setComposeTo(toUser ?? (USERS.find(u => u !== me) ?? 'Laila'))
+    setComposeTo(toUser ?? (users.find(u => u !== me) ?? ''))
     setComposeTitle('')
     setComposeBody('')
     setComposeOpen(true)
@@ -134,9 +145,7 @@ export default function InboxPage() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0 flex-wrap">
-          <select className="input-field text-sm py-1.5" value={me} onChange={e => setMe(e.target.value)}>
-            {USERS.map(u => <option key={u} value={u}>Ik = {u}</option>)}
-          </select>
+          <span className="text-xs text-gravida-sage self-center">Ingelogd als <strong>{me || '...'}</strong></span>
           <button onClick={() => openCompose()} className="btn-primary text-sm">+ Nieuw bericht</button>
         </div>
       </div>
@@ -233,7 +242,8 @@ export default function InboxPage() {
               <div>
                 <label className="label">Naar</label>
                 <select className="input-field" value={composeTo} onChange={e => setComposeTo(e.target.value)}>
-                  {USERS.filter(u => u !== me).map(u => <option key={u} value={u}>{u}</option>)}
+                  <option value="">— kies ontvanger —</option>
+                  {users.filter(u => u !== me).map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
               <div>

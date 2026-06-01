@@ -92,13 +92,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => clearInterval(interval)
   }, [pathname])
 
-  // Poll for unread inbox items
+  // Poll for unread inbox items — gebruik de ingelogde gebruikersnaam
   useEffect(() => {
     if (pathname === '/admin/login') return
-    const me = (typeof window !== 'undefined' && localStorage.getItem('inbox_me')) || 'Marit'
+    if (!me) return  // wacht op /api/admin/me
+    const recipient = me.name
     const fetchInbox = async () => {
       try {
-        const res = await fetch(`/api/admin/inbox?recipient=${encodeURIComponent(me)}&unread=1`, { credentials: 'include' })
+        const res = await fetch(`/api/admin/inbox?recipient=${encodeURIComponent(recipient)}&unread=1`, { credentials: 'include' })
         if (res.ok) {
           const data = await res.json()
           setInboxCount(data.unread_count ?? 0)
@@ -108,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     fetchInbox()
     const interval = setInterval(fetchInbox, 30_000)
     return () => clearInterval(interval)
-  }, [pathname])
+  }, [pathname, me])
 
   // Don't show layout on login page
   if (pathname === '/admin/login') {

@@ -38,8 +38,6 @@ const STATUSES = [
   { value: 'deferred',          label: 'Deferred',      dot: 'bg-gray-400',    bg: 'bg-gray-100 text-gray-600' },
 ]
 
-const ASSIGNEES = ['Marit', 'Laila']
-
 const EMPTY_FORM = {
   summary: '',
   description: '',
@@ -68,6 +66,8 @@ function avatarColor(name: string | null): string {
 
 export default function TaskTrackerPage() {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [assignees, setAssignees] = useState<string[]>(['Marit'])
+  const [me, setMeName] = useState<string>('Marit')
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | Task['status']>('open')
@@ -88,6 +88,18 @@ export default function TaskTrackerPage() {
     } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
+
+  // Load available assignees + huidige user (voor "assigned_by" default)
+  useEffect(() => {
+    fetch('/api/admin/dashboard-users/names', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.names && d.names.length > 0) setAssignees(d.names) })
+      .catch(() => {})
+    fetch('/api/admin/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.user?.name) setMeName(d.user.name) })
+      .catch(() => {})
+  }, [])
 
   const stats = useMemo(() => {
     const total = tasks.length || 1  // avoid /0
@@ -127,7 +139,7 @@ export default function TaskTrackerPage() {
 
   const openNewModal = () => {
     setEditing(null)
-    setForm(EMPTY_FORM)
+    setForm({ ...EMPTY_FORM, assigned_by: me })
     setError('')
     setModalOpen(true)
   }
@@ -415,7 +427,7 @@ export default function TaskTrackerPage() {
                   <select className="input-field" value={form.assigned_by ?? ''}
                     onChange={e => setForm(f => ({ ...f, assigned_by: e.target.value }))}>
                     <option value="">— niemand —</option>
-                    {ASSIGNEES.map(a => <option key={a} value={a}>{a}</option>)}
+                    {assignees.map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
                 </div>
                 <div>
@@ -423,7 +435,7 @@ export default function TaskTrackerPage() {
                   <select className="input-field" value={form.assigned_to ?? ''}
                     onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}>
                     <option value="">— niemand —</option>
-                    {ASSIGNEES.map(a => <option key={a} value={a}>{a}</option>)}
+                    {assignees.map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2">
