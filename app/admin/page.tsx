@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react'
 import { formatDutchDate, formatDutchDateShort, toLocalDateString } from '@/lib/utils'
+import ClarityWidget from '@/app/admin/components/ClarityWidget'
 
 interface Stats {
   total: number
@@ -173,6 +174,11 @@ export default function AdminDashboard() {
             )
           })}
         </div>
+      </div>
+
+      {/* Clarity widget */}
+      <div className="mb-8">
+        <ClarityWidget />
       </div>
 
       {/* Today's appointments */}
