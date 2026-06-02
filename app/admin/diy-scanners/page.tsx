@@ -592,12 +592,18 @@ export default function DiyScannerPage() {
                             {r.customer_number && <p className="text-[10px] text-gravida-light-sage font-mono">#{r.customer_number}</p>}
                           </div>
                           <button
-                            onClick={() => markStatus(r.id, 'retour', 'retour ontvangen')}
+                            onClick={() => {
+                              setDetailRental(r)
+                              setReturnDefect(r.scanner_defect ?? '')
+                              setReturnHasDefect(r.scanner_defect ? true : null)
+                              setReturnStep('check')
+                              setReturnModalOpen(true)
+                            }}
                             disabled={updatingRental === r.id}
                             className="text-xs px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-40 font-medium whitespace-nowrap"
-                            title="Markeer als retour ontvangen — stuurt automatisch de 'scanner is binnen' mail"
+                            title="Markeer retour, geef defecten op of upload de ruwe scans"
                           >
-                            ✓ Retour
+                            ✓ Retour verwerken
                           </button>
                         </div>
                         <button onClick={() => setDetailRental(r)}
