@@ -825,7 +825,7 @@ function diyRentalShippedEmailHtml(params: {
   const p = (text: string) =>
     `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
 
-  const SCAN_INSTRUCTIONS_URL = 'https://www.canva.com/design/DAG4lcMpzJE/8awIbZlbFeTYqChjOdqLRA/view?utm_content=DAG4lcMpzJE&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hefd454b0ed'
+  const SCAN_INSTRUCTIONS_URL = 'https://canva.link/qygs0nx8fo5nudd'
   const VIDEO_URL = 'https://drive.google.com/file/d/1fV2bDR3jxXnEOjcmv21e2mqUouQl8w0n/view?usp=sharing'
   const WHATSAPP_URL = 'https://wa.me/31687062504'
 
