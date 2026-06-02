@@ -1152,8 +1152,11 @@ export async function updateGiftCardMollieId(id: number, molliePaymentId: string
 }
 
 export async function activateGiftCard(id: number): Promise<GiftCard | null> {
+  // Reset terug naar actief: ook redeemed_at + redeemed_by_booking_id leegmaken
   const result = await sql<GiftCard>`
-    UPDATE gift_cards SET status = 'actief' WHERE id = ${id}
+    UPDATE gift_cards
+    SET status = 'actief', redeemed_at = NULL, redeemed_by_booking_id = NULL
+    WHERE id = ${id}
     RETURNING
       id, code, type, value_euros::float as value_euros, status,
       purchaser_name, purchaser_email, recipient_name, recipient_email,

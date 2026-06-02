@@ -368,6 +368,25 @@ export default function CadeaubonnenPage() {
                     </button>
                     <button
                       onClick={async () => {
+                        if (updating === detailCard.id) return
+                        setUpdating(detailCard.id)
+                        try {
+                          const res = await fetch(`/api/admin/gift-cards/${detailCard.id}/sync-woo`, { method: 'POST' })
+                          const data = await res.json().catch(() => ({}))
+                          if (res.ok) {
+                            alert(data.message ?? `Coupon ${detailCard.code} aangemaakt in WooCommerce ✓`)
+                          } else {
+                            alert('Synchronisatie mislukt: ' + (data.error ?? res.status))
+                          }
+                        } finally { setUpdating(null) }
+                      }}
+                      disabled={updating === detailCard.id}
+                      className="w-full py-2 rounded-lg text-sm font-medium border border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors disabled:opacity-50"
+                    >
+                      ↻ Sync naar WooCommerce
+                    </button>
+                    <button
+                      onClick={async () => {
                         if (!confirm(`Cadeaubon ${detailCard.code} annuleren?`)) return
                         await doAction(detailCard.id, 'cancel')
                       }}
@@ -378,13 +397,13 @@ export default function CadeaubonnenPage() {
                     </button>
                   </>
                 )}
-                {detailCard.status === 'wacht_op_betaling' && (
+                {(detailCard.status === 'wacht_op_betaling' || detailCard.status === 'ingewisseld' || detailCard.status === 'geannuleerd') && (
                   <button
                     onClick={() => doAction(detailCard.id, 'activate')}
                     disabled={updating === detailCard.id}
                     className="w-full py-2 rounded-lg text-sm font-medium border border-green-200 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50"
                   >
-                    Handmatig activeren
+                    {detailCard.status === 'ingewisseld' ? 'Inwisseling ongedaan maken' : detailCard.status === 'geannuleerd' ? 'Heractiveren' : 'Handmatig activeren'}
                   </button>
                 )}
               </div>
