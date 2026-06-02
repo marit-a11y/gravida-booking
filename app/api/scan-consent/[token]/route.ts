@@ -105,7 +105,8 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
               discount_type: 'fixed_cart',
               amount: '200.00',
               description: `Borg-verrekening DIY scan kit - ${rental.first_name} ${rental.last_name}`,
-              email_restrictions: [rental.email],
+              // Géén e-mail restrictie: de unieke coupon-code is genoeg bescherming,
+              // en klanten checken vaak met andere mailadressen uit.
               usage_limit: 1,
             }).catch(err => console.error('Woo coupon create error:', err))
             sendDiyBorgKortingEmail({

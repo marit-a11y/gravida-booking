@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getGiftCardById } from '@/lib/db'
-import { createWooCoupon, isWooCommerceConfigured } from '@/lib/woocommerce'
+import { createWooCoupon, getWooCouponByCode, updateWooCoupon, isWooCommerceConfigured } from '@/lib/woocommerce'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 /**
  * Synchroniseer een gift card naar WooCommerce als coupon.
- * Idempotent: als de code al bestaat in Woo, geeft Woo een 400 en gaan
- * we daar overheen — we beschouwen dat als succes ('al gesynced').
+ *  - Bestaat de coupon nog niet: aanmaken
+ *  - Bestaat hij al: e-mail restrictie wegzetten + bedrag/expires bijwerken
  *
- * Bedoeld voor:
- *  - Oude Giftup-import bonnen die nog niet in Woo zaten
- *  - Bonnen die we handmatig willen reactiveren in Woo
+ * Borg-bonnen krijgen GEEN email_restrictions, zodat klanten ook met
+ * een ander mail-adres kunnen afrekenen. De coupon-code is uniek genoeg
+ * als bescherming.
  */
 export async function POST(_request: NextRequest, { params }: { params: { id: string } }) {
   if (!isWooCommerceConfigured()) {
@@ -31,28 +31,43 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
       }, { status: 400 })
     }
 
-    // Bij borg_korting beperken we tot het e-mailadres van de koper
-    const isBorgKorting = card.type === 'borg_korting'
-    const result = await createWooCoupon({
+    const amount = Number(card.value_euros).toFixed(2)
+    const description = card.type === 'borg_korting'
+      ? `Borg-verrekening DIY scan kit - ${card.recipient_name}`
+      : `Cadeaubon - ${card.recipient_name}`
+
+    // Bestaat hij al?
+    const found = await getWooCouponByCode(card.code)
+    if (found.ok && found.id) {
+      // Update: bedrag + omschrijving + expires + e-mail restricties leegmaken
+      const upd = await updateWooCoupon(found.id, {
+        amount,
+        description,
+        email_restrictions: [],
+        date_expires: card.expires_at ?? undefined,
+      })
+      if (!upd.ok) {
+        return NextResponse.json({ ok: false, error: 'Update mislukt: ' + upd.error }, { status: 502 })
+      }
+      return NextResponse.json({ ok: true, action: 'updated', code: card.code, woo_id: found.id })
+    }
+
+    // Anders: aanmaken (zonder email_restrictions)
+    const created = await createWooCoupon({
       code: card.code,
       discount_type: 'fixed_cart',
-      amount: Number(card.value_euros).toFixed(2),
-      description: isBorgKorting
-        ? `Borg-verrekening DIY scan kit - ${card.recipient_name}`
-        : `Cadeaubon - ${card.recipient_name}`,
-      email_restrictions: isBorgKorting && card.recipient_email ? [card.recipient_email] : undefined,
+      amount,
+      description,
       date_expires: card.expires_at ?? undefined,
       usage_limit: 1,
     })
-
-    if (!result.ok) {
-      // Bestaat hij al? Dan is dat ok.
-      if (result.error?.includes('woocommerce_rest_coupon_code_already_exists') || result.error?.includes('already exists')) {
-        return NextResponse.json({ ok: true, message: 'Coupon bestaat al in WooCommerce', code: card.code })
+    if (!created.ok) {
+      if (created.error?.includes('already_exists') || created.error?.includes('already exists')) {
+        return NextResponse.json({ ok: true, action: 'exists', code: card.code, message: 'Coupon bestond al maar niet via lookup gevonden' })
       }
-      return NextResponse.json({ ok: false, error: result.error }, { status: 502 })
+      return NextResponse.json({ ok: false, error: created.error }, { status: 502 })
     }
-    return NextResponse.json({ ok: true, code: card.code, woo_id: result.id })
+    return NextResponse.json({ ok: true, action: 'created', code: card.code, woo_id: created.id })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return NextResponse.json({ error: msg }, { status: 500 })

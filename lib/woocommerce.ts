@@ -235,3 +235,42 @@ export async function createWooCoupon(input: WooCouponInput): Promise<{ ok: bool
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
+
+/** Zoek een WooCommerce coupon op aan de hand van zijn code. */
+export async function getWooCouponByCode(code: string): Promise<{ ok: boolean; id?: number; error?: string }> {
+  if (!isWooCommerceConfigured()) return { ok: false, error: 'not configured' }
+  const base = process.env.WOOCOMMERCE_URL!.replace(/\/$/, '')
+  try {
+    const res = await fetch(`${base}/wp-json/wc/v3/coupons?code=${encodeURIComponent(code)}`, {
+      headers: { Authorization: authHeader(), Accept: 'application/json' },
+      cache: 'no-store',
+    })
+    if (!res.ok) return { ok: false, error: `WC API gaf ${res.status}` }
+    const data = (await res.json()) as Array<{ id: number; code: string }>
+    if (!Array.isArray(data) || data.length === 0) return { ok: false, error: 'not found' }
+    return { ok: true, id: data[0].id }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+/** Update een bestaande coupon (PUT). Gebruik partial body — alleen wat je wilt wijzigen. */
+export async function updateWooCoupon(id: number, patch: Partial<WooCouponInput & { email_restrictions: string[] }>): Promise<{ ok: boolean; error?: string }> {
+  if (!isWooCommerceConfigured()) return { ok: false, error: 'not configured' }
+  const base = process.env.WOOCOMMERCE_URL!.replace(/\/$/, '')
+  try {
+    const res = await fetch(`${base}/wp-json/wc/v3/coupons/${id}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: authHeader(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(patch),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: JSON.stringify(data) }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
