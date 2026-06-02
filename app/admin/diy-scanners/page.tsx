@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { ScanConsentSection } from '@/app/admin/components/ScanConsentSection'
+import StlManager from '@/app/admin/components/StlManager'
 
 interface Scanner {
   id: number
@@ -301,11 +302,45 @@ export default function DiyScannerPage() {
     }
   }
   const [returnModalOpen, setReturnModalOpen] = useState(false)
+  // Wizard fase: 'check' = vraagt naar defect, 'upload' = STL upload na "alles in orde"
+  const [returnStep, setReturnStep] = useState<'check' | 'upload'>('check')
+  const [returnHasDefect, setReturnHasDefect] = useState<boolean | null>(null)
+  const [markingReady, setMarkingReady] = useState(false)
 
   const openReturnModal = () => {
     if (!detailRental) return
     setReturnDefect(detailRental.scanner_defect ?? '')
+    setReturnHasDefect(detailRental.scanner_defect ? true : null)
+    setReturnStep('check')
     setReturnModalOpen(true)
+  }
+
+  const markReadyForReview = async () => {
+    if (!detailRental) return
+    setMarkingReady(true)
+    try {
+      const res = await fetch(`/api/admin/diy-rentals/${detailRental.id}/mark-ready-for-review`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(`Klaar! ${data.file_count ?? 0} bestand(en) genoteerd. Laila heeft een melding gekregen in haar inbox.`)
+        // Refresh status
+        setRentals(prev => prev.map(r => r.id === detailRental.id
+          ? { ...r, status: r.status === 'retour' || r.status === 'verzonden' || r.status === 'gereserveerd' ? 'uitzoeken' : r.status }
+          : r))
+        setDetailRental(prev => prev ? {
+          ...prev,
+          status: prev.status === 'retour' || prev.status === 'verzonden' || prev.status === 'gereserveerd' ? 'uitzoeken' : prev.status,
+        } : null)
+        setReturnModalOpen(false)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        alert('Mislukt: ' + (data.error ?? ''))
+      }
+    } finally {
+      setMarkingReady(false)
+    }
   }
 
   const submitReturnReceived = async (sendEmail: boolean) => {
@@ -1441,49 +1476,114 @@ export default function DiyScannerPage() {
         </div>
       )}
 
-      {/* Retour-ontvangen modal */}
+      {/* Retour-ontvangen wizard */}
       {returnModalOpen && detailRental && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in">
+          <div className={`bg-white rounded-2xl shadow-2xl w-full animate-fade-in max-h-[90vh] overflow-y-auto ${returnStep === 'upload' ? 'max-w-2xl' : 'max-w-md'}`}>
             <div className="p-6 border-b border-gravida-cream flex items-start justify-between">
-              <h2 className="text-lg font-bold text-gravida-sage">Scanner retour ontvangen</h2>
+              <div>
+                <h2 className="text-lg font-bold text-gravida-sage">Scanner retour van {detailRental.first_name} {detailRental.last_name}</h2>
+                <p className="text-[11px] text-gravida-light-sage mt-0.5">
+                  {returnStep === 'check' ? 'Stap 1 van 2 — controle' : 'Stap 2 van 2 — ruwe scans uploaden'}
+                </p>
+              </div>
               <button onClick={() => setReturnModalOpen(false)}
                 className="w-8 h-8 rounded-full hover:bg-gravida-cream flex items-center justify-center text-gravida-light-sage">✕</button>
             </div>
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-gravida-sage">
-                Retour van <strong>{detailRental.first_name} {detailRental.last_name}</strong>.
-                Laat onderstaand veld leeg als de scanner in goede orde is. Anders noteer wat er aan de hand was.
-              </p>
-              <div>
-                <label className="label">Defect / opmerking (alleen team)</label>
-                <textarea rows={3} className="input-field bg-red-50/40"
-                  placeholder="Bijv. knop op zijkant los, krasje in lens..."
-                  value={returnDefect}
-                  onChange={e => setReturnDefect(e.target.value)} />
+
+            {returnStep === 'check' && (
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-gravida-sage">Is alles in goede orde teruggekomen?</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => { setReturnHasDefect(false); setReturnDefect('') }}
+                    className={`py-4 rounded-xl text-sm font-medium border-2 transition-colors ${
+                      returnHasDefect === false
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'border-gravida-cream text-gravida-sage hover:border-emerald-500'
+                    }`}>
+                    ✓ Alles in orde
+                  </button>
+                  <button onClick={() => setReturnHasDefect(true)}
+                    className={`py-4 rounded-xl text-sm font-medium border-2 transition-colors ${
+                      returnHasDefect === true
+                        ? 'bg-red-600 text-white border-red-600'
+                        : 'border-gravida-cream text-gravida-sage hover:border-red-500'
+                    }`}>
+                    ⚠ Defect / bijzonderheid
+                  </button>
+                </div>
+
+                {returnHasDefect === true && (
+                  <div>
+                    <label className="label">Wat is er aan de hand?</label>
+                    <textarea rows={4} className="input-field bg-red-50/40"
+                      placeholder="Bijv. knop op zijkant los, krasje in lens, vermiste accessoire..."
+                      value={returnDefect}
+                      onChange={e => setReturnDefect(e.target.value)} />
+                    <p className="text-[11px] text-amber-700 mt-2">
+                      Bij opslaan krijgt Laila direct een melding in haar inbox om contact op te nemen met de klant voor verdere afhandeling.
+                    </p>
+                  </div>
+                )}
+
+                {returnHasDefect === false && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs text-emerald-900">
+                    Mooi! Klik &quot;Verder&quot; om de scanner als retour te markeren en de ruwe scan-bestanden te uploaden.
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2">
+                  {returnHasDefect === true && (
+                    <button
+                      onClick={async () => {
+                        await submitReturnReceived(false)  // geen klantmail bij defect — Laila benadert klant
+                      }}
+                      disabled={updatingRental === detailRental.id || !returnDefect.trim()}
+                      className="w-full py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                      {updatingRental === detailRental.id ? 'Bezig...' : 'Opslaan + Laila informeren'}
+                    </button>
+                  )}
+                  {returnHasDefect === false && (
+                    <button
+                      onClick={async () => {
+                        await submitReturnReceived(true)  // wel klantmail "scanner is binnen"
+                        setReturnStep('upload')
+                      }}
+                      disabled={updatingRental === detailRental.id}
+                      className="w-full py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
+                      {updatingRental === detailRental.id ? 'Bezig...' : 'Markeer retour + verder naar uploads →'}
+                    </button>
+                  )}
+                  <button onClick={() => setReturnModalOpen(false)}
+                    className="w-full py-2 rounded-lg text-sm font-medium text-gravida-light-sage hover:text-gravida-sage">
+                    Annuleren
+                  </button>
+                </div>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
-                {returnDefect.trim()
-                  ? 'Er is een defect ingevuld. De &quot;in goede orde&quot;-mail past dan misschien niet — kies wat je wilt doen.'
-                  : 'Status wordt op &quot;retour&quot; gezet (tenzij al op uitzoeken/scans uitgezocht), en klant krijgt een nette bevestiging dat scanner is binnengekomen.'}
+            )}
+
+            {returnStep === 'upload' && (
+              <div className="p-6 space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
+                  Upload de .stl bestanden uit de scanner als <strong>Scan 1</strong> en <strong>Scan 2</strong> (twee opties voor de klant). Klik daarna onderaan &quot;Klaar — meld voor beoordeling&quot;.
+                </div>
+
+                <StlManager rentalId={detailRental.id} customerNumber={detailRental.customer_number} />
+
+                <div className="flex flex-col gap-2 pt-2 border-t border-gravida-cream">
+                  <button
+                    onClick={markReadyForReview}
+                    disabled={markingReady}
+                    className="w-full py-2 rounded-lg text-sm font-medium bg-gravida-green text-white hover:bg-gravida-sage disabled:opacity-50">
+                    {markingReady ? 'Bezig...' : '✓ Klaar — meld voor beoordeling'}
+                  </button>
+                  <button onClick={() => setReturnModalOpen(false)}
+                    className="w-full py-2 rounded-lg text-sm font-medium text-gravida-light-sage hover:text-gravida-sage">
+                    Later afronden, sluiten
+                  </button>
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <button onClick={() => submitReturnReceived(true)}
-                  disabled={updatingRental === detailRental.id}
-                  className="w-full py-2 rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
-                  {updatingRental === detailRental.id ? 'Bezig...' : 'Markeer retour + stuur klant mail'}
-                </button>
-                <button onClick={() => submitReturnReceived(false)}
-                  disabled={updatingRental === detailRental.id}
-                  className="w-full py-2 rounded-lg text-sm font-medium bg-white border border-gravida-cream hover:border-gravida-sage disabled:opacity-50">
-                  Alleen opslaan, geen mail naar klant
-                </button>
-                <button onClick={() => setReturnModalOpen(false)}
-                  className="w-full py-2 rounded-lg text-sm font-medium text-gravida-light-sage hover:text-gravida-sage">
-                  Annuleren
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
