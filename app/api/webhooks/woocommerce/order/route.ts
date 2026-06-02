@@ -27,18 +27,28 @@ export async function POST(request: NextRequest) {
   // ── Signature check ────────────────────────────────────────────────────
   if (secret) {
     const sig = request.headers.get('x-wc-webhook-signature') ?? ''
+    if (!sig) {
+      console.warn('WC webhook: geen X-WC-Webhook-Signature header. Secret-veld in WP webhook leeg?')
+      return NextResponse.json({
+        error: 'Geen signature header ontvangen. Vul in WP webhook bij "Secret" dezelfde waarde in als WOOCOMMERCE_WEBHOOK_SECRET in Vercel.',
+      }, { status: 401 })
+    }
     const expected = crypto
       .createHmac('sha256', secret)
       .update(rawBody)
       .digest('base64')
     const sigBuf = Buffer.from(sig)
     const expectedBuf = Buffer.from(expected)
-    const valid = sig.length > 0
-      && sigBuf.length === expectedBuf.length
+    const valid = sigBuf.length === expectedBuf.length
       && crypto.timingSafeEqual(sigBuf, expectedBuf)
     if (!valid) {
-      console.warn('WC webhook signature mismatch', { received: sig, expected })
-      return NextResponse.json({ error: 'Ongeldige signature' }, { status: 401 })
+      console.warn('WC webhook signature mismatch', {
+        received_length: sig.length,
+        expected_length: expected.length,
+      })
+      return NextResponse.json({
+        error: 'Signature mismatch. Secret in WP webhook komt niet overeen met WOOCOMMERCE_WEBHOOK_SECRET in Vercel.',
+      }, { status: 401 })
     }
   } else {
     console.warn('WOOCOMMERCE_WEBHOOK_SECRET niet ingesteld — webhook draait zonder signature-check')
