@@ -333,7 +333,7 @@ export default function ScanConsentPage() {
               Neem rustig de tijd om door onze collectie zwangerschapsbeeldjes te bladeren en kies het beeldje
               dat jij het mooist vindt. {isDiy ? 'Gebruik de kortingscode die je per mail van ons krijgt, dan verrekenen we je aanbetaling automatisch.' : ''}
             </p>
-            <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje"
+            <a href="https://wp.gravida.nl/product-categorie/beelden/zwangerschapsbeeldje/"
               target="_blank" rel="noopener noreferrer"
               className="inline-block px-8 py-4 rounded-xl bg-gravida-green text-white font-semibold text-base shadow-sm hover:bg-gravida-sage transition-colors">
               Bekijk de beeldjes

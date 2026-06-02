@@ -969,7 +969,7 @@ export async function sendDiyBorgKortingEmail(params: {
     </table>
 
     <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
-      <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">
+      <a href="https://wp.gravida.nl/product-categorie/beelden/zwangerschapsbeeldje/" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">
         Bekijk de beeldjes
       </a>
     </p>
@@ -1022,7 +1022,7 @@ export async function sendDiyBorgCadeaubonEmail(params: {
     </table>
 
     <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
-      <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">
+      <a href="https://wp.gravida.nl/product-categorie/beelden/zwangerschapsbeeldje/" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">
         Bekijk de beeldjes
       </a>
     </p>
