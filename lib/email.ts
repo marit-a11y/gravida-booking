@@ -1061,10 +1061,10 @@ export async function sendDiyFeedbackEmail(params: {
     </p>
     ${p(`Hi ${params.first_name},`)}
     ${p('Hopelijk heb je een fijne scansessie gehad! Vandaag is de dag dat de scanner weer onze kant op kan, zodat we hem op dinsdag kunnen verwerken voor de volgende klant.')}
-    ${p('We willen je nog twee korte vragen stellen:')}
+    ${p('Voordat je de scanner terugstuurt, willen we je nog twee korte vragen stellen:')}
     <ul style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;padding-left:20px;">
       <li>Heb je bijzonderheden ervaren bij het gebruik van de scanner?</li>
-      <li>Wil je je aanbetaling verrekenen met een beeldje, of geen beeldje en omzetten in een cadeaubon (met borg retour)?</li>
+      <li>Heb je al een voorkeur voor bepaalde scans die we eruit moeten lichten?</li>
     </ul>
     ${p('Het invullen kost je hooguit een minuutje.')}
     <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
@@ -1072,6 +1072,7 @@ export async function sendDiyFeedbackEmail(params: {
         Open formulier
       </a>
     </p>
+    ${p('Zodra de scanner bij ons binnen is, krijg je daar een bevestiging van. Daarna gaan we de scans rustig doornemen en renderen we standaard de twee mooiste scans, zodat je daar een goed beeld van krijgt. Zodra de voorvertoning klaar is, ontvang je deze van ons per mail.')}
     ${p('Heel veel dank voor je gebruik van de DIY scan kit!')}
     <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
       Met vriendelijke groet,<br/>
@@ -1670,11 +1671,6 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
     ` : ''}
 
     <hr style="border:none;border-top:1px solid #e8e6e0;margin:24px 0;"/>
-
-    <p style="margin:0 0 16px;font-size:15px;color:#3d4d3e;line-height:1.75;">
-      Zodra je akkoord geeft, eventueel met je aanvullende wensen, gaan we voor je aan de slag
-      met de bewerking en productie van je beeldje.
-    </p>
 
     ${p.consent_form_url ? `
     <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">

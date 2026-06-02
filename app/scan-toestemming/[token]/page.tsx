@@ -16,7 +16,6 @@ interface Consent {
   consent_storage_files: boolean | null
   consent_marketing_use: boolean | null
   consent_interview: boolean | null
-  shipping_insured: boolean | null
   digital_wishes: string | null
   shared_notes: string | null
   preferred_scan_number: number | null
@@ -32,13 +31,15 @@ export default function ScanConsentPage() {
   const [consent, setConsent] = useState<Consent | null>(null)
   const [firstName, setFirstName] = useState<string | null>(null)
   const [customerNumber, setCustomerNumber] = useState<string | null>(null)
+  const [isDiy, setIsDiy] = useState(false)
+  const [existingDepositChoice, setExistingDepositChoice] = useState<string | null>(null)
 
   // Antwoorden
   const [storageFiles, setStorageFiles] = useState<boolean | null>(null)
   const [marketingUse, setMarketingUse] = useState<boolean | null>(null)
   const [interviewOk, setInterviewOk] = useState<boolean | null>(null)
-  const [shippingInsured, setShippingInsured] = useState<boolean | null>(null)
   const [preferredScan, setPreferredScan] = useState<number | null>(null)
+  const [depositChoice, setDepositChoice] = useState<'order_credit' | 'giftcard' | ''>('')
   const [digitalWishes, setDigitalWishes] = useState('')
   const [sharedNotes, setSharedNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -50,13 +51,17 @@ export default function ScanConsentPage() {
       setConsent(data.consent)
       setFirstName(data.first_name)
       setCustomerNumber(data.customer_number ?? null)
+      setIsDiy(!!data.is_diy)
+      setExistingDepositChoice(data.deposit_choice ?? null)
+      if (data.deposit_choice === 'order_credit' || data.deposit_choice === 'giftcard') {
+        setDepositChoice(data.deposit_choice)
+      }
       if (data.consent.submitted_at) setSubmitted(true)
       if (data.consent.preferred_scan_number) setPreferredScan(data.consent.preferred_scan_number)
       // Pre-fill als al eens ingevuld
       if (data.consent.consent_storage_files !== null) setStorageFiles(data.consent.consent_storage_files)
       if (data.consent.consent_marketing_use !== null) setMarketingUse(data.consent.consent_marketing_use)
       if (data.consent.consent_interview !== null && data.consent.consent_interview !== undefined) setInterviewOk(data.consent.consent_interview)
-      if (data.consent.shipping_insured !== null) setShippingInsured(data.consent.shipping_insured)
       if (data.consent.digital_wishes) setDigitalWishes(data.consent.digital_wishes)
       if (data.consent.shared_notes) setSharedNotes(data.consent.shared_notes)
     }).catch(err => setError(String(err))).finally(() => setLoading(false))
@@ -72,6 +77,10 @@ export default function ScanConsentPage() {
       setError('Geef aan welke scan je voorkeur heeft.')
       return
     }
+    if (isDiy && !existingDepositChoice && !depositChoice) {
+      setError('Maak een keuze voor je aanbetaling.')
+      return
+    }
     setSubmitting(true); setError('')
     try {
       const res = await fetch(`/api/scan-consent/${token}`, {
@@ -81,10 +90,10 @@ export default function ScanConsentPage() {
           consent_storage_files: storageFiles,
           consent_marketing_use: marketingUse,
           consent_interview: interviewOk,
-          shipping_insured: shippingInsured,
           digital_wishes: digitalWishes.trim() || null,
           shared_notes: sharedNotes.trim() || null,
           preferred_scan_number: preferredScan,
+          deposit_choice: isDiy ? depositChoice : null,
         }),
       })
       if (res.ok) setSubmitted(true)
@@ -256,6 +265,40 @@ export default function ScanConsentPage() {
             />
           </div>
 
+          {/* Borg-keuze — alleen voor DIY rentals */}
+          {isDiy && (
+            <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4">
+              <label className="text-sm font-medium text-gravida-green mb-2 block">
+                Hoe wil je je aanbetaling van &euro;200 verwerken?
+              </label>
+              <p className="text-xs text-gravida-sage mb-3 leading-relaxed">
+                Het lenen van de scanner is gratis, je betaalt enkel voor het beeldje. Je aanbetaling kun je verrekenen met je beeldje. Wil je geen beeldje? Dan zetten we een deel om in een cadeaubon en storten we de borg terug.
+              </p>
+              {existingDepositChoice ? (
+                <p className="text-xs text-gravida-sage italic">
+                  Je hebt eerder al een keuze doorgegeven ({existingDepositChoice === 'order_credit' ? 'verrekenen met beeldje' : 'cadeaubon'}). Aanpassen kan via WhatsApp 06 8706 2504.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <button type="button" onClick={() => setDepositChoice('order_credit')}
+                    className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${depositChoice === 'order_credit' ? 'border-gravida-sage bg-gravida-sage/10' : 'border-gravida-cream hover:border-gravida-sage/50 bg-white'}`}>
+                    <div className="font-medium text-gravida-green text-sm">Verrekenen met bestelling van een beeldje</div>
+                    <div className="text-xs text-gravida-sage mt-0.5 leading-relaxed">
+                      Je krijgt een kortingscode van &euro;200 die je in de webshop kunt gebruiken bij je beeldje.
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => setDepositChoice('giftcard')}
+                    className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${depositChoice === 'giftcard' ? 'border-amber-500 bg-amber-100/60' : 'border-gravida-cream hover:border-amber-300 bg-white'}`}>
+                    <div className="font-medium text-gravida-green text-sm">Cadeaubon (geen beeldje)</div>
+                    <div className="text-xs text-gravida-sage mt-0.5 leading-relaxed">
+                      We zetten &euro;100 van je aanbetaling om in een cadeaubon (twee jaar geldig, voor beeldje, scan of als cadeau) en storten &euro;100 borg naar je terug.
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Overige afspraken */}
           <div>
             <label className="text-sm font-medium text-gravida-green mb-2 block">
@@ -278,23 +321,25 @@ export default function ScanConsentPage() {
           </button>
         </form>
 
-        {/* Webshop verwijzing , feestelijk */}
-        <div className="mt-10 -mx-8 -mb-8 px-8 py-8 rounded-b-2xl bg-gradient-to-br from-gravida-cream to-amber-50 border-t border-gravida-cream text-center">
-          <p className="text-2xl mb-2">✨</p>
-          <h2 className="text-xl font-bold text-gravida-green mb-2">
-            Nu het leuke werk: kies jouw mooiste beeldje
-          </h2>
-          <p className="text-sm text-gravida-sage leading-relaxed mb-5 max-w-md mx-auto">
-            Neem rustig de tijd om door onze collectie zwangerschapsbeeldjes te bladeren en kies het beeldje
-            dat jij het mooist vindt. Vermeld bij je bestelling je klant, en scannummer, dan verrekenen wij
-            je aanbetaling automatisch.
-          </p>
-          <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje"
-            target="_blank" rel="noopener noreferrer"
-            className="inline-block px-8 py-4 rounded-xl bg-gravida-green text-white font-semibold text-base shadow-sm hover:bg-gravida-sage transition-colors">
-            Bekijk de beeldjes
-          </a>
-        </div>
+        {/* Webshop verwijzing , feestelijk — alleen tonen als ze met beeldje doorgaan
+            (dus niet bij cadeaubon-keuze) */}
+        {depositChoice !== 'giftcard' && existingDepositChoice !== 'giftcard' && (
+          <div className="mt-10 -mx-8 -mb-8 px-8 py-8 rounded-b-2xl bg-gradient-to-br from-gravida-cream to-amber-50 border-t border-gravida-cream text-center">
+            <p className="text-2xl mb-2">✨</p>
+            <h2 className="text-xl font-bold text-gravida-green mb-2">
+              Nu het leuke werk: kies jouw mooiste beeldje
+            </h2>
+            <p className="text-sm text-gravida-sage leading-relaxed mb-5 max-w-md mx-auto">
+              Neem rustig de tijd om door onze collectie zwangerschapsbeeldjes te bladeren en kies het beeldje
+              dat jij het mooist vindt. {isDiy ? 'Gebruik de kortingscode die je per mail van ons krijgt, dan verrekenen we je aanbetaling automatisch.' : ''}
+            </p>
+            <a href="https://gravida.nl/product-categorie/beelden/zwangerschapsbeeldje"
+              target="_blank" rel="noopener noreferrer"
+              className="inline-block px-8 py-4 rounded-xl bg-gravida-green text-white font-semibold text-base shadow-sm hover:bg-gravida-sage transition-colors">
+              Bekijk de beeldjes
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )
