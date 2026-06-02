@@ -42,14 +42,21 @@ export default function DiyBeoordelingPage() {
   const [andersTekst,     setAndersTekst]     = useState('')
   const [bruikbaar,       setBruikbaar]       = useState<boolean | null>(null)
   const [extraWensen,     setExtraWensen]     = useState('')
-  const [images,          setImages]          = useState<ImageSlot[]>([null, null, null, null])
+  const [images,          setImages]          = useState<ImageSlot[]>(
+    Array.from({ length: 8 }, () => null)
+  )
   const [sending,         setSending]         = useState(false)
   const [sent,            setSent]            = useState(false)
   const [sentNaam,        setSentNaam]        = useState('')
   const [error,           setError]           = useState<string | null>(null)
 
-  const fileRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
-                    useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
+  // 8 slots: 2 scans × 4 hoeken
+  const fileRefs = [
+    useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null),
+  ]
 
   // ── Fetch pending rentals (zowel 'retour' als 'uitzoeken') ─────────────────
   const fetchPending = async () => {
@@ -154,8 +161,8 @@ export default function DiyBeoordelingPage() {
     const labeledImages = images
       .map((slot, idx) => {
         if (!slot) return null
-        const scanNr = Math.floor(idx / 2) + 1
-        const hoekNr = (idx % 2) + 1
+        const scanNr = Math.floor(idx / 4) + 1
+        const hoekNr = (idx % 4) + 1
         const ext = (slot.filename.split('.').pop() ?? 'jpg').toLowerCase()
         const prefix = klantNummer ? `${klantNummer}-` : ''
         const filename = `${prefix}scan${scanNr}-hoek${hoekNr}.${ext}`
@@ -188,7 +195,7 @@ export default function DiyBeoordelingPage() {
 
       // Reset form
       setKlantNaam(''); setKlantEmail(''); setKlantNummer(''); setBijzonderheden([]); setAndersTekst('')
-      setBruikbaar(null); setExtraWensen(''); setImages([null, null, null, null])
+      setBruikbaar(null); setExtraWensen(''); setImages(Array.from({ length: 8 }, () => null))
       setSelectedRentalId(null)
 
       // Refresh pending list (rental should now be gone)
@@ -349,20 +356,20 @@ export default function DiyBeoordelingPage() {
           )}
         </div>
 
-        {/* ── Screenshots ── 2 scans, 2 hoeken per scan */}
+        {/* ── Screenshots ── 2 scans, 4 hoeken per scan */}
         <div className="card p-6">
           <h2 className="section-title mb-1">Screenshots per scan</h2>
           <p className="text-xs text-gravida-sage mb-4">
-            Upload 2 hoeken per scan (4 afbeeldingen totaal). Klant ziet twee scans en kiest haar voorkeur via het toestemmingsformulier.
+            Upload 4 hoeken per scan (8 afbeeldingen totaal). Klant ziet twee scans, elk vanuit vier hoeken, en kiest haar voorkeur via het toestemmingsformulier.
           </p>
           {[0, 1].map(scanIdx => {
             const scanLabel = `Scan ${klantNummer ? klantNummer + '-' : ''}${scanIdx + 1}`
             return (
               <div key={scanIdx} className="mb-5 last:mb-0">
                 <h3 className="text-sm font-semibold text-gravida-green mb-2">{scanLabel}</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {[0, 1].map(hoekIdx => {
-                    const slotIdx = scanIdx * 2 + hoekIdx
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[0, 1, 2, 3].map(hoekIdx => {
+                    const slotIdx = scanIdx * 4 + hoekIdx
                     const slot = images[slotIdx]
                     return (
                       <div key={hoekIdx}>

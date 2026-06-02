@@ -1624,24 +1624,24 @@ function diyReviewEmailHtml(p: DiyReviewEmailParams): string {
     </p>
 
     <p style="margin:0 0 16px;font-size:15px;color:#3d4d3e;line-height:1.75;">
-      In de bijlage vind je screenshots van twee scans die we voor jou hebben uitgezocht. Per scan zie je twee hoeken zodat je een goed beeld krijgt. De bestandsnamen geven aan welke screenshot bij welke scan en hoek hoort:
+      In de bijlage vind je screenshots van twee scans die we voor jou hebben uitgezocht. Per scan zie je vier hoeken zodat je een goed beeld krijgt. De bestandsnamen geven aan welke screenshot bij welke scan en hoek hoort:
     </p>
 
     ${p.customer_number ? `
     <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:0 0 20px;">
       <tr><td style="padding:18px 22px;">
         <p style="margin:0 0 8px;font-size:14px;color:#1e2d1f;">
-          <strong>Scan ${p.customer_number}-1</strong> &middot; bestanden ${p.customer_number}-scan1-hoek1 en ${p.customer_number}-scan1-hoek2
+          <strong>Scan ${p.customer_number}-1</strong> &middot; bestanden ${p.customer_number}-scan1-hoek1 t/m ${p.customer_number}-scan1-hoek4
         </p>
         <p style="margin:0;font-size:14px;color:#1e2d1f;">
-          <strong>Scan ${p.customer_number}-2</strong> &middot; bestanden ${p.customer_number}-scan2-hoek1 en ${p.customer_number}-scan2-hoek2
+          <strong>Scan ${p.customer_number}-2</strong> &middot; bestanden ${p.customer_number}-scan2-hoek1 t/m ${p.customer_number}-scan2-hoek4
         </p>
       </td></tr>
     </table>
     ` : `
     <p style="margin:0 0 20px;font-size:14px;color:#3d4d3e;line-height:1.7;">
-      <strong>Scan 1</strong>: bestanden met &lsquo;scan1&rsquo; in de naam.<br/>
-      <strong>Scan 2</strong>: bestanden met &lsquo;scan2&rsquo; in de naam.
+      <strong>Scan 1</strong>: bestanden met &lsquo;scan1&rsquo; in de naam (hoek 1 t/m 4).<br/>
+      <strong>Scan 2</strong>: bestanden met &lsquo;scan2&rsquo; in de naam (hoek 1 t/m 4).
     </p>
     `}
 
