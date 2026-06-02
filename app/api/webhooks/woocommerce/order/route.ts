@@ -27,29 +27,58 @@ export async function POST(request: NextRequest) {
   // ── Signature check ────────────────────────────────────────────────────
   if (secret) {
     const sig = request.headers.get('x-wc-webhook-signature') ?? ''
+    const source = request.headers.get('x-wc-webhook-source') ?? ''
+    const topic = request.headers.get('x-wc-webhook-topic') ?? ''
+
+    // Debug logging — kijk in Vercel function logs
+    console.log('[WC webhook] incoming', {
+      source,
+      topic,
+      sig_first8: sig.slice(0, 8),
+      sig_length: sig.length,
+      body_length: rawBody.length,
+      body_first50: rawBody.slice(0, 50),
+    })
+
     if (!sig) {
       console.warn('WC webhook: geen X-WC-Webhook-Signature header. Secret-veld in WP webhook leeg?')
       return NextResponse.json({
-        error: 'Geen signature header ontvangen. Vul in WP webhook bij "Secret" dezelfde waarde in als WOOCOMMERCE_WEBHOOK_SECRET in Vercel.',
+        error: 'Geen signature header. Vul Secret-veld in WP webhook in.',
       }, { status: 401 })
     }
-    const expected = crypto
-      .createHmac('sha256', secret)
-      .update(rawBody)
-      .digest('base64')
-    const sigBuf = Buffer.from(sig)
-    const expectedBuf = Buffer.from(expected)
-    const valid = sigBuf.length === expectedBuf.length
-      && crypto.timingSafeEqual(sigBuf, expectedBuf)
-    if (!valid) {
-      console.warn('WC webhook signature mismatch', {
-        received_length: sig.length,
-        expected_length: expected.length,
+
+    // Probeer drie verschillende body-representaties voor de HMAC, want
+    // afhankelijk van WC versie / wp_json_encode wordt soms wel/niet getrimd
+    // of komen er escape-verschillen voor.
+    const candidates = [
+      { name: 'raw', body: rawBody },
+      { name: 'trimmed', body: rawBody.trim() },
+    ]
+    let matched: string | null = null
+    let firstExpected = ''
+    for (const c of candidates) {
+      const expected = crypto.createHmac('sha256', secret).update(c.body).digest('base64')
+      if (!firstExpected) firstExpected = expected
+      const sigBuf = Buffer.from(sig)
+      const expectedBuf = Buffer.from(expected)
+      if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+        matched = c.name
+        break
+      }
+    }
+
+    if (!matched) {
+      console.warn('[WC webhook] signature mismatch', {
+        sig_first8: sig.slice(0, 8),
+        expected_first8: firstExpected.slice(0, 8),
+        body_length: rawBody.length,
+        body_trimmed_length: rawBody.trim().length,
       })
       return NextResponse.json({
-        error: 'Signature mismatch. Secret in WP webhook komt niet overeen met WOOCOMMERCE_WEBHOOK_SECRET in Vercel.',
+        error: 'Signature mismatch. Check Vercel logs voor de eerste 8 tekens van de received vs expected signature.',
       }, { status: 401 })
     }
+    console.log('[WC webhook] signature OK (via ' + matched + ')')
   } else {
     console.warn('WOOCOMMERCE_WEBHOOK_SECRET niet ingesteld — webhook draait zonder signature-check')
   }
