@@ -31,6 +31,52 @@ interface WhatsAppTemplateMessage {
   }
 }
 
+/**
+ * Stuur een vrije-tekst (non-template) WhatsApp-bericht.
+ * Werkt alleen binnen een open 24-uurs conversatievenster.
+ * Gebruikt alleen het eerste nummer in WHATSAPP_TO (of het meegegeven `to`).
+ */
+export async function sendWhatsAppText(
+  text: string,
+  to?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+  const rawTo = to ?? process.env.WHATSAPP_TO
+  if (!token || !phoneNumberId || !rawTo) {
+    return { ok: false, error: 'not configured' }
+  }
+  const recipient = rawTo.split(/[,\n]/)[0].replace(/[^\d]/g, '')
+  if (!recipient) return { ok: false, error: 'No valid recipient' }
+
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: recipient,
+          type: 'text',
+          text: { body: text, preview_url: false },
+        }),
+      },
+    )
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      console.error('WhatsApp text send failed:', data)
+      return { ok: false, error: JSON.stringify(data) }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+  }
+}
+
 export function isWhatsAppConfigured(): boolean {
   return !!(
     process.env.WHATSAPP_ACCESS_TOKEN &&
