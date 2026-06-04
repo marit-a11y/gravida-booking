@@ -37,6 +37,11 @@ export async function GET(
       max_per_slot: availability.max_per_slot,
       notes: availability.notes,
       slots: slotsWithCounts,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'CDN-Cache-Control': 'no-store',
+      },
     })
   } catch (err) {
     console.error('GET /api/availability/[id] error:', err)

@@ -55,7 +55,12 @@ export async function GET(request: NextRequest) {
       rows = result.rows
     }
 
-    return NextResponse.json(rows)
+    return NextResponse.json(rows, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'CDN-Cache-Control': 'no-store',
+      },
+    })
   } catch (err) {
     console.error('GET /api/availability error:', err)
     return NextResponse.json({ error: 'Kan beschikbaarheid niet laden' }, { status: 500 })
