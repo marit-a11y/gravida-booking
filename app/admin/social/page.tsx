@@ -391,6 +391,17 @@ function SocialPlannerPage() {
     if (res.ok) { setModalOpen(false); await load() }
   }
 
+  // Inline delete vanuit list view rij (zonder modal openen)
+  const deletePostInline = async (postId: number) => {
+    if (!confirm('Deze post echt verwijderen?')) return
+    const res = await fetch(`/api/admin/social-posts/${postId}`, { method: 'DELETE' })
+    if (res.ok) await load()
+    else {
+      const d = await res.json().catch(() => ({}))
+      alert('Verwijderen mislukt: ' + (d.error ?? res.status))
+    }
+  }
+
   // Quick toggle status (klaargezet ↔ geplaatst, with cycle)
   const cycleStatus = async (post: SocialPost) => {
     const order = ['draft', 'klaargezet', 'geplaatst', 'gemist']
@@ -938,6 +949,12 @@ function SocialPlannerPage() {
                               className={`text-xs text-left transition-opacity ${copyToPostId === p.id ? 'text-gravida-green underline' : 'opacity-0 group-hover:opacity-100 text-gravida-sage hover:text-gravida-green underline'}`}
                             >
                               📋 Kopieer
+                            </button>
+                            <button
+                              onClick={() => deletePostInline(p.id)}
+                              className="opacity-0 group-hover:opacity-100 text-xs text-left text-red-500 hover:text-red-700 underline transition-opacity"
+                            >
+                              🗑 Verwijder
                             </button>
                           </div>
                           {copyToPostId === p.id && (
