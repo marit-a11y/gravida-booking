@@ -15,15 +15,15 @@ interface DuePost {
 
 /**
  * Runs every 15 minutes. Sends a WhatsApp reminder for posts that go live
- * within the next 15 minutes (if their reminder hasn't been sent yet).
+ * within the next 15 minutes — alleen voor posts die op status 'klaargezet'
+ * staan (= door Sonja actief gemarkeerd als klaar om te plaatsen).
+ *
+ * Drafts en al-geplaatst worden overgeslagen. Dat scheelt veel onnodige
+ * meldingen.
  *
  * IDEMPOTENT: we eerst atomair `reminder_sent = true` zetten en de geclaimde
  * rijen teruggeven. Daarna sturen we WhatsApp. Zo kan dezelfde post nooit
- * twee keer worden gereminded, ook niet als de cron parallel of dubbel
- * runt of als WhatsApp traag/onverwacht antwoordt.
- *
- * Trade-off: als WhatsApp echt faalt zien we hem wel terug in errors, maar
- * de post wordt niet opnieuw geprobeerd. Liever 1x missen dan 6x spammen.
+ * twee keer worden gereminded.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Atomair claimen: markeer als reminded EN geef de rijen terug.
+    // Alleen 'klaargezet' (door Sonja gemarkeerd als klaar om te plaatsen).
     const claimed = await sql<DuePost>`
       UPDATE social_posts
       SET reminder_sent = true
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
         SELECT id FROM social_posts
         WHERE scheduled_for >= NOW()
           AND scheduled_for <= NOW() + INTERVAL '15 minutes'
-          AND status IN ('draft', 'scheduled', 'klaargezet')
+          AND status = 'klaargezet'
           AND reminder_sent = false
         FOR UPDATE SKIP LOCKED
       )
