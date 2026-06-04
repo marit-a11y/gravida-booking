@@ -933,32 +933,42 @@ function SocialPlannerPage() {
                             </button>
                           </div>
                           {copyToPostId === p.id && (
-                            <div className="absolute z-30 right-2 top-full mt-1 bg-white border border-gravida-cream rounded-lg shadow-lg p-3 min-w-[220px]">
-                              <p className="text-[10px] text-gravida-light-sage uppercase tracking-wide mb-1">Kopieer naar datum</p>
-                              <input
-                                type="date"
-                                value={copyToDate}
-                                onChange={e => setCopyToDate(e.target.value)}
-                                className="input-field text-xs w-full mb-2"
-                                min={new Date().toISOString().slice(0, 10)}
+                            <>
+                              {/* Overlay vangt klikken buiten popover (sluit hem) */}
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => { setCopyToPostId(null); setCopyToDate('') }}
                               />
-                              <p className="text-[10px] text-gravida-light-sage mb-2">Tijdstip ({formatNlTime(p.scheduled_for)}) blijft hetzelfde. Start als <strong>draft</strong>.</p>
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => { setCopyToPostId(null); setCopyToDate('') }}
-                                  className="flex-1 text-xs px-2 py-1 rounded border border-gravida-cream text-gravida-sage"
-                                >
-                                  Annuleren
-                                </button>
-                                <button
-                                  onClick={() => copyToDate && duplicatePost(p, copyToDate)}
-                                  disabled={!copyToDate || copying}
-                                  className="flex-1 text-xs px-2 py-1 rounded bg-gravida-green text-white disabled:opacity-50"
-                                >
-                                  {copying ? '...' : 'Kopieer'}
-                                </button>
+                              <div
+                                onClick={e => e.stopPropagation()}
+                                className="absolute z-50 right-0 bottom-full mb-2 bg-white border-2 border-gravida-sage rounded-xl shadow-2xl p-3 min-w-[240px]"
+                              >
+                                <p className="text-[10px] text-gravida-light-sage uppercase tracking-wide mb-1">Kopieer naar datum</p>
+                                <input
+                                  type="date"
+                                  value={copyToDate}
+                                  onChange={e => setCopyToDate(e.target.value)}
+                                  className="input-field text-xs w-full mb-2"
+                                  min={new Date().toISOString().slice(0, 10)}
+                                />
+                                <p className="text-[10px] text-gravida-light-sage mb-2">Tijdstip ({formatNlTime(p.scheduled_for)}) blijft hetzelfde. Start als <strong>draft</strong>.</p>
+                                <div className="flex gap-1">
+                                  <button
+                                    onClick={() => { setCopyToPostId(null); setCopyToDate('') }}
+                                    className="flex-1 text-xs px-2 py-1 rounded border border-gravida-cream text-gravida-sage"
+                                  >
+                                    Annuleren
+                                  </button>
+                                  <button
+                                    onClick={() => copyToDate && duplicatePost(p, copyToDate)}
+                                    disabled={!copyToDate || copying}
+                                    className="flex-1 text-xs px-2 py-1 rounded bg-gravida-green text-white disabled:opacity-50"
+                                  >
+                                    {copying ? '...' : 'Kopieer'}
+                                  </button>
+                                </div>
                               </div>
-                            </div>
+                            </>
                           )}
                         </td>
                       </tr>
