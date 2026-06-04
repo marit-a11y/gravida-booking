@@ -14,11 +14,10 @@ export const maxDuration = 60
  *   (vrijdag 18:00 UTC = 20:00 NL zomertijd / 19:00 wintertijd)
  *
  * Wat het doet, per regio per dag in week starting (next Monday):
- *   - 0 slots → niets doen
- *   - 1 slot  → niets doen
- *   - >1 slots:
- *       - met geboekte slots: behoud alleen geboekte slots
- *       - zonder boekingen:  behoud alleen het eerste slot
+ *   - 0 of 1 slot → niets doen
+ *   - meerdere slots: behoud alle geboekte slots + 1 open slot, zodat
+ *     er per regio per dag altijd nog precies één boekingsmogelijkheid
+ *     openstaat naast de bestaande boekingen.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -55,16 +54,15 @@ export async function GET(request: NextRequest) {
       `
       const bookedSlots = bookings.rows.map(r => r.time_slot)
       const bookedInRow = allSlots.filter(s => bookedSlots.includes(s))
+      const openInRow = allSlots.filter(s => !bookedSlots.includes(s))
 
-      let keep: string[]
-      let reason: string
-      if (bookedInRow.length > 0) {
-        keep = bookedInRow
-        reason = `${bookedInRow.length} slot(s) geboekt — behouden`
-      } else {
-        keep = [allSlots[0]]
-        reason = 'geen boekingen — eerste slot behouden'
-      }
+      // Behoud alle geboekte slots + 1 open slot (eerste beschikbare)
+      const extraOpen = openInRow.length > 0 ? [openInRow[0]] : []
+      const keep = [...bookedInRow, ...extraOpen]
+      const reason = bookedInRow.length > 0
+        ? `${bookedInRow.length} geboekt + 1 open behouden`
+        : '1 open slot behouden'
+
       if (keep.length === allSlots.length) continue
 
       await sql`
