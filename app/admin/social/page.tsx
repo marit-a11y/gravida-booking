@@ -313,6 +313,14 @@ function SocialPlannerPage() {
     monthPostsByDate.set(key, arr)
   }
 
+  // List view: alleen vandaag + toekomstige posts
+  const todayNlKey = getNlDateKey(new Date().toISOString())  // YYYY-MM-DD
+  const listPostsByDate = new Map<string, SocialPost[]>()
+  for (const [key, arr] of monthPostsByDate.entries()) {
+    if (key >= todayNlKey) listPostsByDate.set(key, arr)
+  }
+  const listHasPosts = Array.from(listPostsByDate.values()).some(arr => arr.length > 0)
+
   const openNewModal = (date?: Date, presetCategory?: string) => {
     // Bouw de default datetime-local string in NL-tijd (10:00).
     // Als er een date is doorgegeven (uit kalender-grid), pak Y/M/D direct.
@@ -840,8 +848,8 @@ function SocialPlannerPage() {
         <div className="card overflow-x-auto p-0">
           {loading ? (
             <div className="p-12 text-center text-gravida-light-sage text-sm">Laden...</div>
-          ) : monthPosts.length === 0 ? (
-            <div className="p-12 text-center text-gravida-light-sage text-sm">Geen posts ingepland in deze maand. Klik &quot;+ Nieuwe post&quot;.</div>
+          ) : !listHasPosts ? (
+            <div className="p-12 text-center text-gravida-light-sage text-sm">Geen toekomstige posts in deze maand. Klik &quot;+ Nieuwe post&quot;.</div>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-gravida-cream/50">
@@ -855,7 +863,7 @@ function SocialPlannerPage() {
                 </tr>
               </thead>
               <tbody>
-                {Array.from(monthPostsByDate.entries()).map(([dateKey, dayPosts], dayIdx) => {
+                {Array.from(listPostsByDate.entries()).map(([dateKey, dayPosts], dayIdx) => {
                   const d = new Date(dateKey + 'T00:00:00')
                   const dow = (d.getDay() + 6) % 7
                   const dayLabel = `${DUTCH_DAYS_FULL[dow].slice(0, 2)} - ${d.getDate()}`
