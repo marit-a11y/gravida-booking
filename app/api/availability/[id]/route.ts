@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { getAvailabilityById, getBookingCountForSlot } from '@/lib/db'
+import { getDisplaySlotsForRegion } from '@/lib/region-slots'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,23 +22,31 @@ export async function GET(
 
     // Geblokkeerde slots ophalen (admin/cron sluit deze handmatig af)
     const bRow = await sql`SELECT blocked_slots FROM availability WHERE id = ${id}`
-    const blockedSlots: string[] = Array.isArray(bRow.rows[0]?.blocked_slots)
+    const dbBlocked: string[] = Array.isArray(bRow.rows[0]?.blocked_slots)
       ? (bRow.rows[0].blocked_slots as string[])
       : []
 
-    // Verzamel slots: open uit availability.slots + geblokkeerde slots (om als 'Vol' te tonen)
-    const allSlots = [...new Set([...availability.slots, ...blockedSlots])].sort()
+    // Display-set: wat zou een volledige dag in deze regio normaal tonen?
+    // Slots die NIET in availability.slots zitten, presenteren we ook als 'Vol'.
+    const displaySet = getDisplaySlotsForRegion(availability.region)
 
+    // Universum = bookable slots + db blocked + display fillers
+    const universe = [...new Set([...availability.slots, ...dbBlocked, ...displaySet])].sort()
+
+    const bookableSet = new Set(availability.slots)
     const slotsWithCounts = await Promise.all(
-      allSlots.map(async (slot) => {
-        const count = await getBookingCountForSlot(id, slot)
-        const isBlocked = blockedSlots.includes(slot)
+      universe.map(async (slot) => {
+        // Tellingen alleen relevant voor echte bookable slots
+        const count = bookableSet.has(slot) ? await getBookingCountForSlot(id, slot) : 0
+        const isExplicitBlocked = dbBlocked.includes(slot)
+        const isOutsideBookable = !bookableSet.has(slot)
         const isFull = count >= availability.max_per_slot
+        const blocked = isExplicitBlocked || isOutsideBookable
         return {
           slot,
           count,
-          available: !isBlocked && !isFull,
-          blocked: isBlocked,
+          available: !blocked && !isFull,
+          blocked,
         }
       })
     )
