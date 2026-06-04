@@ -17,6 +17,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/availability-trim",
+      "schedule": "0 18 * * 5"
+    },
+    {
       "path": "/api/cron/diy-feedback",
       "schedule": "0 19 * * 0"
     },
