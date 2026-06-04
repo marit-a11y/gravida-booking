@@ -40,6 +40,19 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<'all' | 'image' | 'video'>(accept === 'all' ? 'all' : accept)
+  const [aspectFilter, setAspectFilter] = useState<'all' | 'vierkant' | 'portret' | 'liggend'>('all')
+  const [aspects, setAspects] = useState<Record<number, number>>({})
+
+  const reportAspect = (id: number, w: number, h: number) => {
+    if (!w || !h) return
+    setAspects(prev => prev[id] ? prev : { ...prev, [id]: w / h })
+  }
+  const aspectCategoryOf = (ratio: number | undefined): 'vierkant' | 'portret' | 'liggend' | null => {
+    if (!ratio) return null
+    if (ratio >= 0.95 && ratio <= 1.05) return 'vierkant'
+    if (ratio < 0.95) return 'portret'
+    return 'liggend'
+  }
 
   useEffect(() => {
     if (!open) return
@@ -64,6 +77,10 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
       const isVideo = it.type === 'video' || isVideoUrl(it.blob_url)
       if (typeFilter === 'image' && isVideo) return false
       if (typeFilter === 'video' && !isVideo) return false
+      if (aspectFilter !== 'all') {
+        const cat = aspectCategoryOf(aspects[it.id])
+        if (cat !== aspectFilter) return false
+      }
       if (search.trim()) {
         const s = search.toLowerCase()
         const txt = `${it.filename ?? ''} ${it.label ?? ''}`.toLowerCase()
@@ -71,7 +88,7 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
       }
       return true
     })
-  }, [items, typeFilter, search])
+  }, [items, typeFilter, search, aspectFilter, aspects])
 
   const grouped = useMemo(() => {
     const map = new Map<string, Folder[]>()
@@ -151,27 +168,41 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
 
           {/* Main */}
           <main className="flex-1 flex flex-col min-w-0">
-            <div className="p-3 border-b border-gravida-cream flex items-center gap-2 flex-wrap">
-              <input
-                type="text"
-                placeholder="Zoek..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="input-field text-xs flex-1 min-w-[160px]"
-              />
-              {accept === 'all' && (
-                <div className="flex gap-1">
-                  {(['all', 'image', 'video'] as const).map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setTypeFilter(t)}
-                      className={`text-xs px-2 py-1 rounded ${typeFilter === t ? 'bg-gravida-sage text-white' : 'bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white'}`}
-                    >
-                      {t === 'all' ? 'Alles' : t === 'image' ? '📷' : '🎬'}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="p-3 border-b border-gravida-cream space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="text"
+                  placeholder="Zoek..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="input-field text-xs flex-1 min-w-[160px]"
+                />
+                {accept === 'all' && (
+                  <div className="flex gap-1">
+                    {(['all', 'image', 'video'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setTypeFilter(t)}
+                        className={`text-xs px-2 py-1 rounded ${typeFilter === t ? 'bg-gravida-sage text-white' : 'bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white'}`}
+                      >
+                        {t === 'all' ? 'Alles' : t === 'image' ? '📷' : '🎬'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-[11px] text-gravida-light-sage mr-1">Aspect:</span>
+                {(['all', 'vierkant', 'portret', 'liggend'] as const).map(a => (
+                  <button
+                    key={a}
+                    onClick={() => setAspectFilter(a)}
+                    className={`text-xs px-2 py-1 rounded ${aspectFilter === a ? 'bg-gravida-sage text-white' : 'bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white'}`}
+                  >
+                    {a === 'all' ? 'Alles' : a === 'vierkant' ? '⬛ 1:1' : a === 'portret' ? '▮ Portret' : '▬ Liggend'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
@@ -192,10 +223,12 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
                       >
                         {isVideo ? (
                           /* eslint-disable-next-line jsx-a11y/media-has-caption */
-                          <video src={it.blob_url} className="w-full h-28 object-cover bg-black" muted playsInline />
+                          <video src={it.blob_url} className="w-full h-28 object-cover bg-black" muted playsInline
+                            onLoadedMetadata={e => reportAspect(it.id, e.currentTarget.videoWidth, e.currentTarget.videoHeight)} />
                         ) : (
                           /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={it.blob_url} alt={it.label ?? ''} className="w-full h-28 object-cover" />
+                          <img src={it.blob_url} alt={it.label ?? ''} className="w-full h-28 object-cover"
+                            onLoad={e => reportAspect(it.id, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)} />
                         )}
                         {isSel && (
                           <div className="absolute top-1 right-1 w-6 h-6 rounded-full bg-gravida-green text-white text-xs flex items-center justify-center font-bold">
