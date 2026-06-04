@@ -117,6 +117,46 @@ function SocialPlannerPage() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false)
+  const [copyToPostId, setCopyToPostId] = useState<number | null>(null)
+  const [copyToDate, setCopyToDate] = useState('')
+  const [copying, setCopying] = useState(false)
+
+  const duplicatePost = async (sourcePost: SocialPost, newDateIso: string) => {
+    setCopying(true)
+    try {
+      // Behoud het oorspronkelijke tijdstip op de nieuwe datum
+      const old = new Date(sourcePost.scheduled_for)
+      const targetDate = new Date(newDateIso + 'T00:00:00')
+      targetDate.setHours(old.getHours(), old.getMinutes(), 0, 0)
+
+      const payload = {
+        scheduled_for: targetDate.toISOString(),
+        platform: sourcePost.platform,
+        post_type: sourcePost.post_type,
+        category: sourcePost.category,
+        title: sourcePost.title,
+        image_urls: sourcePost.image_urls ?? [],
+        caption: sourcePost.caption,
+        hashtags: sourcePost.hashtags,
+        canva_url: sourcePost.canva_url,
+        internal_notes: sourcePost.internal_notes,
+        status: 'draft',  // kopie start als draft (autoBump pakt klaargezet als compleet)
+      }
+      const r = await fetch('/api/admin/social-posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (r.ok) {
+        setCopyToPostId(null)
+        setCopyToDate('')
+        await load()
+      } else {
+        const d = await r.json().catch(() => ({}))
+        alert('Kopiëren mislukt: ' + (d.error ?? r.status))
+      }
+    } finally { setCopying(false) }
+  }
   // Ideeen-modal (statische lijst per categorie)
   const [ideasModalOpen, setIdeasModalOpen] = useState(false)
   const [ideasCategory, setIdeasCategory] = useState<string>('Beeldjes')
@@ -825,7 +865,7 @@ function SocialPlannerPage() {
                     const time = formatNlTime(p.scheduled_for)
                     const isFirstOfDay = postIdx === 0
                     return (
-                      <tr key={p.id} className={`border-t border-gravida-cream hover:opacity-80 transition-opacity ${ti.rowBg}`}>
+                      <tr key={p.id} className={`border-t border-gravida-cream group hover:opacity-95 transition-opacity ${ti.rowBg}`}>
                         <td className="px-3 py-2 align-top whitespace-nowrap text-gravida-sage">
                           {isFirstOfDay && <div className="font-medium">{dayLabel}</div>}
                           <div className="text-xs text-gravida-light-sage">{time}</div>
@@ -871,8 +911,55 @@ function SocialPlannerPage() {
                             {statusInfo(p.status).label}
                           </button>
                         </td>
-                        <td className="px-3 py-2 align-top">
-                          <button onClick={() => openEditModal(p)} className="text-gravida-sage hover:text-gravida-green text-xs underline">Bewerk</button>
+                        <td className="px-3 py-2 align-top relative">
+                          <div className="flex flex-col gap-1">
+                            <button onClick={() => openEditModal(p)} className="text-gravida-sage hover:text-gravida-green text-xs underline text-left">Bewerk</button>
+                            <button
+                              onClick={() => {
+                                if (copyToPostId === p.id) {
+                                  setCopyToPostId(null)
+                                  setCopyToDate('')
+                                } else {
+                                  setCopyToPostId(p.id)
+                                  // Default: morgen
+                                  const tom = new Date(p.scheduled_for)
+                                  tom.setDate(tom.getDate() + 1)
+                                  setCopyToDate(tom.toISOString().slice(0, 10))
+                                }
+                              }}
+                              className={`text-xs text-left transition-opacity ${copyToPostId === p.id ? 'text-gravida-green underline' : 'opacity-0 group-hover:opacity-100 text-gravida-sage hover:text-gravida-green underline'}`}
+                            >
+                              📋 Kopieer
+                            </button>
+                          </div>
+                          {copyToPostId === p.id && (
+                            <div className="absolute z-30 right-2 top-full mt-1 bg-white border border-gravida-cream rounded-lg shadow-lg p-3 min-w-[220px]">
+                              <p className="text-[10px] text-gravida-light-sage uppercase tracking-wide mb-1">Kopieer naar datum</p>
+                              <input
+                                type="date"
+                                value={copyToDate}
+                                onChange={e => setCopyToDate(e.target.value)}
+                                className="input-field text-xs w-full mb-2"
+                                min={new Date().toISOString().slice(0, 10)}
+                              />
+                              <p className="text-[10px] text-gravida-light-sage mb-2">Tijdstip ({formatNlTime(p.scheduled_for)}) blijft hetzelfde. Start als <strong>draft</strong>.</p>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => { setCopyToPostId(null); setCopyToDate('') }}
+                                  className="flex-1 text-xs px-2 py-1 rounded border border-gravida-cream text-gravida-sage"
+                                >
+                                  Annuleren
+                                </button>
+                                <button
+                                  onClick={() => copyToDate && duplicatePost(p, copyToDate)}
+                                  disabled={!copyToDate || copying}
+                                  className="flex-1 text-xs px-2 py-1 rounded bg-gravida-green text-white disabled:opacity-50"
+                                >
+                                  {copying ? '...' : 'Kopieer'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )
