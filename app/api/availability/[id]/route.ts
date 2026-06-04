@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { sql } from '@vercel/postgres'
 import { getAvailabilityById, getBookingCountForSlot } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
@@ -18,14 +19,25 @@ export async function GET(
       return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 })
     }
 
-    // For each slot, check how many bookings exist and whether it's still available
+    // Geblokkeerde slots ophalen (admin/cron sluit deze handmatig af)
+    const bRow = await sql`SELECT blocked_slots FROM availability WHERE id = ${id}`
+    const blockedSlots: string[] = Array.isArray(bRow.rows[0]?.blocked_slots)
+      ? (bRow.rows[0].blocked_slots as string[])
+      : []
+
+    // Verzamel slots: open uit availability.slots + geblokkeerde slots (om als 'Vol' te tonen)
+    const allSlots = [...new Set([...availability.slots, ...blockedSlots])].sort()
+
     const slotsWithCounts = await Promise.all(
-      availability.slots.map(async (slot) => {
+      allSlots.map(async (slot) => {
         const count = await getBookingCountForSlot(id, slot)
+        const isBlocked = blockedSlots.includes(slot)
+        const isFull = count >= availability.max_per_slot
         return {
           slot,
           count,
-          available: count < availability.max_per_slot,
+          available: !isBlocked && !isFull,
+          blocked: isBlocked,
         }
       })
     )
