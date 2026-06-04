@@ -1260,7 +1260,22 @@ export async function getSocialPostById(id: number): Promise<SocialPost | null> 
   return r.rows[0] ?? null
 }
 
+/**
+ * Een post heeft inhoud als zowel caption als image_urls ingevuld zijn.
+ * Daar bumpen we automatisch naar 'klaargezet' (mits status nog 'draft' is).
+ * 'Geplaatst' / 'gemist' wordt nooit teruggedraaid.
+ */
+function autoBumpStatus(status: string | undefined, caption: string | null | undefined, images: string[] | null | undefined): string {
+  const s = status ?? 'draft'
+  if (s !== 'draft') return s
+  const hasCaption = !!(caption && caption.trim().length > 0)
+  const hasMedia = Array.isArray(images) && images.length > 0
+  if (hasCaption && hasMedia) return 'klaargezet'
+  return s
+}
+
 export async function createSocialPost(input: CreateSocialPostInput): Promise<SocialPost> {
+  const finalStatus = autoBumpStatus(input.status, input.caption, input.image_urls)
   const r = await sql<SocialPost>`
     INSERT INTO social_posts (
       scheduled_for, platform, post_type, category, title, image_urls, caption, hashtags, status,
@@ -1274,7 +1289,7 @@ export async function createSocialPost(input: CreateSocialPostInput): Promise<So
       ${JSON.stringify(input.image_urls ?? [])}::jsonb,
       ${input.caption ?? null},
       ${input.hashtags ?? null},
-      ${input.status ?? 'draft'},
+      ${finalStatus},
       ${input.canva_url ?? null},
       ${input.internal_notes ?? null}
     )
@@ -1290,6 +1305,13 @@ export async function updateSocialPost(
 ): Promise<SocialPost | null> {
   const existing = await getSocialPostById(id)
   if (!existing) return null
+
+  // Bepaal de nieuwe waarden eerst, daarna bump status indien content compleet
+  const newCaption = input.caption !== undefined ? input.caption : existing.caption
+  const newImages = input.image_urls !== undefined ? input.image_urls : existing.image_urls
+  const baseStatus = input.status ?? existing.status
+  const finalStatus = autoBumpStatus(baseStatus, newCaption, newImages)
+
   const r = await sql<SocialPost>`
     UPDATE social_posts
     SET scheduled_for  = ${input.scheduled_for ?? existing.scheduled_for}::timestamptz,
@@ -1297,10 +1319,10 @@ export async function updateSocialPost(
         post_type      = ${input.post_type ?? existing.post_type},
         category       = ${input.category !== undefined ? input.category : existing.category},
         title          = ${input.title !== undefined ? input.title : existing.title},
-        image_urls     = ${JSON.stringify(input.image_urls ?? existing.image_urls)}::jsonb,
-        caption        = ${input.caption !== undefined ? input.caption : existing.caption},
+        image_urls     = ${JSON.stringify(newImages)}::jsonb,
+        caption        = ${newCaption},
         hashtags       = ${input.hashtags !== undefined ? input.hashtags : existing.hashtags},
-        status         = ${input.status ?? existing.status},
+        status         = ${finalStatus},
         canva_url      = ${input.canva_url !== undefined ? input.canva_url : existing.canva_url},
         internal_notes = ${input.internal_notes !== undefined ? input.internal_notes : existing.internal_notes},
         reminder_sent  = ${input.reminder_sent !== undefined ? input.reminder_sent : existing.reminder_sent}
