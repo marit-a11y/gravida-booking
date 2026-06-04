@@ -55,6 +55,8 @@ function CadeaubonInner() {
   const searchParams = useSearchParams()
   const urlType = searchParams.get('type') as GiftCardType | null
   const embed = searchParams.get('embed') === '1'
+  const urlMin = searchParams.get('min')
+  const minAmount = urlMin && !isNaN(Number(urlMin)) ? Number(urlMin) : 25
 
   const preselectedType = urlType && VALID_TYPES.includes(urlType) ? urlType : null
 
@@ -98,8 +100,8 @@ function CadeaubonInner() {
 
   const handleAmountNext = () => {
     const value = form.value_euros ?? (customAmount ? parseFloat(customAmount) : null)
-    if (!value || isNaN(value) || value < 25 || value > 500) {
-      setError('Kies een bedrag tussen €25 en €500.')
+    if (!value || isNaN(value) || value < minAmount || value > 500) {
+      setError(`Kies een bedrag tussen €${minAmount} en €500.`)
       return
     }
     setForm(f => ({ ...f, value_euros: value }))
@@ -277,7 +279,7 @@ function CadeaubonInner() {
                   </p>
                 )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-                  {PRESET_AMOUNTS.map(amount => (
+                  {PRESET_AMOUNTS.filter(a => a >= minAmount).map(amount => (
                     <button
                       key={amount}
                       onClick={() => { setForm(f => ({ ...f, value_euros: amount })); setCustomAmount('') }}
@@ -296,11 +298,11 @@ function CadeaubonInner() {
                 </div>
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#9aab9c', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
-                    Of voer een eigen bedrag in (&euro;25 – &euro;500)
+                    Of voer een eigen bedrag in (&euro;{minAmount} tot &euro;500)
                   </label>
                   <input
                     type="number"
-                    min={25}
+                    min={minAmount}
                     max={500}
                     value={customAmount}
                     onChange={e => { setCustomAmount(e.target.value); setForm(f => ({ ...f, value_euros: null })) }}
