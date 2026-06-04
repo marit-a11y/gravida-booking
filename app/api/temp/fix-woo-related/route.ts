@@ -12,19 +12,32 @@ function wooAuthHeader() {
 }
 
 function wooBase() {
-  return (process.env.WOOCOMMERCE_URL ?? '').replace(/\/$/, '')
+  // wp.gravida.nl is the direct WordPress host (gravida.nl redirects to Vercel)
+  const envUrl = (process.env.WOOCOMMERCE_URL ?? '').replace(/\/$/, '')
+  if (envUrl && !envUrl.includes('wp.gravida.nl')) {
+    // Override: always use wp.gravida.nl directly to avoid Vercel redirect loop
+    return 'https://wp.gravida.nl'
+  }
+  return envUrl || 'https://wp.gravida.nl'
+}
+
+function authQueryString() {
+  const key = process.env.WOOCOMMERCE_KEY ?? ''
+  const secret = process.env.WOOCOMMERCE_SECRET ?? ''
+  return `consumer_key=${encodeURIComponent(key)}&consumer_secret=${encodeURIComponent(secret)}`
 }
 
 async function wooFetch(path: string, method = 'GET', body?: object) {
   const base = wooBase()
-  if (!base) throw new Error('WOOCOMMERCE_URL not set')
-  const url = `${base}/wp-json/wc/v3${path}`
+  const sep = path.includes('?') ? '&' : '?'
+  // Include query-string auth as belt-and-suspenders (works even if WAF strips Authorization header)
+  const url = `${base}/wp-json/wc/v3${path}${sep}${authQueryString()}`
   const res = await fetch(url, {
     method,
     headers: {
       Authorization: wooAuthHeader(),
       'Content-Type': 'application/json',
-      'User-Agent': 'Gravida-Dashboard/1.0',
+      'User-Agent': 'Gravida-Dashboard/1.0 (+https://dashboard.gravida.nl)',
       Accept: 'application/json',
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -40,8 +53,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   try {
-    const configured = !!(process.env.WOOCOMMERCE_URL && process.env.WOOCOMMERCE_KEY && process.env.WOOCOMMERCE_SECRET)
-    if (!configured) return NextResponse.json({ error: 'WooCommerce env vars not set', configured })
+    const configured = !!(process.env.WOOCOMMERCE_KEY && process.env.WOOCOMMERCE_SECRET)
+    if (!configured) return NextResponse.json({ error: 'WooCommerce key/secret env vars not set', configured })
 
     const catR = await wooFetch('/products/categories?slug=sieraden&per_page=5')
     const cats = catR.data as Array<{ id: number; name: string; slug: string }>
@@ -58,6 +71,7 @@ export async function GET(req: NextRequest) {
     const diy = diyR.data as { id: number; name: string; upsell_ids: number[]; related_ids: number[]; categories: Array<{ id: number; name: string }> }
 
     return NextResponse.json({
+      woo_base_used: wooBase(),
       sieraden_category: sieradenCat,
       sieraden_products: sieradenProducts,
       diy_product: {
