@@ -85,7 +85,9 @@ export async function POST(req: NextRequest) {
 
   // Get sieraden products
   const prodR = await wooFetch(`/products?category=${sieradenCat.id}&per_page=20&status=publish`)
-  const sieradenIds = (prodR.data as Array<{ id: number }>).map(p => p.id)
+  const sieradenIds = (prodR.data as Array<{ id: number }>)
+    .map(p => p.id)
+    .filter(id => id !== DIY_PRODUCT_ID) // niet het product zelf als upsell
 
   if (sieradenIds.length === 0) {
     return NextResponse.json({ error: 'Geen sieraden producten gevonden' }, { status: 404 })
