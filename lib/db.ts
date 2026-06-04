@@ -506,6 +506,7 @@ const BOOKABLE_REGIONS = [
   'Noord-Brabant',
   'Limburg',
   'Groningen, Friesland en Drenthe',
+  'Zeeland',
 ]
 
 // "Korte dag" = werktijd onder deze drempel (in uren). Op korte dagen blijft
@@ -525,6 +526,7 @@ const FAR_REGIONS = [
   'Noord-Brabant',
   'Limburg',
   'Groningen, Friesland en Drenthe',
+  'Zeeland',
 ]
 
 /** Bereken werktijd in minuten voor een werkdag-config. */
@@ -559,6 +561,7 @@ const TRAVEL_BUFFER_MIN: Record<string, number> = {
   'Noord-Brabant':                   90,
   'Limburg':                         90,
   'Groningen, Friesland en Drenthe': 90,
+  'Zeeland':                         90,
 }
 
 interface StaffRow {
