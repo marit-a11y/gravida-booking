@@ -13,10 +13,6 @@
       "schedule": "0 8 * * *"
     },
     {
-      "path": "/api/cron/whatsapp-content-missing",
-      "schedule": "0 17 * * *"
-    },
-    {
       "path": "/api/cron/whatsapp-post-reminder",
       "schedule": "*/15 * * * *"
     },
