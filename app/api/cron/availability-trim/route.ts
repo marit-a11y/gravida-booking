@@ -56,8 +56,15 @@ export async function GET(request: NextRequest) {
       const bookedInRow = allSlots.filter(s => bookedSlots.includes(s))
       const openInRow = allSlots.filter(s => !bookedSlots.includes(s))
 
-      // Behoud alle geboekte slots + 1 open slot (eerste beschikbare)
-      const extraOpen = openInRow.length > 0 ? [openInRow[0]] : []
+      // Behoud alle geboekte slots + 1 open slot.
+      // Het open slot wordt gerouleerd: deterministische hash van datum+regio
+      // bepaalt welke index uit openInRow we kiezen. Zo niet altijd 10:30.
+      let extraOpen: string[] = []
+      if (openInRow.length > 0) {
+        const seed = (row.date + '|' + row.region).split('').reduce((a, c) => ((a * 31) + c.charCodeAt(0)) >>> 0, 0)
+        const pickIdx = seed % openInRow.length
+        extraOpen = [openInRow[pickIdx]]
+      }
       const keep = [...bookedInRow, ...extraOpen]
       const reason = bookedInRow.length > 0
         ? `${bookedInRow.length} geboekt + 1 open behouden`
