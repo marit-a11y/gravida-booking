@@ -1261,16 +1261,18 @@ export async function getSocialPostById(id: number): Promise<SocialPost | null> 
 }
 
 /**
- * Een post heeft inhoud als zowel caption als image_urls ingevuld zijn.
- * Daar bumpen we automatisch naar 'klaargezet' (mits status nog 'draft' is).
- * 'Geplaatst' / 'gemist' wordt nooit teruggedraaid.
+ * Een post is 'klaargezet' zodra er media is geüpload (foto of video).
+ * Stories op IG hebben vaak geen caption nodig — alleen media. Caption
+ * vereisen zou stories ten onrechte op draft houden.
+ *
+ * 'Geplaatst' / 'gemist' wordt nooit teruggedraaid; alleen 'draft'
+ * wordt bewogen naar 'klaargezet'.
  */
-function autoBumpStatus(status: string | undefined, caption: string | null | undefined, images: string[] | null | undefined): string {
+function autoBumpStatus(status: string | undefined, _caption: string | null | undefined, images: string[] | null | undefined): string {
   const s = status ?? 'draft'
   if (s !== 'draft') return s
-  const hasCaption = !!(caption && caption.trim().length > 0)
   const hasMedia = Array.isArray(images) && images.length > 0
-  if (hasCaption && hasMedia) return 'klaargezet'
+  if (hasMedia) return 'klaargezet'
   return s
 }
 
