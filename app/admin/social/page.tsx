@@ -214,23 +214,10 @@ function SocialPlannerPage() {
     return map
   }, [monthEvents])
 
-  // Aankomende belangrijke data binnen 60 dagen (vanaf vandaag)
+  // Belangrijke data voor de zichtbare maand (sorteert chronologisch)
   const upcomingEvents = useMemo(() => {
-    const now = new Date(); now.setHours(0, 0, 0, 0)
-    const window = new Date(now); window.setDate(window.getDate() + 60)
-    // Pak events voor dit + volgend jaar zodat einde-jaar werkt
-    const all: ThemeEvent[] = []
-    for (let yr = now.getFullYear(); yr <= now.getFullYear() + 1; yr++) {
-      for (let m = 0; m < 12; m++) all.push(...getEventsForMonth(yr, m))
-    }
-    return all
-      .filter(e => {
-        const d = new Date(e.date + 'T00:00:00')
-        return d >= now && d <= window
-      })
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 12)
-  }, [])
+    return getEventsForMonth(calYear, calMonth).sort((a, b) => a.date.localeCompare(b.date))
+  }, [calYear, calMonth])
 
   const [upcomingOpen, setUpcomingOpen] = useState(true)
 
@@ -746,7 +733,7 @@ function SocialPlannerPage() {
           <button onClick={() => setUpcomingOpen(o => !o)}
             className="w-full flex items-center justify-between text-left">
             <p className="text-xs font-semibold text-gravida-green uppercase tracking-wide">
-              📅 Aankomende belangrijke data ({upcomingEvents.length})
+              📅 Belangrijke data in {DUTCH_MONTHS[calMonth]} {calYear} ({upcomingEvents.length})
             </p>
             <span className="text-xs text-gravida-light-sage">{upcomingOpen ? '▾' : '▸'}</span>
           </button>
@@ -757,7 +744,11 @@ function SocialPlannerPage() {
                 const today = new Date(); today.setHours(0,0,0,0)
                 const days = Math.round((d.getTime() - today.getTime()) / 86400000)
                 const dateLabel = d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
-                const dayLabel = days === 0 ? 'vandaag' : days === 1 ? 'morgen' : `over ${days} dagen`
+                const dayLabel = days === 0 ? 'vandaag'
+                  : days === 1 ? 'morgen'
+                  : days > 0 ? `over ${days} dagen`
+                  : days === -1 ? 'gisteren'
+                  : `${Math.abs(days)} dagen geleden`
                 const bg = e.type === 'commercieel' ? 'bg-pink-50 border-pink-200'
                          : e.type === 'feestdag' ? 'bg-amber-50 border-amber-200'
                          : 'bg-emerald-50 border-emerald-200'
