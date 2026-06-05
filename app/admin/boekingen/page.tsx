@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { formatDutchDateShort } from '@/lib/utils'
 import { ScanConsentSection } from '@/app/admin/components/ScanConsentSection'
 import StlManager from '@/app/admin/components/StlManager'
@@ -66,6 +67,17 @@ const EMPTY_FORM = {
 }
 
 export default function BoekingenPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-gravida-light-sage">Laden...</div>}>
+      <BoekingenInner />
+    </Suspense>
+  )
+}
+
+function BoekingenInner() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const openId = searchParams.get('open')
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -127,6 +139,32 @@ export default function BoekingenPage() {
   useEffect(() => {
     loadBookings()
   }, [loadBookings])
+
+  // Deep link: open de specifieke boeking als ?open=ID in de URL staat.
+  // Als de boeking nog niet in de huidige set zit (door filters), halen we
+  // hem apart op zodat het modal alsnog opent.
+  useEffect(() => {
+    if (!openId) return
+    if (detailBooking?.id === parseInt(openId, 10)) return
+    const idNum = parseInt(openId, 10)
+    if (isNaN(idNum)) return
+    const fromList = bookings.find(b => b.id === idNum)
+    if (fromList) {
+      setDetailBooking(fromList)
+      router.replace('/admin/boekingen', { scroll: false })
+      return
+    }
+    // Niet in de lijst → ophalen
+    fetch(`/api/admin/bookings/${idNum}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.booking) {
+          setDetailBooking(d.booking)
+          router.replace('/admin/boekingen', { scroll: false })
+        }
+      })
+      .catch(() => {})
+  }, [openId, bookings, detailBooking?.id, router])
 
   // Client-side customer number filter + sort
   const filteredBookings = filterCustomerNumber.trim()

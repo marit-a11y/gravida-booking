@@ -323,7 +323,7 @@ function BookingDetails({ b }: { b: Booking }) {
         <DetailRow label="Geboekt op" value={formatDutchDate(b.created_at.split(' ')[0])} />
       )}
       <div className="sm:col-span-2 pt-2 flex gap-2">
-        <a href={`/admin/bookings/${b.id}`} className="text-xs text-gravida-sage hover:text-gravida-green underline">
+        <a href={`/admin/boekingen?open=${b.id}`} className="text-xs text-gravida-sage hover:text-gravida-green underline">
           Volledig openen ➔
         </a>
       </div>
