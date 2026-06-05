@@ -15,9 +15,12 @@ export const maxDuration = 60
  *
  * Wat het doet, per regio per dag in week starting (next Monday):
  *   - 0 of 1 slot → niets doen
- *   - meerdere slots: behoud alle geboekte slots + 1 open slot, zodat
- *     er per regio per dag altijd nog precies één boekingsmogelijkheid
- *     openstaat naast de bestaande boekingen.
+ *   - geen boekingen: behoud alleen 1 open slot (gerouleerd), rest blocked
+ *     → klant ziet 'bijna vol' urgentie
+ *   - WEL boekingen: behoud alle slots (geen blocked), de daadwerkelijke
+ *     beschikbaarheid wordt getoond. Reden: voor regio's waar al iemand
+ *     gepland staat, willen we de andere klant niet kunstmatig
+ *     ontmoedigen — Laila is daar toch al die dag.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -56,21 +59,24 @@ export async function GET(request: NextRequest) {
         WHERE availability_id = ${row.id} AND status != 'geannuleerd'
       `
       const bookedSlots = bookings.rows.map(r => r.time_slot)
-      const bookedInUniverse = universe.filter(s => bookedSlots.includes(s))
-      const candidates = universe.filter(s => !bookedSlots.includes(s))
+      const hasRealBooking = bookedSlots.some(s => universe.includes(s))
 
-      // 1 extra open slot via deterministische hash → spreidt tijden over regio's
-      let extraOpen: string[] = []
-      if (candidates.length > 0) {
+      let bookable: string[]
+      let blocked: string[]
+      let reason: string
+      if (hasRealBooking) {
+        // Volledig open: geen blocked slots
+        bookable = universe.slice().sort()
+        blocked = []
+        reason = `${bookedSlots.length} geboekt — volledige beschikbaarheid getoond`
+      } else {
+        // Geen boekingen → 1 open slot via deterministische hash, rest blocked
         const seed = (row.date + '|' + row.region).split('').reduce((a, c) => ((a * 31) + c.charCodeAt(0)) >>> 0, 0)
-        extraOpen = [candidates[seed % candidates.length]]
+        const pickIdx = seed % universe.length
+        bookable = [universe[pickIdx]]
+        blocked = universe.filter(s => !bookable.includes(s)).sort()
+        reason = `1 open, ${blocked.length} als vol getoond`
       }
-      const bookable = [...bookedInUniverse, ...extraOpen].sort()
-      const blocked = universe.filter(s => !bookable.includes(s)).sort()
-
-      const reason = bookedInUniverse.length > 0
-        ? `${bookedInUniverse.length} geboekt + 1 open, ${blocked.length} als vol`
-        : `1 open, ${blocked.length} als vol getoond`
 
       // Geen wijziging nodig?
       if (JSON.stringify(bookable) === JSON.stringify(currentSlots.slice().sort())
