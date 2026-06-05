@@ -119,41 +119,57 @@ function SocialPlannerPage() {
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false)
   const [copyToPostId, setCopyToPostId] = useState<number | null>(null)
   const [copyToDate, setCopyToDate] = useState('')
+  const [copyToDates, setCopyToDates] = useState<string[]>([])  // verzamelde data
   const [copying, setCopying] = useState(false)
 
-  const duplicatePost = async (sourcePost: SocialPost, newDateIso: string) => {
-    setCopying(true)
-    try {
-      // Behoud het oorspronkelijke tijdstip op de nieuwe datum
-      const old = new Date(sourcePost.scheduled_for)
-      const targetDate = new Date(newDateIso + 'T00:00:00')
-      targetDate.setHours(old.getHours(), old.getMinutes(), 0, 0)
+  const addCopyDate = () => {
+    if (!copyToDate) return
+    if (copyToDates.includes(copyToDate)) { setCopyToDate(''); return }
+    setCopyToDates(prev => [...prev, copyToDate].sort())
+    setCopyToDate('')
+  }
+  const removeCopyDate = (d: string) => {
+    setCopyToDates(prev => prev.filter(x => x !== d))
+  }
 
-      const payload = {
-        scheduled_for: targetDate.toISOString(),
-        platform: sourcePost.platform,
-        post_type: sourcePost.post_type,
-        category: sourcePost.category,
-        title: sourcePost.title,
-        image_urls: sourcePost.image_urls ?? [],
-        caption: sourcePost.caption,
-        hashtags: sourcePost.hashtags,
-        canva_url: sourcePost.canva_url,
-        internal_notes: sourcePost.internal_notes,
-        status: 'draft',  // kopie start als draft (autoBump pakt klaargezet als compleet)
+  const duplicatePost = async (sourcePost: SocialPost, newDatesIso: string[]) => {
+    if (newDatesIso.length === 0) return
+    setCopying(true)
+    let ok = 0, fail = 0
+    try {
+      const old = new Date(sourcePost.scheduled_for)
+      for (const dateIso of newDatesIso) {
+        const targetDate = new Date(dateIso + 'T00:00:00')
+        targetDate.setHours(old.getHours(), old.getMinutes(), 0, 0)
+
+        const payload = {
+          scheduled_for: targetDate.toISOString(),
+          platform: sourcePost.platform,
+          post_type: sourcePost.post_type,
+          category: sourcePost.category,
+          title: sourcePost.title,
+          image_urls: sourcePost.image_urls ?? [],
+          caption: sourcePost.caption,
+          hashtags: sourcePost.hashtags,
+          canva_url: sourcePost.canva_url,
+          internal_notes: sourcePost.internal_notes,
+          status: 'draft',
+        }
+        const r = await fetch('/api/admin/social-posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (r.ok) ok++; else fail++
       }
-      const r = await fetch('/api/admin/social-posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (r.ok) {
+      if (fail === 0) {
         setCopyToPostId(null)
         setCopyToDate('')
+        setCopyToDates([])
         await load()
       } else {
-        const d = await r.json().catch(() => ({}))
-        alert('Kopiëren mislukt: ' + (d.error ?? r.status))
+        alert(`${ok} kopieën gemaakt, ${fail} mislukt.`)
+        await load()
       }
     } finally { setCopying(false) }
   }
@@ -938,8 +954,10 @@ function SocialPlannerPage() {
                                 if (copyToPostId === p.id) {
                                   setCopyToPostId(null)
                                   setCopyToDate('')
+                                  setCopyToDates([])
                                 } else {
                                   setCopyToPostId(p.id)
+                                  setCopyToDates([])
                                   // Default: morgen
                                   const tom = new Date(p.scheduled_for)
                                   tom.setDate(tom.getDate() + 1)
@@ -962,34 +980,60 @@ function SocialPlannerPage() {
                               {/* Overlay vangt klikken buiten popover (sluit hem) */}
                               <div
                                 className="fixed inset-0 z-40"
-                                onClick={() => { setCopyToPostId(null); setCopyToDate('') }}
+                                onClick={() => { setCopyToPostId(null); setCopyToDate(''); setCopyToDates([]) }}
                               />
                               <div
                                 onClick={e => e.stopPropagation()}
-                                className="absolute z-50 right-0 bottom-full mb-2 bg-white border-2 border-gravida-sage rounded-xl shadow-2xl p-3 min-w-[240px]"
+                                className="absolute z-50 right-0 bottom-full mb-2 bg-white border-2 border-gravida-sage rounded-xl shadow-2xl p-3 min-w-[280px]"
                               >
-                                <p className="text-[10px] text-gravida-light-sage uppercase tracking-wide mb-1">Kopieer naar datum</p>
-                                <input
-                                  type="date"
-                                  value={copyToDate}
-                                  onChange={e => setCopyToDate(e.target.value)}
-                                  className="input-field text-xs w-full mb-2"
-                                  min={new Date().toISOString().slice(0, 10)}
-                                />
+                                <p className="text-[10px] text-gravida-light-sage uppercase tracking-wide mb-1">Kopieer naar datum(s)</p>
+                                <div className="flex gap-1 mb-2">
+                                  <input
+                                    type="date"
+                                    value={copyToDate}
+                                    onChange={e => setCopyToDate(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCopyDate() } }}
+                                    className="input-field text-xs flex-1"
+                                    min={new Date().toISOString().slice(0, 10)}
+                                  />
+                                  <button
+                                    onClick={addCopyDate}
+                                    disabled={!copyToDate}
+                                    className="text-xs px-2 py-1 rounded bg-gravida-cream text-gravida-sage hover:bg-gravida-off-white disabled:opacity-40"
+                                  >
+                                    + Toevoegen
+                                  </button>
+                                </div>
+                                {copyToDates.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mb-2 max-h-24 overflow-y-auto">
+                                    {copyToDates.map(d => (
+                                      <span key={d} className="inline-flex items-center gap-1 text-[10px] bg-gravida-green text-white px-1.5 py-0.5 rounded">
+                                        {new Date(d + 'T00:00:00').toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                                        <button onClick={() => removeCopyDate(d)} className="text-white/80 hover:text-white" title="Verwijder">✕</button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                                 <p className="text-[10px] text-gravida-light-sage mb-2">Tijdstip ({formatNlTime(p.scheduled_for)}) blijft hetzelfde. Start als <strong>draft</strong>.</p>
                                 <div className="flex gap-1">
                                   <button
-                                    onClick={() => { setCopyToPostId(null); setCopyToDate('') }}
+                                    onClick={() => { setCopyToPostId(null); setCopyToDate(''); setCopyToDates([]) }}
                                     className="flex-1 text-xs px-2 py-1 rounded border border-gravida-cream text-gravida-sage"
                                   >
                                     Annuleren
                                   </button>
                                   <button
-                                    onClick={() => copyToDate && duplicatePost(p, copyToDate)}
-                                    disabled={!copyToDate || copying}
+                                    onClick={() => {
+                                      // Pak chips + eventueel nog niet-toegevoegde input
+                                      const all = copyToDate && !copyToDates.includes(copyToDate)
+                                        ? [...copyToDates, copyToDate]
+                                        : copyToDates
+                                      if (all.length > 0) duplicatePost(p, all)
+                                    }}
+                                    disabled={copying || (copyToDates.length === 0 && !copyToDate)}
                                     className="flex-1 text-xs px-2 py-1 rounded bg-gravida-green text-white disabled:opacity-50"
                                   >
-                                    {copying ? '...' : 'Kopieer'}
+                                    {copying ? '...' : copyToDates.length > 1 ? `Kopieer (${copyToDates.length})` : 'Kopieer'}
                                   </button>
                                 </div>
                               </div>
