@@ -19,66 +19,47 @@ export async function GET(req: NextRequest) {
     'Content-Type': 'application/json',
   }
 
-  // ID van /me — test of dit het WABA ID is
-  const ME_ID = '122106029919300091'
+  const sendTemplate = async (name: string, lang: string, params: string[]) => {
+    try {
+      const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: lailaNumber,
+          type: 'template',
+          template: {
+            name,
+            language: { code: lang },
+            components: params.length
+              ? [{ type: 'body', parameters: params.map(p => ({ type: 'text', text: p })) }]
+              : [],
+          },
+        }),
+      })
+      const data = await res.json()
+      return { ok: res.ok, data }
+    } catch (err) {
+      return { ok: false, data: { fetch_error: String(err) } }
+    }
+  }
 
-  // 1. Probeer templates op te halen via ME_ID (alsof het een WABA is)
-  let templatesViaMeId: unknown = null
-  try {
-    const r = await fetch(
-      `https://graph.facebook.com/v21.0/${ME_ID}/message_templates?limit=30&fields=name,language,status`,
-      { headers }
-    )
-    templatesViaMeId = await r.json()
-  } catch (err) { templatesViaMeId = { fetch_error: String(err) } }
+  // Test beide templates parallel — gravida_post_reminder werkt al voor de social planner
+  // Als die ook 132001 geeft weten we dat het aan de token ligt, niet aan de template
+  const [resultWebsiteChat, resultPostReminder] = await Promise.all([
+    sendTemplate('gravida_website_chat', 'nl', ['Testbericht']),
+    // gravida_post_reminder heeft waarschijnlijk 1 of meer params — test zonder params eerst
+    sendTemplate('gravida_post_reminder', 'nl', []),
+  ])
 
-  // 2. Probeer /me/businesses
-  let businesses: unknown = null
-  try {
-    const r = await fetch(
-      `https://graph.facebook.com/v21.0/me/businesses?fields=id,name`,
-      { headers }
-    )
-    businesses = await r.json()
-  } catch (err) { businesses = { fetch_error: String(err) } }
-
-  // 3. Probeer /me/whatsapp_business_accounts
-  let wabaAccounts: unknown = null
-  try {
-    const r = await fetch(
-      `https://graph.facebook.com/v21.0/me/whatsapp_business_accounts?fields=id,name`,
-      { headers }
-    )
-    wabaAccounts = await r.json()
-  } catch (err) { wabaAccounts = { fetch_error: String(err) } }
-
-  // 4. Stuur test met nl (verwacht 132001)
-  let sendNl: unknown = null
-  try {
-    const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: lailaNumber,
-        type: 'template',
-        template: {
-          name: 'gravida_website_chat',
-          language: { code: 'nl' },
-          components: [{ type: 'body', parameters: [{ type: 'text', text: 'Test' }] }],
-        },
-      }),
-    })
-    sendNl = await res.json()
-  } catch (err) { sendNl = { fetch_error: String(err) } }
+  // Ook testen met 1 dummy param voor gravida_post_reminder
+  const resultPostReminderWithParam = await sendTemplate('gravida_post_reminder', 'nl', ['test'])
 
   return NextResponse.json({
     laila_number: lailaNumber || '(leeg)',
     phone_number_id: phoneId ? `${phoneId.slice(0, 6)}...` : '(leeg)',
-    me_id: ME_ID,
-    templates_via_me_id: templatesViaMeId,
-    businesses,
-    waba_accounts: wabaAccounts,
-    send_nl: sendNl,
+    gravida_website_chat_nl: resultWebsiteChat.data,
+    gravida_post_reminder_no_params: resultPostReminder.data,
+    gravida_post_reminder_1_param: resultPostReminderWithParam.data,
   })
 }
