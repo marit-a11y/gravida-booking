@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { ScanConsentSection } from '@/app/admin/components/ScanConsentSection'
 import StlManager from '@/app/admin/components/StlManager'
+import DiyCalendar from '@/app/admin/components/DiyCalendar'
 
 interface Scanner {
   id: number
@@ -77,6 +78,7 @@ function formatWeek(mondayStr: string): string {
 export default function DiyScannerPage() {
   const [scanners, setScanners] = useState<Scanner[]>([])
   const [rentals, setRentals] = useState<Rental[]>([])
+  const [view, setView] = useState<'lijst' | 'kalender'>('lijst')
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('alle')
   const [sortOrder, setSortOrder] = useState<'week_asc' | 'week_desc' | 'created_desc'>('week_asc')
@@ -463,13 +465,41 @@ export default function DiyScannerPage() {
           <h1 className="page-title">DIY Scanners</h1>
           <p className="text-gravida-sage mt-1">Beheer inventaris en reserveringen</p>
         </div>
-        <button onClick={openNewModal} className="btn-primary flex items-center gap-2 shrink-0">
-          <span>+</span> Nieuwe reservering
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="inline-flex rounded-lg border border-gravida-cream overflow-hidden">
+            <button onClick={() => setView('lijst')}
+              className={`px-3 py-1.5 text-xs font-medium ${view === 'lijst' ? 'bg-gravida-sage text-white' : 'bg-white text-gravida-sage hover:bg-gravida-cream'}`}>
+              Lijst
+            </button>
+            <button onClick={() => setView('kalender')}
+              className={`px-3 py-1.5 text-xs font-medium ${view === 'kalender' ? 'bg-gravida-sage text-white' : 'bg-white text-gravida-sage hover:bg-gravida-cream'}`}>
+              📅 Kalender
+            </button>
+          </div>
+          <button onClick={openNewModal} className="btn-primary flex items-center gap-2">
+            <span>+</span> Nieuwe reservering
+          </button>
+        </div>
       </div>
 
-      {/* Deze week — verzenden + retour quick actions */}
-      {(() => {
+      {/* Kalender view */}
+      {view === 'kalender' && (
+        <div className="mb-8">
+          <DiyCalendar onOpenRental={(id) => {
+            const r = rentals.find(x => x.id === id)
+            if (r) { setDetailRental(r) }
+            else {
+              // niet in huidige lijst → ophalen
+              fetch(`/api/admin/diy-rentals/${id}`).then(res => res.ok ? res.json() : null).then(d => {
+                if (d?.rental) setDetailRental(d.rental)
+              }).catch(() => {})
+            }
+          }} />
+        </div>
+      )}
+
+      {/* Deze week — verzenden + retour quick actions (alleen lijst-view) */}
+      {view === 'lijst' && (() => {
         // Bereken huidige week-maandag in NL-datum
         const today = new Date()
         const dow = (today.getDay() + 6) % 7  // 0 = maandag
@@ -621,6 +651,8 @@ export default function DiyScannerPage() {
         )
       })()}
 
+      {/* Lijst-view secties: blokkades, inventaris, reserveringen */}
+      {view === 'lijst' && (<>
       {/* Blokkades / zomerstop */}
       <div className="mb-8">
         <h2 className="section-title mb-3">Blokkades (vakantie / zomerstop)</h2>
@@ -882,6 +914,7 @@ export default function DiyScannerPage() {
           )
         })()}
       </div>
+      </>)}
 
       {/* Detail modal */}
       {detailRental && (
