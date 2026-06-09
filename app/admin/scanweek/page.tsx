@@ -1,97 +1,81 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { currentPregnancyWeek, estimatedDueDate, reminderDate, REMINDER_WEEK } from '@/lib/scanweek'
 
-interface Submission {
-  id: string
+interface Signup {
+  id: number
   email: string
-  name?: string | null
-  due_date?: string | null
-  phone?: string | null
-  region?: string | null
+  name: string | null
+  current_week: number | null
+  signup_week_date: string
+  region: string | null
   status: 'pending' | 'contacted' | 'booked' | 'dismissed'
-  note?: string | null
-  timestamp: string
+  note: string | null
+  confirm_sent_at: string | null
+  reminder_sent_at: string | null
+  created_at: string
 }
 
-const STATUS_LABELS: Record<Submission['status'], { label: string; cls: string }> = {
-  pending:   { label: 'Wachtend',     cls: 'bg-orange-100 text-orange-700 border-orange-200' },
-  contacted: { label: 'Gecontacteerd', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
-  booked:    { label: 'Geboekt',      cls: 'bg-green-100 text-green-700 border-green-200' },
-  dismissed: { label: 'Afgesloten',   cls: 'bg-gray-100 text-gray-600 border-gray-200' },
+const STATUS_LABELS: Record<Signup['status'], { label: string; cls: string }> = {
+  pending:   { label: 'Wachtend',      cls: 'bg-orange-100 text-orange-700 border-orange-200' },
+  contacted: { label: 'Reminder verstuurd', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+  booked:    { label: 'Geboekt',       cls: 'bg-green-100 text-green-700 border-green-200' },
+  dismissed: { label: 'Afgesloten',    cls: 'bg-gray-100 text-gray-600 border-gray-200' },
 }
 
-function weekFromDueDate(due: string | null | undefined, ref = new Date()): number | null {
-  if (!due) return null
-  const d = new Date(due)
-  if (isNaN(d.getTime())) return null
-  // Een zwangerschap = 40 weken vanaf 1 dag voor 38 weken. Bereken huidige zwangerschapsweek.
-  // EDD = due date. Zwanger begin ≈ EDD minus 280 dagen.
-  const lmp = new Date(d.getTime() - 280 * 86400000)
-  const days = Math.floor((ref.getTime() - lmp.getTime()) / 86400000)
-  if (days < 0) return null
-  return Math.floor(days / 7)
-}
-
-function fmtDue(due: string | null | undefined): string {
-  if (!due) return '—'
-  const d = new Date(due)
-  if (isNaN(d.getTime())) return due
-  return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
+function fmt(d: string | null): string {
+  if (!d) return '—'
+  const dd = new Date(d.length <= 10 ? d + 'T00:00:00' : d)
+  if (isNaN(dd.getTime())) return d
+  return dd.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export default function ScanweekPage() {
-  const [items, setItems] = useState<Submission[]>([])
+  const [items, setItems] = useState<Signup[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | Submission['status']>('pending')
-  const [updating, setUpdating] = useState<string | null>(null)
+  const [filter, setFilter] = useState<'all' | Signup['status']>('pending')
+  const [updating, setUpdating] = useState<number | null>(null)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const r = await fetch('/api/admin/scanweek-submissions', { cache: 'no-store' })
+      const r = await fetch('/api/admin/scanweek', { credentials: 'include', cache: 'no-store' })
       const d = await r.json()
       if (!r.ok) { setError(d?.error ?? 'Laden mislukt'); setItems([]) }
-      else setItems(d.submissions ?? [])
-    } catch (e) {
-      setError(String(e))
-    } finally { setLoading(false) }
-  }
-  useEffect(() => { load() }, [])
+      else setItems(d.signups ?? [])
+    } catch (e) { setError(String(e)) } finally { setLoading(false) }
+  }, [])
+  useEffect(() => { load() }, [load])
 
-  const updateStatus = async (id: string, status: Submission['status']) => {
+  const updateStatus = async (id: number, status: Signup['status']) => {
     setUpdating(id)
     try {
-      const r = await fetch('/api/admin/scanweek-submissions', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const r = await fetch('/api/admin/scanweek', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
       })
       if (r.ok) setItems(prev => prev.map(s => s.id === id ? { ...s, status } : s))
-      else {
-        const d = await r.json().catch(() => ({}))
-        alert('Fout: ' + (d?.error ?? 'wijziging mislukt'))
-      }
+      else { const d = await r.json().catch(() => ({})); alert('Fout: ' + (d?.error ?? 'mislukt')) }
     } finally { setUpdating(null) }
   }
 
-  const filtered = filter === 'all' ? items : items.filter(s => s.status === filter)
   const counts = {
     pending:   items.filter(s => s.status === 'pending').length,
     contacted: items.filter(s => s.status === 'contacted').length,
     booked:    items.filter(s => s.status === 'booked').length,
     dismissed: items.filter(s => s.status === 'dismissed').length,
   }
+  const filtered = filter === 'all' ? items : items.filter(s => s.status === filter)
 
-  // Sorteer wachtenden eerst op huidige zwangerschapsweek (hogere week = urgenter)
+  // Sorteer wachtenden: wie het dichtst bij (of voorbij) reminderweek zit eerst
   const sorted = useMemo(() => {
-    const today = new Date()
+    const now = new Date()
     return [...filtered].sort((a, b) => {
-      const wa = weekFromDueDate(a.due_date, today) ?? -1
-      const wb = weekFromDueDate(b.due_date, today) ?? -1
-      if (wa !== wb) return wb - wa  // hoogste week eerst
-      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      const wa = a.current_week != null ? currentPregnancyWeek(a.current_week, a.signup_week_date, now) : -1
+      const wb = b.current_week != null ? currentPregnancyWeek(b.current_week, b.signup_week_date, now) : -1
+      return wb - wa
     })
   }, [filtered])
 
@@ -101,32 +85,25 @@ export default function ScanweekPage() {
         <div>
           <h1 className="page-title">Scanweek aanmeldingen</h1>
           <p className="text-gravida-sage mt-1 text-sm">
-            Bezoekers die hun e-mail hebben achtergelaten om een reminder te krijgen rond de ideale scanweek (25-30 weken).
+            Bezoekers die een herinnering willen rond de ideale scanweek (34-36). De reminder gaat automatisch rond week {REMINDER_WEEK}.
           </p>
         </div>
-        <button onClick={load} className="btn-secondary text-sm">
-          {loading ? 'Vernieuwen...' : '↻ Vernieuwen'}
-        </button>
+        <button onClick={load} className="btn-secondary text-sm">{loading ? 'Vernieuwen...' : '↻ Vernieuwen'}</button>
       </div>
 
       {error && (
         <div className="card mb-6 bg-red-50 border-red-200">
-          <p className="text-sm text-red-700">
-            <strong>Verbinding met site mislukt:</strong> {error}
-          </p>
-          <p className="text-xs text-red-600 mt-2">
-            Check of <code>GRAVIDA_SITE_SECRET</code> in Vercel env vars staat en het scanweek-endpoint actief is op gravida-new.
-          </p>
+          <p className="text-sm text-red-700"><strong>Laden mislukt:</strong> {error}</p>
         </div>
       )}
 
       <div className="card mb-4 flex gap-1.5 flex-wrap">
         {[
-          { key: 'pending',   label: `Wachtend (${counts.pending})` },
-          { key: 'contacted', label: `Gecontacteerd (${counts.contacted})` },
-          { key: 'booked',    label: `Geboekt (${counts.booked})` },
+          { key: 'pending', label: `Wachtend (${counts.pending})` },
+          { key: 'contacted', label: `Reminder verstuurd (${counts.contacted})` },
+          { key: 'booked', label: `Geboekt (${counts.booked})` },
           { key: 'dismissed', label: `Afgesloten (${counts.dismissed})` },
-          { key: 'all',       label: `Alles (${items.length})` },
+          { key: 'all', label: `Alles (${items.length})` },
         ].map(t => (
           <button key={t.key} onClick={() => setFilter(t.key as typeof filter)}
             className={`text-xs font-medium px-3 py-1.5 rounded-full ${filter === t.key ? 'bg-gravida-sage text-white' : 'bg-white border border-gravida-cream text-gravida-sage hover:border-gravida-sage'}`}>
@@ -143,11 +120,13 @@ export default function ScanweekPage() {
         <div className="space-y-2">
           {sorted.map(s => {
             const status = STATUS_LABELS[s.status]
-            const week = weekFromDueDate(s.due_date)
-            const isReady = week !== null && week >= 25 && week <= 30
+            const nowWeek = s.current_week != null ? currentPregnancyWeek(s.current_week, s.signup_week_date) : null
+            const due = s.current_week != null ? estimatedDueDate(s.current_week, s.signup_week_date) : null
+            const remind = s.current_week != null ? reminderDate(s.current_week, s.signup_week_date) : null
+            const ready = nowWeek != null && nowWeek >= REMINDER_WEEK && nowWeek <= 38
             return (
               <div key={s.id} className={`card border-l-4 ${
-                s.status === 'pending' ? (isReady ? 'border-red-500' : 'border-orange-400') :
+                s.status === 'pending' ? (ready ? 'border-red-500' : 'border-orange-400') :
                 s.status === 'contacted' ? 'border-blue-400' :
                 s.status === 'booked' ? 'border-green-400' : 'border-gray-300'
               }`}>
@@ -155,45 +134,36 @@ export default function ScanweekPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-semibold text-gravida-green truncate">{s.name || s.email}</h3>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${status.cls} whitespace-nowrap`}>
-                        {status.label}
-                      </span>
-                      {isReady && s.status === 'pending' && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">
-                          🔔 Nu mailen
-                        </span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${status.cls} whitespace-nowrap`}>{status.label}</span>
+                      {ready && s.status === 'pending' && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">🔔 Reminder-week bereikt</span>
                       )}
                     </div>
                     <div className="text-xs text-gravida-sage mt-1 flex gap-3 flex-wrap">
                       <span>📧 {s.email}</span>
-                      {s.phone && <span>📞 {s.phone}</span>}
                       {s.region && <span>📍 {s.region}</span>}
                     </div>
                     <div className="text-[11px] text-gravida-light-sage mt-1 flex gap-3 flex-wrap">
-                      <span>Uitgerekend: {fmtDue(s.due_date)}</span>
-                      {week !== null && <span>Nu {week} weken zwanger</span>}
-                      <span>Aangemeld: {new Date(s.timestamp).toLocaleDateString('nl-NL')}</span>
+                      {s.current_week != null
+                        ? <><span>Bij aanmelding: week {s.current_week}</span><span className="font-medium text-gravida-sage">Nu: ± week {nowWeek}</span></>
+                        : <span className="text-amber-600">⚠ geen week opgegeven</span>}
+                      {due && <span>Uitgerekend ± {fmt(due)}</span>}
+                      {remind && <span>Reminder ± {fmt(remind)}</span>}
+                      <span>Aangemeld {fmt(s.created_at.slice(0,10))}</span>
                     </div>
-                    {s.note && <p className="text-xs text-gravida-sage italic mt-1">{s.note}</p>}
                   </div>
                   <div className="flex gap-1.5 flex-wrap shrink-0">
                     {s.status !== 'contacted' && (
                       <button onClick={() => updateStatus(s.id, 'contacted')} disabled={updating === s.id}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50">
-                        ✉️ Gecontacteerd
-                      </button>
+                        className="text-xs px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-50">✉️ Gecontacteerd</button>
                     )}
                     {s.status !== 'booked' && (
                       <button onClick={() => updateStatus(s.id, 'booked')} disabled={updating === s.id}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50">
-                        ✓ Geboekt
-                      </button>
+                        className="text-xs px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50">✓ Geboekt</button>
                     )}
                     {s.status !== 'dismissed' && (
                       <button onClick={() => updateStatus(s.id, 'dismissed')} disabled={updating === s.id}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-white border border-gravida-cream text-gravida-sage hover:bg-gravida-off-white disabled:opacity-50">
-                        Afsluiten
-                      </button>
+                        className="text-xs px-3 py-1.5 rounded-lg bg-white border border-gravida-cream text-gravida-sage hover:bg-gravida-off-white disabled:opacity-50">Afsluiten</button>
                     )}
                   </div>
                 </div>

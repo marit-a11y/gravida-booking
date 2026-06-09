@@ -37,6 +37,56 @@ export function detectScanType(region: string | null | undefined): ScanType {
   return 'thuis'
 }
 
+// ─── Scanweek reminder mails ──────────────────────────────────────────────────
+
+export async function sendScanweekConfirmEmail(params: {
+  email: string
+  name?: string | null
+  reminder_date: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const voornaam = params.name?.split(' ')[0] || 'daar'
+  const reminderNl = formatDutchDate(params.reminder_date)
+  const p = (t: string) => `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${t}</p>`
+  const html = layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">Je herinnering staat klaar</p>
+    ${p(`Hi ${voornaam},`)}
+    ${p('Wat leuk dat je een 3D zwangerschapsscan overweegt! De ideale periode voor je scan is week 34 tot 36. Wij sturen je rond week 30 een herinnering, zodat je ruim op tijd je afspraak kunt plannen.')}
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND_LIGHT};border-radius:12px;margin:0 0 20px;">
+      <tr><td style="padding:18px 22px;text-align:center;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:600;color:#8a9e8c;text-transform:uppercase;letter-spacing:1px;">Je reminder komt rond</p>
+        <p style="margin:0;font-size:17px;font-weight:700;color:${BRAND_GREEN};">${reminderNl}</p>
+      </td></tr>
+    </table>
+    ${p('Je hoeft nu even niets te doen, we tikken je vanzelf op de schouder als het moment daar is. Wil je tussendoor al iets vragen? App me gerust via 06 8706 2504.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">Tot snel,<br/><strong style="color:#1e2d1f;">Laila</strong></p>
+  `)
+  await getResend().emails.send({ from: FROM, to: params.email, subject: 'Je 3D scan herinnering staat klaar', html, replyTo: 'marit@gravida.nl' })
+}
+
+export async function sendScanweekReminderEmail(params: {
+  email: string
+  name?: string | null
+  booking_url?: string
+}): Promise<void> {
+  if (!process.env.RESEND_API_KEY) return
+  const voornaam = params.name?.split(' ')[0] || 'daar'
+  const bookUrl = params.booking_url ?? 'https://www.gravida.nl/scanmoment'
+  const p = (t: string) => `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${t}</p>`
+  const html = layout(`
+    <p style="margin:0 0 20px;font-size:22px;font-weight:700;color:#1e2d1f;letter-spacing:-0.5px;">Het is bijna tijd voor je 3D scan</p>
+    ${p(`Hi ${voornaam},`)}
+    ${p('Je zit inmiddels rond week 30, en dat betekent dat de ideale periode voor je 3D zwangerschapsscan eraan komt (week 34 tot 36). Dit is het moment om je afspraak te plannen, want de mooiste weken zijn snel volgeboekt.')}
+    ${p('We komen bij je thuis, door heel Nederland. Een veilige lichtprojectie, geen straling en geen contact met de huid.')}
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.75;text-align:center;">
+      <a href="${bookUrl}" style="display:inline-block;background:${BRAND_GREEN};color:#fff;text-decoration:none;padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;">Plan je scan</a>
+    </p>
+    ${p('Vragen of even overleggen over de beste week? App me gerust via 06 8706 2504, ik denk graag met je mee.')}
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">Lieve groet,<br/><strong style="color:#1e2d1f;">Laila</strong></p>
+  `)
+  await getResend().emails.send({ from: FROM, to: params.email, subject: 'Het is bijna tijd voor je 3D scan', html, replyTo: 'marit@gravida.nl' })
+}
+
 // ─── Shared layout wrapper ────────────────────────────────────────────────────
 
 function layout(content: string): string {
