@@ -1774,3 +1774,95 @@ export async function sendSocialPlannerReminder(items: SocialReminderItem[]): Pr
     html,
   })
 }
+
+// ─── Atelier AI scan review (smartphone app, AI sculpted) ─────────────────────
+// Paralleltrack van sendDiyReviewEmail, maar de copy verwijst naar Atelier AI
+// (AI sculpting van foto's) ipv DIY (1:1 scan). Geen lange streepjes in
+// klantgerichte tekst, conform de brand-regels in de app.
+
+export interface AiScanReviewEmailParams {
+  klant_naam:        string
+  klant_email:       string
+  customer_number:   string | null
+  extra_wensen?:     string | null
+  images: { filename: string; content: Buffer }[]
+}
+
+function aiScanReviewEmailHtml(p: AiScanReviewEmailParams): string {
+  const voornaam = (p.klant_naam.split(' ')[0] || '').trim()
+  return layout(`
+    <h1 style="margin:0 0 18px;font-size:24px;font-weight:600;color:${BRAND_GREEN};letter-spacing:-0.4px;">
+      Een eerste glimp van jouw beeldje
+    </h1>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Lieve ${voornaam || 'jij'},
+    </p>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Wat fijn dat je je foto's met ons hebt gedeeld. Ons team van digitale
+      beeldhouwers is met jouw beeldje aan de slag gegaan, gebaseerd op de
+      vier hoeken die je via de app stuurde. Deze e-mail bevat een paar
+      schermafdrukken van hoe het beeldje er nu uit ziet.
+    </p>
+
+    <p style="margin:0 0 20px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Een goede herinnering, voor het geval dat handig is: ons Atelier AI
+      beeldje is een warme, artistieke vertaling van jouw foto's. Het is geen
+      millimeter-exacte meting. Wil je een echte een-op-een kopie van je
+      lichaam, dan is de DIY Scan-kit de route, daar mailen wij je graag verder
+      over.
+    </p>
+
+    <hr style="border:none;border-top:1px solid #e8e6e0;margin:0 0 24px;"/>
+
+    ${p.customer_number ? `
+    <p style="margin:0 0 12px;font-size:11px;font-weight:600;color:#7a8e7c;text-transform:uppercase;letter-spacing:1px;">
+      Klantnummer
+    </p>
+    <p style="margin:0 0 20px;font-size:18px;font-weight:600;color:${BRAND_GREEN};font-family:'Courier New',monospace;">
+      ${p.customer_number}
+    </p>
+    ` : ''}
+
+    <p style="margin:0 0 12px;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Wat je hierna kunt doen:
+    </p>
+    <ol style="margin:0 0 24px;padding-left:20px;font-size:15px;color:#3d4d3e;line-height:1.85;">
+      <li>Bekijk de bijgevoegde schermafdrukken.</li>
+      <li>Reageer op deze mail als iets nog niet goed voelt, dan passen we aan.</li>
+      <li>Anders kies je op
+        <a href="https://www.studiogravida.com/collection" style="color:${BRAND_GREEN};">studiogravida.com</a>
+        de uitvoering die bij je past, en zorgen wij voor de rest.
+      </li>
+    </ol>
+
+    ${p.extra_wensen ? `
+    <hr style="border:none;border-top:1px solid #e8e6e0;margin:20px 0;"/>
+    <p style="margin:0 0 8px;font-size:11px;font-weight:600;color:#7a8e7c;text-transform:uppercase;letter-spacing:1px;">
+      Onze notitie bij jouw beeldje:
+    </p>
+    <p style="margin:0 0 20px;font-size:15px;color:#3d4d3e;line-height:1.75;">${p.extra_wensen}</p>
+    ` : ''}
+
+    <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+      Een warme groet,<br/>
+      <strong>Laila</strong><br/>
+      <span style="color:#7a8e7c;font-size:13px;">Atelier Gravida, Haarlem</span>
+    </p>
+  `)
+}
+
+export async function sendAiScanReviewEmail(params: AiScanReviewEmailParams): Promise<void> {
+  await getResend().emails.send({
+    from: FROM,
+    to: params.klant_email,
+    subject: 'Een eerste glimp van jouw beeldje, Atelier Gravida',
+    html: aiScanReviewEmailHtml(params),
+    attachments: params.images.map(img => ({
+      filename: img.filename,
+      content: img.content,
+    })),
+    replyTo: 'marit@gravida.nl',
+  })
+}

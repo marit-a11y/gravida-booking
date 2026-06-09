@@ -13,6 +13,7 @@ const navItems = [
   { href: '/admin/afwezigheid',     slug: 'afwezigheid',     label: 'Afwezigheid',    icon: '◌' },
   { href: '/admin/diy-scanners',    slug: 'diy-scanners',    label: 'DIY Scanners',   icon: '◆' },
   { href: '/admin/diy-beoordeling', slug: 'diy-beoordeling', label: 'Scan beoordeling', icon: '✓', badge: true },
+  { href: '/admin/ai-beoordeling',  slug: 'ai-beoordeling',  label: 'Atelier AI scans', icon: '✦', aiBadge: true },
   { href: '/admin/scan-archief',    slug: 'scan-archief',    label: 'Scan archief',   icon: '🗄' },
   { href: '/admin/cadeaubonnen',    slug: 'cadeaubonnen',    label: 'Cadeaubonnen',   icon: '🎁' },
   { href: '/admin/bestellingen',    slug: 'bestellingen',    label: 'Webshop orders', icon: '🛒', wooBadge: true },
@@ -33,6 +34,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [uitzoekCount, setUitzoekCount] = useState(0)
+  const [aiScanCount, setAiScanCount] = useState(0)
   const [inboxCount, setInboxCount] = useState(0)
   const [wooCount, setWooCount] = useState(0)
   const [me, setMe] = useState<{ name: string; is_admin: boolean; allowed_pages: string[] } | null>(null)
@@ -72,6 +74,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     fetchCount()
     const interval = setInterval(fetchCount, 30_000)
+    return () => clearInterval(interval)
+  }, [pathname])
+
+  // Poll for incoming AI scans (received + reviewing)
+  useEffect(() => {
+    if (pathname === '/admin/login') return
+    const fetchAi = async () => {
+      try {
+        const [received, reviewing] = await Promise.all([
+          fetch('/api/admin/ai-scans?status=received',  { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+          fetch('/api/admin/ai-scans?status=reviewing', { credentials: 'include' }).then(r => r.ok ? r.json() : null),
+        ])
+        const total = (received?.scans?.length ?? 0) + (reviewing?.scans?.length ?? 0)
+        setAiScanCount(total)
+      } catch { /* ignore */ }
+    }
+    fetchAi()
+    const interval = setInterval(fetchAi, 30_000)
     return () => clearInterval(interval)
   }, [pathname])
 
@@ -139,7 +159,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="flex-1 px-3 py-4 space-y-1">
           {visibleNavItems.map((item) => {
             const active = !item.external && (pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href)))
-            const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : (item.badge ? uitzoekCount : 0)
+            const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : item.aiBadge ? aiScanCount : (item.badge ? uitzoekCount : 0)
             const className = `
               flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
               ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}
@@ -223,7 +243,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <nav className="absolute top-[60px] left-0 right-0 bg-gravida-green px-3 py-3 space-y-1 shadow-xl">
             {visibleNavItems.map((item) => {
               const active = !item.external && (pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href)))
-              const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : (item.badge ? uitzoekCount : 0)
+              const count = item.inboxBadge ? inboxCount : item.wooBadge ? wooCount : item.aiBadge ? aiScanCount : (item.badge ? uitzoekCount : 0)
               const className = `
                 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors
                 ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}
