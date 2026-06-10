@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { Resend } from 'resend'
 import { checkScanAppToken, SCAN_CORS_HEADERS } from '@/lib/scan-auth'
+import { startPreviewJob, activeProvider } from '@/lib/preview-provider'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,6 +76,63 @@ export async function POST(
   const photoCount = await sql<{ c: number }>`
     SELECT COUNT(*)::int AS c FROM ai_scan_photos WHERE scan_id = ${scan.rows[0].id}
   `
+
+  // Kick off the auto-preview generation with whichever provider is active
+  // (PREVIEW_PROVIDER env: 'rodin' or 'replicate'; replicate is the default
+  // while we wait for Rodin Business). The cron job /api/cron/rodin-poll
+  // picks up the result every minute and writes the mesh URLs back to
+  // ai_scans.preview_glb_url / preview_stl_url.
+  //
+  // Fire-and-forget: we don't block the complete() response on this. If the
+  // provider is misconfigured or down, preview_status flips to 'failed' so
+  // Laila can fall back to manual review.
+  const provider = activeProvider()
+  const providerKeySet =
+    (provider === 'rodin' && !!process.env.RODIN_API_KEY) ||
+    (provider === 'replicate' && !!process.env.REPLICATE_API_TOKEN)
+
+  if (providerKeySet) {
+    try {
+      const photoRows = await sql<{ blob_url: string }>`
+        SELECT blob_url
+        FROM ai_scan_photos
+        WHERE scan_id = ${scan.rows[0].id} AND angle != 'detail'
+        ORDER BY angle, order_idx
+        LIMIT 5
+      `
+      const imageUrls = photoRows.rows.map(r => r.blob_url)
+      if (imageUrls.length > 0) {
+        await sql`
+          UPDATE ai_scans
+             SET preview_status     = 'queued',
+                 preview_started_at = NOW()
+           WHERE id = ${scan.rows[0].id}
+        `
+        // Schedule the actual provider call onto the background event loop
+        // so the HTTP response returns to the app fast.
+        ;(async () => {
+          const job = await startPreviewJob({ imageUrls })
+          if (job?.jobKey) {
+            await sql`
+              UPDATE ai_scans
+                 SET rodin_subscription_key = ${job.jobKey},
+                     preview_status         = 'generating'
+               WHERE id = ${scan.rows[0].id}
+            `
+          } else {
+            await sql`
+              UPDATE ai_scans
+                 SET preview_status = 'failed',
+                     preview_error  = 'startPreviewJob returned null, see server logs'
+               WHERE id = ${scan.rows[0].id}
+            `
+          }
+        })().catch(err => console.error('preview kickoff failed:', err))
+      }
+    } catch (err) {
+      console.error('preview kickoff setup failed:', err)
+    }
+  }
 
   // Lightweight Atelier-side notification. Not the customer-facing approval mail,
   // that gets sent by Laila from the admin once she has reviewed.

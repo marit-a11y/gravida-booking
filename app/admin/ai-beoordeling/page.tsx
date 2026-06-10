@@ -27,6 +27,14 @@ type AiScan = {
   sent_email_at:     string | null
   atelier_notes:     string | null
   photo_count:       number
+  // Rodin auto-preview state. Null if the customer's scan hasn't been
+  // queued for Rodin yet (RODIN_API_KEY missing, or pre-Rodin scans from
+  // before this feature shipped).
+  preview_status:       'queued' | 'generating' | 'ready' | 'failed' | null
+  preview_glb_url:      string | null
+  preview_stl_url:      string | null
+  preview_completed_at: string | null
+  preview_error:        string | null
 }
 
 type Photo = {
@@ -312,6 +320,10 @@ function DetailPanel({
         <button onClick={onClose} className="text-xs text-gravida-sage hover:text-gravida-green">Sluit</button>
       </div>
 
+      {/* Rodin auto-preview block: 3D viewer + STL download. Sits at the top of
+          the detail panel so Laila sees the result at a glance. */}
+      <PreviewBlock scan={detail.scan} />
+
       {/* Main 4 angles */}
       <p className="text-xs font-medium text-gravida-green uppercase tracking-wide mb-2">De vier hoeken</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
@@ -374,6 +386,89 @@ function DetailPanel({
         {sent && <span className="text-sm text-green-700">{sent}</span>}
         {err && <span className="text-sm text-red-600">{err}</span>}
       </div>
+    </div>
+  )
+}
+
+// Rodin auto-preview: 3D viewer + STL download. Three states:
+//   - generating: spinner + elapsed time
+//   - ready: <model-viewer> with the GLB, plus a Download STL button
+//   - failed / null: short reason message (or nothing if Rodin is disabled)
+function PreviewBlock({ scan }: { scan: AiScan }) {
+  // The <model-viewer> web-component is loaded lazily via CDN script the
+  // first time this panel renders. It is registered globally so subsequent
+  // mounts skip the load.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if ((window as any).__modelViewerLoaded) return
+    const s = document.createElement('script')
+    s.type   = 'module'
+    s.src    = 'https://unpkg.com/@google/model-viewer@4.0.0/dist/model-viewer.min.js'
+    s.async  = true
+    document.head.appendChild(s)
+    ;(window as any).__modelViewerLoaded = true
+  }, [])
+
+  if (!scan.preview_status) return null  // Rodin disabled or pre-feature scan
+
+  return (
+    <div className="mb-5">
+      <p className="text-xs font-medium text-gravida-green uppercase tracking-wide mb-2">
+        Atelier AI preview
+        {scan.preview_status === 'ready' && scan.preview_completed_at &&
+          <span className="ml-2 text-gravida-light-sage font-normal normal-case tracking-normal">
+            klaar {new Date(scan.preview_completed_at).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          </span>}
+      </p>
+
+      {scan.preview_status === 'queued' && (
+        <div className="card p-4 bg-amber-50 border-l-4 border-l-amber-400">
+          <p className="text-sm text-amber-900">In de wachtrij, de cron-job pikt 'm zo op.</p>
+        </div>
+      )}
+
+      {scan.preview_status === 'generating' && (
+        <div className="card p-4 bg-amber-50 border-l-4 border-l-amber-400 flex items-center gap-3">
+          <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin shrink-0" />
+          <p className="text-sm text-amber-900">De AI-generator is bezig. Dit duurt meestal 1-3 minuten.</p>
+        </div>
+      )}
+
+      {scan.preview_status === 'failed' && (
+        <div className="card p-4 bg-red-50 border-l-4 border-l-red-400">
+          <p className="text-sm font-semibold text-red-900">Auto-preview gefaald.</p>
+          {scan.preview_error && <p className="text-xs text-red-700 mt-1 font-mono">{scan.preview_error}</p>}
+        </div>
+      )}
+
+      {scan.preview_status === 'ready' && scan.preview_glb_url && (
+        <div className="card p-3">
+          <div className="rounded-lg overflow-hidden bg-gravida-cream/40 mb-3" style={{ height: 360 }}>
+            {/* @ts-ignore - model-viewer is a custom element from Google */}
+            <model-viewer
+              src={scan.preview_glb_url}
+              alt="3D preview van de klant-scan"
+              camera-controls
+              auto-rotate
+              auto-rotate-delay="1200"
+              shadow-intensity="1"
+              exposure="1.1"
+              style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {scan.preview_stl_url && (
+              <a href={scan.preview_stl_url} download={`gravida-${scan.session_id}-preview.stl`}
+                className="btn-primary text-sm">
+                Download STL voor digital sculpting
+              </a>
+            )}
+            <a href={scan.preview_glb_url} download={`gravida-${scan.session_id}-preview.glb`}
+              className="text-sm text-gravida-sage hover:text-gravida-green underline">
+              Download GLB
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
