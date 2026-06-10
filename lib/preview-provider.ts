@@ -89,3 +89,18 @@ export async function fetchPreviewMesh(url: string): Promise<Buffer | null> {
   // URLs. Use either's fetchMesh.
   return rodin.fetchMesh(url)
 }
+
+/**
+ * Removes the background from a photo using rembg via Replicate. Used as a
+ * pre-step before kicking off the 3D generation so the AI does not pick up
+ * couches, plants, doors etc. Returns the URL of the cleaned PNG.
+ *
+ * Always uses Replicate regardless of the active 3D provider, since rembg
+ * is cheap and gives consistently better Hunyuan3D / Rodin output.
+ *
+ * Returns null on failure; callers should fall back to the raw image URL.
+ */
+export async function maskBackground(imageUrl: string): Promise<string | null> {
+  if (!process.env.REPLICATE_API_TOKEN) return null
+  return replicate.maskBackground(imageUrl)
+}

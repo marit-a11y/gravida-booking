@@ -155,6 +155,81 @@ export async function checkStatus(predictionId: string): Promise<ReplicateStatus
 }
 
 /**
+ * Run rembg on a single image URL to remove the background. Used as a
+ * pre-step before Hunyuan3D so the AI does not pick up couches, plants,
+ * doors etc. in the generated mesh.
+ *
+ * Model spec is fixed to a known-good rembg endpoint; override via env if a
+ * better one shows up.
+ *
+ * Returns the URL of the transparent-background PNG. Synchronous: this
+ * starts the prediction AND waits for it to finish, polling every 2 seconds.
+ * Takes ~5-15 seconds typical.
+ */
+const REMBG_MODEL_SPEC = process.env.REPLICATE_REMBG_MODEL ?? 'cjwbw/rembg'
+
+export async function maskBackground(imageUrl: string): Promise<string | null> {
+  // 1. Resolve the model version (cached after the first call by Replicate's
+  //    own model registry; we just fetch fresh each time, it's cheap).
+  let versionId: string | null = null
+  if (REMBG_MODEL_SPEC.includes(':')) {
+    versionId = REMBG_MODEL_SPEC.split(':')[1]
+  } else {
+    try {
+      const res = await fetch(`${BASE}/models/${REMBG_MODEL_SPEC}`, { headers: authHeaders() })
+      if (res.ok) versionId = (await res.json())?.latest_version?.id ?? null
+    } catch (err) { console.error('replicate.maskBackground resolve threw:', err) }
+  }
+  if (!versionId) {
+    console.error('replicate.maskBackground: could not resolve model version')
+    return null
+  }
+
+  // 2. Kick off the prediction.
+  let predId: string | null = null
+  try {
+    const res = await fetch(`${BASE}/predictions`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version: versionId, input: { image: imageUrl } }),
+    })
+    if (!res.ok) {
+      console.error('replicate.maskBackground create failed:', res.status, await res.text().catch(() => ''))
+      return null
+    }
+    predId = (await res.json())?.id ?? null
+  } catch (err) { console.error('replicate.maskBackground create threw:', err); return null }
+  if (!predId) return null
+
+  // 3. Poll until done. Max ~30 seconds (15 attempts × 2 sec).
+  for (let i = 0; i < 15; i++) {
+    await new Promise(r => setTimeout(r, 2000))
+    try {
+      const res = await fetch(`${BASE}/predictions/${encodeURIComponent(predId)}`, {
+        headers: authHeaders(),
+      })
+      if (!res.ok) continue
+      const data = await res.json()
+      const status = (data?.status ?? '').toString()
+      if (status === 'succeeded') {
+        // rembg models return a single URL string in `output`.
+        const out = data?.output
+        if (typeof out === 'string')           return out
+        if (Array.isArray(out) && out[0])      return typeof out[0] === 'string' ? out[0] : null
+        return null
+      }
+      if (status === 'failed' || status === 'canceled') {
+        console.error('replicate.maskBackground prediction failed:', data?.error)
+        return null
+      }
+      // else still working, keep polling
+    } catch (err) { console.error('replicate.maskBackground poll threw:', err) }
+  }
+  console.error('replicate.maskBackground timed out waiting 30s')
+  return null
+}
+
+/**
  * Download the mesh file at a URL into a Buffer for Vercel Blob storage.
  * Mirrors lib/rodin.fetchMesh.
  */

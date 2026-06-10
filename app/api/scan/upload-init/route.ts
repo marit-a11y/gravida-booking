@@ -41,10 +41,16 @@ export async function POST(request: NextRequest) {
 
   const sessionId = crypto.randomUUID()
 
+  // Normalise scan_mode to one of the two supported values; default
+  // 'standing' (subject turns, photographer stays put — gives cleaner
+  // backgrounds across the four shots).
+  const normalisedScanMode =
+    body.scan_mode === 'seated' ? 'seated' : 'standing'
+
   await sql`
     INSERT INTO ai_scans (
       session_id, client_first_name, client_last_name, client_email, client_phone,
-      pregnancy_weeks, consent_eu_storage, app_version, device_label, status
+      pregnancy_weeks, consent_eu_storage, app_version, device_label, status, scan_mode
     ) VALUES (
       ${sessionId},
       ${body.first_name ?? null},
@@ -55,7 +61,8 @@ export async function POST(request: NextRequest) {
       ${body.consent_eu_storage === false ? false : true},
       ${(body.app_version ?? '').toString().slice(0, 40) || null},
       ${(body.device_label ?? '').toString().slice(0, 120) || null},
-      'in_progress'
+      'in_progress',
+      ${normalisedScanMode}
     )
   `
 

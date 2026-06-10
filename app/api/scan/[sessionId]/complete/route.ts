@@ -20,7 +20,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { Resend } from 'resend'
 import { checkScanAppToken, SCAN_CORS_HEADERS } from '@/lib/scan-auth'
-import { startPreviewJob, activeProvider } from '@/lib/preview-provider'
+import { startPreviewJob, activeProvider, maskBackground } from '@/lib/preview-provider'
+
+export const maxDuration = 60
 
 export const dynamic = 'force-dynamic'
 
@@ -105,13 +107,32 @@ export async function POST(
         await sql`
           UPDATE ai_scans
              SET preview_status     = 'queued',
-                 preview_started_at = NOW()
+                 preview_started_at = NOW(),
+                 scan_mode          = COALESCE(${body.scan_mode ?? null}, scan_mode)
            WHERE id = ${scan.rows[0].id}
         `
-        // Schedule the actual provider call onto the background event loop
+        // Schedule the masking + provider call onto the background event loop
         // so the HTTP response returns to the app fast.
+        //
+        // Two stages:
+        //   a. rembg the front photo so Hunyuan3D / Rodin only see the
+        //      subject, not the room behind them.
+        //   b. fire the 3D generation with the masked URL (or raw URL if
+        //      masking failed, so the pipeline degrades gracefully).
         ;(async () => {
-          const job = await startPreviewJob({ imageUrls })
+          const frontUrl = imageUrls[0]
+          let urlsForProvider = imageUrls
+          try {
+            const masked = await maskBackground(frontUrl)
+            if (masked) {
+              await sql`UPDATE ai_scans SET masked_image_url = ${masked} WHERE id = ${scan.rows[0].id}`
+              urlsForProvider = [masked, ...imageUrls.slice(1)]
+            }
+          } catch (err) {
+            // Mask failure is non-fatal; we just fall back to the raw photo.
+            console.error('rembg pre-step failed:', err)
+          }
+          const job = await startPreviewJob({ imageUrls: urlsForProvider })
           if (job?.jobKey) {
             await sql`
               UPDATE ai_scans
