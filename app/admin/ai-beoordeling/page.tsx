@@ -423,20 +423,20 @@ function PreviewBlock({ scan }: { scan: AiScan }) {
 
       {scan.preview_status === 'queued' && (
         <div className="card p-4 bg-amber-50 border-l-4 border-l-amber-400">
-          <p className="text-sm text-amber-900">In de Rodin-wachtrij, de cron-job pikt 'm zo op.</p>
+          <p className="text-sm text-amber-900">In de wachtrij, de cron-job pikt 'm zo op.</p>
         </div>
       )}
 
       {scan.preview_status === 'generating' && (
         <div className="card p-4 bg-amber-50 border-l-4 border-l-amber-400 flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin shrink-0" />
-          <p className="text-sm text-amber-900">Rodin is bezig. Dit duurt meestal 1-3 minuten.</p>
+          <p className="text-sm text-amber-900">De AI-generator is bezig. Dit duurt meestal 1-3 minuten.</p>
         </div>
       )}
 
       {scan.preview_status === 'failed' && (
         <div className="card p-4 bg-red-50 border-l-4 border-l-red-400">
-          <p className="text-sm font-semibold text-red-900">Rodin-generation gefaald.</p>
+          <p className="text-sm font-semibold text-red-900">Auto-preview gefaald.</p>
           {scan.preview_error && <p className="text-xs text-red-700 mt-1 font-mono">{scan.preview_error}</p>}
         </div>
       )}

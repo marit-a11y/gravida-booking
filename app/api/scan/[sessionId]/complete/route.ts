@@ -20,7 +20,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { Resend } from 'resend'
 import { checkScanAppToken, SCAN_CORS_HEADERS } from '@/lib/scan-auth'
-import { createGeneration } from '@/lib/rodin'
+import { startPreviewJob, activeProvider } from '@/lib/preview-provider'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,15 +77,21 @@ export async function POST(
     SELECT COUNT(*)::int AS c FROM ai_scan_photos WHERE scan_id = ${scan.rows[0].id}
   `
 
-  // Kick off Rodin Sketch-tier generation immediately. The customer will be
-  // shown a "Sculpting your form..." screen in the app while this runs; the
-  // cron job /api/cron/rodin-poll picks up the status every minute and writes
-  // the mesh URLs back to ai_scans.preview_glb_url / preview_stl_url.
+  // Kick off the auto-preview generation with whichever provider is active
+  // (PREVIEW_PROVIDER env: 'rodin' or 'replicate'; replicate is the default
+  // while we wait for Rodin Business). The cron job /api/cron/rodin-poll
+  // picks up the result every minute and writes the mesh URLs back to
+  // ai_scans.preview_glb_url / preview_stl_url.
   //
-  // Fire-and-forget: we don't block the complete() response on this. If Rodin
-  // is misconfigured or down, preview_status stays NULL and the cron will
-  // never see it as a candidate — Laila can still review the scan by hand.
-  if (process.env.RODIN_API_KEY) {
+  // Fire-and-forget: we don't block the complete() response on this. If the
+  // provider is misconfigured or down, preview_status flips to 'failed' so
+  // Laila can fall back to manual review.
+  const provider = activeProvider()
+  const providerKeySet =
+    (provider === 'rodin' && !!process.env.RODIN_API_KEY) ||
+    (provider === 'replicate' && !!process.env.REPLICATE_API_TOKEN)
+
+  if (providerKeySet) {
     try {
       const photoRows = await sql<{ blob_url: string }>`
         SELECT blob_url
@@ -102,18 +108,14 @@ export async function POST(
                  preview_started_at = NOW()
            WHERE id = ${scan.rows[0].id}
         `
-        // Schedule the actual Rodin call onto the background event loop so
-        // the HTTP response goes back to the app fast.
+        // Schedule the actual provider call onto the background event loop
+        // so the HTTP response returns to the app fast.
         ;(async () => {
-          const job = await createGeneration({
-            imageUrls,
-            tier: 'Sketch',
-            addons: [],
-          })
-          if (job?.subscription_key) {
+          const job = await startPreviewJob({ imageUrls })
+          if (job?.jobKey) {
             await sql`
               UPDATE ai_scans
-                 SET rodin_subscription_key = ${job.subscription_key},
+                 SET rodin_subscription_key = ${job.jobKey},
                      preview_status         = 'generating'
                WHERE id = ${scan.rows[0].id}
             `
@@ -121,14 +123,14 @@ export async function POST(
             await sql`
               UPDATE ai_scans
                  SET preview_status = 'failed',
-                     preview_error  = 'createGeneration returned null, see server logs'
+                     preview_error  = 'startPreviewJob returned null, see server logs'
                WHERE id = ${scan.rows[0].id}
             `
           }
-        })().catch(err => console.error('rodin kickoff failed:', err))
+        })().catch(err => console.error('preview kickoff failed:', err))
       }
     } catch (err) {
-      console.error('rodin kickoff setup failed:', err)
+      console.error('preview kickoff setup failed:', err)
     }
   }
 

@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { put } from '@vercel/blob'
-import { checkStatus, downloadFormats, fetchMesh } from '@/lib/rodin'
+import { checkPreviewJob, fetchPreviewMesh, activeProvider } from '@/lib/preview-provider'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -37,8 +37,14 @@ export async function GET(request: NextRequest) {
   if (!isCronCall(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  if (!process.env.RODIN_API_KEY) {
-    return NextResponse.json({ ok: true, skipped: 'no RODIN_API_KEY' })
+  // Skip when the active provider has no creds; the kickoff path already
+  // refused to queue jobs in that case so there's nothing to poll.
+  const provider = activeProvider()
+  if (provider === 'rodin' && !process.env.RODIN_API_KEY) {
+    return NextResponse.json({ ok: true, skipped: 'PREVIEW_PROVIDER=rodin but no RODIN_API_KEY' })
+  }
+  if (provider === 'replicate' && !process.env.REPLICATE_API_TOKEN) {
+    return NextResponse.json({ ok: true, skipped: 'PREVIEW_PROVIDER=replicate but no REPLICATE_API_TOKEN' })
   }
 
   // Fetch the in-flight set. The partial index on preview_status makes this fast.
@@ -84,7 +90,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const status = await checkStatus(scan.rodin_subscription_key)
+    const status = await checkPreviewJob(scan.rodin_subscription_key)
     if (!status) {
       summary.push({ id: scan.id, action: 'status-fetch-failed' })
       continue
@@ -94,15 +100,15 @@ export async function GET(request: NextRequest) {
       await sql`
         UPDATE ai_scans
            SET preview_status = 'failed',
-               preview_error  = ${status.error ?? status.raw ?? 'rodin reported failure'}
+               preview_error  = ${status.error ?? 'provider reported failure'}
          WHERE id = ${scan.id}
       `
-      summary.push({ id: scan.id, action: 'failed', detail: status.raw })
+      summary.push({ id: scan.id, action: 'failed', detail: status.error })
       continue
     }
 
     if (status.state === 'queued' || status.state === 'generating') {
-      // Flip queued → generating if Rodin is now actively working.
+      // Flip queued → generating if the provider is now actively working.
       if (scan.preview_status !== status.state) {
         await sql`
           UPDATE ai_scans
@@ -114,15 +120,15 @@ export async function GET(request: NextRequest) {
       continue
     }
 
-    // status.state === 'done'. Pull the format URLs and copy into our Blob.
-    const urls = await downloadFormats(scan.rodin_subscription_key)
-    if (!urls?.glb_url) {
+    // status.state === 'done'. Pull the GLB (and STL if the provider
+    // supplied one) and copy into our Blob.
+    if (!status.glb_url) {
       summary.push({ id: scan.id, action: 'done-but-no-glb-url' })
       continue
     }
 
-    const glbBuf = await fetchMesh(urls.glb_url)
-    const stlBuf = urls.stl_url ? await fetchMesh(urls.stl_url) : null
+    const glbBuf = await fetchPreviewMesh(status.glb_url)
+    const stlBuf = status.stl_url ? await fetchPreviewMesh(status.stl_url) : null
     if (!glbBuf) {
       summary.push({ id: scan.id, action: 'glb-download-failed' })
       continue
