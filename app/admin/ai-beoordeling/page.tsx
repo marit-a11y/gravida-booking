@@ -192,14 +192,20 @@ export default function AiBeoordelingPage() {
   }
 
   // ── inbox queues ──
-  const inbox    = scans.filter(s => s.status === 'received' || s.status === 'reviewing')
+  // Paid deposits go to the top of the page since they are the customers
+  // who actually committed €35 and deserve atelier-time first. Everything
+  // else (preview-only viewers + checkout-started-but-unfinished) sits
+  // below in the regular "Te behandelen" queue.
+  const inboxAll = scans.filter(s => s.status === 'received' || s.status === 'reviewing')
+  const paidInbox   = inboxAll.filter(s => !!s.deposit_paid_at)
+  const unpaidInbox = inboxAll.filter(s => !s.deposit_paid_at)
   const done     = scans.filter(s => s.status === 'approved')
   const dropped  = scans.filter(s => s.status === 'rejected')
   const drafts   = scans.filter(s => s.status === 'in_progress')
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="page-title">Atelier AI scans</h1>
           <p className="text-sm text-gravida-sage mt-1">
@@ -207,18 +213,44 @@ export default function AiBeoordelingPage() {
             foto's mee in de mail gaan, en stuur de goedkeuring.
           </p>
         </div>
-        {inbox.length > 0 && (
-          <span className="shrink-0 bg-pink-100 text-pink-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-            {inbox.length} te behandelen
-          </span>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {paidInbox.length > 0 && (
+            <span className="bg-green-100 text-green-800 text-xs font-semibold px-3 py-1.5 rounded-full">
+              €35 binnen: {paidInbox.length}
+            </span>
+          )}
+          {unpaidInbox.length > 0 && (
+            <span className="bg-pink-100 text-pink-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+              {unpaidInbox.length} preview-only
+            </span>
+          )}
+        </div>
       </div>
 
       {loading ? (
         <p className="text-sm text-gravida-light-sage">Laden...</p>
       ) : (
         <>
-          <Section title="Te behandelen" rows={inbox} selectedId={selectedId} onSelect={selectScan} empty="Geen openstaande scans." />
+          {/* Paid deposits at the top. These customers have committed €35
+              that is fully verrekenbaar met hun bestelling, so their scan
+              gets atelier-time first. */}
+          {paidInbox.length > 0 && (
+            <div className="mb-6">
+              <div className="rounded-2xl border-2 border-green-200 bg-green-50/40 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">💰</span>
+                    <div>
+                      <h2 className="section-title">Aanbetaling binnen</h2>
+                      <p className="text-xs text-gravida-sage">Deze klanten hebben €35 betaald, prioriteit voor atelier-tijd.</p>
+                    </div>
+                  </div>
+                </div>
+                <Section title="" rows={paidInbox} selectedId={selectedId} onSelect={selectScan} empty="" />
+              </div>
+            </div>
+          )}
+          <Section title="Preview-only (nog geen aanbetaling)" rows={unpaidInbox} selectedId={selectedId} onSelect={selectScan} empty="Geen openstaande preview-only scans." />
           {selectedId !== null && detail && (
             <DetailPanel
               detail={detail}
@@ -257,8 +289,10 @@ function Section({
   empty: string,
 }) {
   return (
-    <div className="mb-6">
-      <h2 className="section-title mb-3">{title} <span className="text-xs text-gravida-light-sage font-normal">({rows.length})</span></h2>
+    <div className={title ? 'mb-6' : ''}>
+      {title && (
+        <h2 className="section-title mb-3">{title} <span className="text-xs text-gravida-light-sage font-normal">({rows.length})</span></h2>
+      )}
       {rows.length === 0 ? (
         empty ? <p className="text-sm text-gravida-light-sage italic mb-2">{empty}</p> : null
       ) : (
