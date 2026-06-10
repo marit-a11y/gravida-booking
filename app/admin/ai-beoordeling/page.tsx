@@ -35,6 +35,18 @@ type AiScan = {
   preview_stl_url:      string | null
   preview_completed_at: string | null
   preview_error:        string | null
+  // €35 verrekenbare aanbetaling via Mollie.
+  //   deposit_mollie_payment_id is set zodra de checkout is gestart
+  //   deposit_paid_at is set zodra de Mollie webhook 'paid' rapporteert
+  //   deposit_coupon_code is de GRV-XXXXXX WooCommerce code (post-betaling)
+  deposit_amount_cents:      number | null
+  deposit_mollie_payment_id: string | null
+  deposit_paid_at:           string | null
+  deposit_coupon_code:       string | null
+  // Scan-mode (standing vs seated). Drives in-app instructions; useful for
+  // atelier to know which posture the customer chose.
+  scan_mode:                 string | null
+  masked_image_url:          string | null
 }
 
 type Photo = {
@@ -267,6 +279,20 @@ function Section({
                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${STATUS_BADGES[s.status] ?? 'bg-gray-100 text-gray-600'}`}>
                         {STATUS_LABEL[s.status] ?? s.status}
                       </span>
+                      {/* Deposit indicator. Three states:
+                          - paid     → groene €35 badge, deze klant gaat door
+                          - started  → amber badge, betaling gestart maar webhook nog niet binnen
+                          - niets    → klant heeft geen Reserve geklikt */}
+                      {s.deposit_paid_at && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-800 font-semibold">
+                          €35 betaald
+                        </span>
+                      )}
+                      {!s.deposit_paid_at && s.deposit_mollie_payment_id && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                          betaling gestart
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-gravida-sage mt-1">
                       {s.client_email ?? '(geen e-mail)'} · {s.photo_count} foto{s.photo_count === 1 ? '' : "'s"} · {formatDateTime(s.received_at ?? s.created_at)}
@@ -322,6 +348,7 @@ function DetailPanel({
 
       {/* Rodin auto-preview block: 3D viewer + STL download. Sits at the top of
           the detail panel so Laila sees the result at a glance. */}
+      <DepositBlock scan={detail.scan} />
       <PreviewBlock scan={detail.scan} />
 
       {/* Main 4 angles */}
@@ -394,6 +421,77 @@ function DetailPanel({
 //   - generating: spinner + elapsed time
 //   - ready: <model-viewer> with the GLB, plus a Download STL button
 //   - failed / null: short reason message (or nothing if Rodin is disabled)
+// Deposit status block in the detail panel. Three states are interesting:
+//   - paid:    klant heeft betaald, GRV-code is gegenereerd, atelier kan
+//              de digital-sculpting tijd verantwoorden voor deze scan.
+//   - started: Mollie checkout is gestart maar webhook nog niet binnen.
+//              Meestal druk klanten doorklikken zonder af te ronden, of
+//              de webhook duurt 30 sec na payment-success.
+//   - none:    klant heeft op preview gekeken maar niet Reserve geklikt.
+//              Geen prioriteit voor atelier-tijd.
+function DepositBlock({ scan }: { scan: AiScan }) {
+  const paid    = !!scan.deposit_paid_at
+  const started = !paid && !!scan.deposit_mollie_payment_id
+
+  if (paid) {
+    return (
+      <div className="mb-5">
+        <p className="text-xs font-medium text-gravida-green uppercase tracking-wide mb-2">Aanbetaling</p>
+        <div className="card p-4 bg-green-50 border-l-4 border-l-green-500">
+          <div className="flex items-start gap-3">
+            <span className="text-green-700 text-xl shrink-0 leading-none">✓</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-green-900">
+                €35 betaald op {formatDateTime(scan.deposit_paid_at)}
+              </p>
+              {scan.deposit_coupon_code && (
+                <p className="text-xs text-green-800 mt-1">
+                  WooCommerce kortingscode: <span className="font-mono font-semibold">{scan.deposit_coupon_code}</span>
+                </p>
+              )}
+              {scan.deposit_mollie_payment_id && (
+                <p className="text-[11px] text-green-700 mt-1 font-mono opacity-70">
+                  Mollie payment: {scan.deposit_mollie_payment_id}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  if (started) {
+    return (
+      <div className="mb-5">
+        <p className="text-xs font-medium text-gravida-green uppercase tracking-wide mb-2">Aanbetaling</p>
+        <div className="card p-4 bg-amber-50 border-l-4 border-l-amber-400">
+          <p className="text-sm text-amber-900">
+            Mollie checkout gestart maar nog niet afgerond. Webhook komt zo
+            binnen of klant heeft afgehaakt.
+          </p>
+          {scan.deposit_mollie_payment_id && (
+            <p className="text-[11px] text-amber-800 mt-1 font-mono opacity-70">
+              Mollie payment: {scan.deposit_mollie_payment_id}
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+  // No deposit yet — minimal hint so Laila knows this is a "preview only"
+  // session and atelier time is not committed.
+  return (
+    <div className="mb-5">
+      <p className="text-xs font-medium text-gravida-green uppercase tracking-wide mb-2">Aanbetaling</p>
+      <div className="card p-3 bg-gravida-cream/40">
+        <p className="text-sm text-gravida-sage italic">
+          Nog geen aanbetaling. Klant heeft de preview gezien maar Reserve niet ingedrukt.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function PreviewBlock({ scan }: { scan: AiScan }) {
   // The <model-viewer> web-component is loaded lazily via CDN script the
   // first time this panel renders. It is registered globally so subsequent
