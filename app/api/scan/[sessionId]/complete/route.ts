@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { Resend } from 'resend'
 import { checkScanAppToken, SCAN_CORS_HEADERS } from '@/lib/scan-auth'
+import { createGeneration } from '@/lib/rodin'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,6 +76,61 @@ export async function POST(
   const photoCount = await sql<{ c: number }>`
     SELECT COUNT(*)::int AS c FROM ai_scan_photos WHERE scan_id = ${scan.rows[0].id}
   `
+
+  // Kick off Rodin Sketch-tier generation immediately. The customer will be
+  // shown a "Sculpting your form..." screen in the app while this runs; the
+  // cron job /api/cron/rodin-poll picks up the status every minute and writes
+  // the mesh URLs back to ai_scans.preview_glb_url / preview_stl_url.
+  //
+  // Fire-and-forget: we don't block the complete() response on this. If Rodin
+  // is misconfigured or down, preview_status stays NULL and the cron will
+  // never see it as a candidate — Laila can still review the scan by hand.
+  if (process.env.RODIN_API_KEY) {
+    try {
+      const photoRows = await sql<{ blob_url: string }>`
+        SELECT blob_url
+        FROM ai_scan_photos
+        WHERE scan_id = ${scan.rows[0].id} AND angle != 'detail'
+        ORDER BY angle, order_idx
+        LIMIT 5
+      `
+      const imageUrls = photoRows.rows.map(r => r.blob_url)
+      if (imageUrls.length > 0) {
+        await sql`
+          UPDATE ai_scans
+             SET preview_status     = 'queued',
+                 preview_started_at = NOW()
+           WHERE id = ${scan.rows[0].id}
+        `
+        // Schedule the actual Rodin call onto the background event loop so
+        // the HTTP response goes back to the app fast.
+        ;(async () => {
+          const job = await createGeneration({
+            imageUrls,
+            tier: 'Sketch',
+            addons: [],
+          })
+          if (job?.subscription_key) {
+            await sql`
+              UPDATE ai_scans
+                 SET rodin_subscription_key = ${job.subscription_key},
+                     preview_status         = 'generating'
+               WHERE id = ${scan.rows[0].id}
+            `
+          } else {
+            await sql`
+              UPDATE ai_scans
+                 SET preview_status = 'failed',
+                     preview_error  = 'createGeneration returned null, see server logs'
+               WHERE id = ${scan.rows[0].id}
+            `
+          }
+        })().catch(err => console.error('rodin kickoff failed:', err))
+      }
+    } catch (err) {
+      console.error('rodin kickoff setup failed:', err)
+    }
+  }
 
   // Lightweight Atelier-side notification. Not the customer-facing approval mail,
   // that gets sent by Laila from the admin once she has reviewed.
