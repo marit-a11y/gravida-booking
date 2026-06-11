@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
           city: rental.city,
           zip_code: rental.zip_code,
           rental_week: rental.rental_week,
+          language: rental.language,
         }).catch(err => console.error('sendDiyRentalEmails error:', err))
       }
     } else if (['failed', 'canceled', 'expired'].includes(payment.status)) {

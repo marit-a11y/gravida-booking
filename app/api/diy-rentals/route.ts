@@ -29,6 +29,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ongeldig e-mailadres' }, { status: 400 })
     }
 
+    // Taaldetectie: bestellingen vanaf studiogravida.com zijn Engelstalig.
+    // Expliciete body.language wint; anders kijken we naar Origin/Referer.
+    const refSrc = (request.headers.get('origin') || request.headers.get('referer') || '').toLowerCase()
+    const language: 'nl' | 'en' =
+      body.language === 'en' || body.language === 'nl'
+        ? body.language
+        : refSrc.includes('studiogravida') ? 'en' : 'nl'
+
     // Create rental with status wacht_op_betaling
     const rental = await createDiyRental({
       rental_week,
@@ -40,6 +48,7 @@ export async function POST(request: NextRequest) {
       city: city.trim(),
       zip_code: zip_code.trim(),
       notes: notes?.trim() || undefined,
+      language,
     })
 
     // Create Mollie payment

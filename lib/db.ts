@@ -741,6 +741,7 @@ export interface DiyRental {
   internal_notes: string | null
   support_call_requested_at: string | null
   support_call_message: string | null
+  language?: 'nl' | 'en'
   created_at: string
 }
 
@@ -754,6 +755,7 @@ export interface CreateDiyRentalInput {
   city: string
   zip_code: string
   notes?: string
+  language?: 'nl' | 'en'
 }
 
 export async function getDiyScanners(): Promise<DiyScanner[]> {
@@ -847,16 +849,16 @@ export async function createDiyRental(input: CreateDiyRentalInput): Promise<DiyR
   const result = await sql<DiyRental>`
     INSERT INTO diy_rentals (
       scanner_id, rental_week, first_name, last_name, email, phone,
-      address, city, zip_code, notes, status, customer_number
+      address, city, zip_code, notes, status, customer_number, language
     ) VALUES (
       ${scannerId}, ${input.rental_week}::date,
       ${input.first_name}, ${input.last_name}, ${input.email}, ${input.phone},
       ${input.address}, ${input.city}, ${input.zip_code}, ${input.notes ?? null},
-      'wacht_op_betaling', ${customerNumber}
+      'wacht_op_betaling', ${customerNumber}, ${input.language ?? 'nl'}
     )
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
               address, city, zip_code, status, deposit_amount, deposit_status,
-              mollie_payment_id, payment_status, customer_number, notes, internal_notes, support_call_requested_at::text, support_call_message, created_at::text
+              mollie_payment_id, payment_status, customer_number, notes, internal_notes, support_call_requested_at::text, support_call_message, language, created_at::text
   `
   return result.rows[0]
 }
@@ -899,7 +901,7 @@ export async function updateDiyRental(
     WHERE id = ${id}
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
               address, city, zip_code, status, deposit_amount, deposit_status,
-              mollie_payment_id, payment_status, customer_number, notes, internal_notes, support_call_requested_at::text, support_call_message, created_at::text
+              mollie_payment_id, payment_status, customer_number, notes, internal_notes, support_call_requested_at::text, support_call_message, language, created_at::text
   `
   return result.rows[0] ?? null
 }
@@ -918,7 +920,7 @@ export async function updateDiyRentalPayment(
     WHERE id = ${id}
     RETURNING id, scanner_id, rental_week::text, first_name, last_name, email, phone,
               address, city, zip_code, status, deposit_amount, deposit_status,
-              mollie_payment_id, payment_status, customer_number, notes, internal_notes, support_call_requested_at::text, support_call_message, created_at::text
+              mollie_payment_id, payment_status, customer_number, notes, internal_notes, support_call_requested_at::text, support_call_message, language, created_at::text
   `
   return result.rows[0] ?? null
 }

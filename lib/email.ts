@@ -5,6 +5,14 @@ import { generateGiftCardPdf } from './gift-card-pdf'
 function getResend() { return new Resend(process.env.RESEND_API_KEY) }
 
 const FROM = (process.env.EMAIL_FROM ?? 'Gravida <hi@gravida.nl>').trim()
+const FROM_EN = (process.env.EMAIL_FROM_EN ?? 'Studio Gravida <hello@studiogravida.com>').trim()
+
+/** Afzender op basis van taal: 'en' → Studio Gravida, anders Gravida (NL). */
+export type Lang = 'nl' | 'en'
+function fromFor(lang?: Lang | string | null): string {
+  return lang === 'en' ? FROM_EN : FROM
+}
+const WA = '06 8706 2504'
 const BRAND_GREEN = '#3d5c41'
 const BRAND_LIGHT = '#f5f4f0'
 
@@ -604,6 +612,21 @@ function diyCustomerEmailHtml(params: {
   const p = (text: string) =>
     `<p style="margin:0 0 18px;font-size:15px;color:#3d4d3e;line-height:1.75;">${text}</p>`
 
+  if ((params as { language?: Lang }).language === 'en') {
+    return layout(`
+      ${p(`Hi ${params.first_name},`)}
+      ${p(`Lovely that you reserved a DIY 3D scan kit! This confirms your reservation for ${weekFormatted}.`)}
+      ${params.customer_number ? p(`Your customer number is ${params.customer_number}. Keep it handy for later.`) : ''}
+      ${p('We ship the scanner on Wednesday so you have it by Thursday at the latest. You can use it from Thursday through Sunday.')}
+      ${p('Please send the scanner back no later than Monday, so we can process it on Tuesday for the next customer.')}
+      ${p('Borrowing the scanner is free. You only pay for the sculpture we create for you. The deposit you paid is settled against your sculpture later. If you decide you do not want a sculpture, we convert part of the deposit into a gift card (to share or use yourself), and the deposit is refunded. On the return day you automatically receive a message about how we handle it.')}
+      ${p(`Any questions about using the scanner? Message me on WhatsApp at +31 6 87 06 25 04.`)}
+      <p style="margin:24px 0 0;font-size:15px;color:#3d4d3e;line-height:1.75;">
+        Enjoy scanning!<br/><strong style="color:#1e2d1f;">Laila</strong>
+      </p>
+    `)
+  }
+
   return layout(`
     ${p(`Hi ${params.first_name},`)}
     ${p(`Leuk dat je een DIY 3D scan kit hebt gereserveerd! Hierbij bevestigen we je reservering voor ${weekFormatted}.`)}
@@ -687,6 +710,7 @@ export interface DiyRentalEmailParams {
   city: string
   zip_code: string
   rental_week: string
+  language?: Lang
 }
 
 export async function sendDiyRentalEmails(params: DiyRentalEmailParams): Promise<void> {
@@ -700,12 +724,16 @@ export async function sendDiyRentalEmails(params: DiyRentalEmailParams): Promise
 
   const sends: Promise<unknown>[] = []
 
+  const isEn = params.language === 'en'
   sends.push(
     getResend().emails.send({
-      from: FROM,
+      from: fromFor(params.language),
       to: params.email,
-      subject: `Bevestiging: DIY scan kit gereserveerd voor ${weekFormatted}`,
+      subject: isEn
+        ? `Confirmation: DIY scan kit reserved for ${weekFormatted}`
+        : `Bevestiging: DIY scan kit gereserveerd voor ${weekFormatted}`,
       html: diyCustomerEmailHtml(params),
+      replyTo: isEn ? 'hello@studiogravida.com' : undefined,
     }).catch(err => console.error('DIY customer email failed:', err))
   )
 
