@@ -1,22 +1,22 @@
 import { sql } from '@vercel/postgres'
-import { DISPLAY_SLOTS_BY_REGION, getDisplaySlotsForRegion } from '@/lib/region-slots'
+import { DISPLAY_SLOTS_BY_REGION } from '@/lib/region-slots'
 
 /**
- * Bouwt een overzicht van scanmomenten per regio voor de komende week,
- * EXACT zoals een bezoeker ze op de website ziet (niet de ruwe backend-tijden).
+ * Bouwt een overzicht van scanmomenten per regio voor de komende week.
  *
- * Per dag tonen we het volledige "universum" van tijden zoals de site:
- *   universe = availability.slots ∪ blocked_slots ∪ display-set (per regio)
+ * De tijden die als VRIJ getoond worden komen van de frontend (de echte
+ * boekbare slots zoals de site ze als beschikbaar aanbiedt). VOL wordt
+ * alleen gezet bij ECHTE boekingen, zodat het team in de notitie kan zien
+ * waar daadwerkelijk geboekt is.
  *
- * en per tijd of die vrij of vol is, met dezelfde logica als
- * /api/availability/[id]:
- *   - vrij  = staat in availability.slots, niet geblokkeerd, en niet vol
- *   - vol   = geblokkeerd, buiten de bookable-set (display-filler), of volgeboekt
+ *   - vrij = boekbaar slot met nog plek (echte boekingen < max_per_slot)
+ *   - vol  = boekbaar slot dat volgeboekt is door echte boekingen
  *
- * Een dag/regio verschijnt alleen als die minstens 1 vrije tijd heeft.
- * Voorwaarden voor de dag zelf (zoals de site): is_active = true,
- * is_closed = false, en minstens 1 actieve staf dekt de regio en is niet
- * afwezig op die dag.
+ * De "vol"-fillers van de site (urgentie-illusie) en geblokkeerde slots
+ * worden NIET getoond. Een dag/regio verschijnt alleen als die minstens
+ * 1 vrije tijd heeft. Voorwaarden voor de dag (zoals de site): is_active,
+ * niet is_closed, en minstens 1 actieve staf dekt de regio zonder afwezig
+ * te zijn.
  */
 
 const NL_TZ = 'Europe/Amsterdam'
@@ -101,21 +101,21 @@ export async function getFreeSlotsForWeek(start: string, end: string): Promise<R
   const byRegion = new Map<string, RegionDayFree[]>()
   for (const a of rows) {
     if (!knownRegions.has(a.region)) continue
-    const bookable = new Set(Array.isArray(a.slots) ? a.slots : [])
+    const bookable = Array.isArray(a.slots) ? a.slots : []
     const blocked = new Set(Array.isArray(a.blocked_slots) ? a.blocked_slots : [])
-    const display = getDisplaySlotsForRegion(a.region)
 
-    // Universum = bookable ∪ geblokkeerd ∪ display-fillers, gesorteerd op tijd.
-    const universe = [...new Set([...bookable, ...blocked, ...display])].sort()
-
-    const slots: SlotStatus[] = universe.map(time => {
-      const isOutsideBookable = !bookable.has(time)
-      const isExplicitBlocked = blocked.has(time)
-      const count = bookable.has(time) ? (counts.get(`${a.id}|${time}`) ?? 0) : 0
-      const isFull = count >= a.max_per_slot
-      const free = !isOutsideBookable && !isExplicitBlocked && !isFull
-      return { time, free }
-    })
+    // We tonen alleen de echte boekbare slots (zoals de frontend ze als
+    // vrij/groen aanbiedt), niet de "vol"-fillers. Geblokkeerde slots vallen
+    // ook weg (frontend niet vrij en geen echte boeking).
+    //   vrij = nog plek (echte boekingen < max)
+    //   vol  = volgeboekt door echte boekingen (count >= max)
+    const slots: SlotStatus[] = [...new Set(bookable)]
+      .filter(time => !blocked.has(time))
+      .sort()
+      .map(time => {
+        const count = counts.get(`${a.id}|${time}`) ?? 0
+        return { time, free: count < a.max_per_slot }
+      })
 
     // Alleen dagen met minstens 1 vrije tijd tonen.
     if (!slots.some(s => s.free)) continue
