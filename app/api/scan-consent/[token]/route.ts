@@ -82,7 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
     let depositInfo: { code: string | null; type: 'order_credit' | 'giftcard'; value: number } | null = null
     if (consentRow.diy_rental_id && (deposit_choice === 'order_credit' || deposit_choice === 'giftcard')) {
       const rental = (await sql`
-        SELECT id, first_name, last_name, email, deposit_choice
+        SELECT id, first_name, last_name, email, deposit_choice, language
         FROM diy_rentals WHERE id = ${consentRow.diy_rental_id} LIMIT 1
       `).rows[0]
       // Alleen aanmaken bij EERSTE keer een keuze (idempotent)
@@ -111,6 +111,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
             }).catch(err => console.error('Woo coupon create error:', err))
             sendDiyBorgKortingEmail({
               first_name: rental.first_name,
+              language: rental.language,
               email: rental.email,
               code: card.code,
               value_euros: 200,
@@ -140,6 +141,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
             }).catch(err => console.error('Woo coupon create error:', err))
             sendDiyBorgCadeaubonEmail({
               first_name: rental.first_name,
+              language: rental.language,
               email: rental.email,
               code: card.code,
               value_euros: 100,

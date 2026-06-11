@@ -15,13 +15,14 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     // Customer mail
     await sendDiyRentalUpdateEmail({
       first_name: rental.first_name,
+      language: rental.language,
       email: rental.email,
       rental_week: rental.rental_week,
       customer_number: rental.customer_number,
       notes: rental.notes,
     })
 
-    // Staff mail
+    // Staff mail (blijft NL — intern)
     await sendDiyRentalUpdateStaffEmail({
       first_name: rental.first_name,
       last_name: rental.last_name,

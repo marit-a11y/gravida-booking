@@ -53,6 +53,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       try {
         await sendDiyRentalReturnReceivedEmail({
           first_name: rental.first_name,
+          language: rental.language,
           email: rental.email,
         })
         await sql`UPDATE diy_rentals SET return_received_at = NOW() WHERE id = ${id}`
@@ -65,6 +66,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       try {
         await sendDiyRentalShippedEmail({
           first_name: rental.first_name,
+          language: rental.language,
           email: rental.email,
           rental_id: rental.id,
           customer_number: rental.customer_number,

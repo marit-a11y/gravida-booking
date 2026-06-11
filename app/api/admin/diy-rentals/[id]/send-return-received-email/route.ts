@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       update_status?: boolean
     }
 
-    const r = await sql`SELECT id, first_name, last_name, email, status FROM diy_rentals WHERE id = ${id} LIMIT 1`
+    const r = await sql`SELECT id, first_name, last_name, email, status, language FROM diy_rentals WHERE id = ${id} LIMIT 1`
     if (r.rows.length === 0) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 })
     const rental = r.rows[0]
 
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (send_email && rental.email) {
       await sendDiyRentalReturnReceivedEmail({
         first_name: rental.first_name,
+        language: rental.language,
         email: rental.email,
       })
     }

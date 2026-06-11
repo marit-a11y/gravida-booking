@@ -20,6 +20,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     await sendDiyOutgoingMessageEmail({
       first_name: rental.first_name,
+      language: rental.language,
       email: rental.email,
       message_type,
       reason: body.reason ?? null,

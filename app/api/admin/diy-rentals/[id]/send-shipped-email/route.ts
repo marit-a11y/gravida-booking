@@ -23,6 +23,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     await sendDiyRentalShippedEmail({
       first_name: rental.first_name,
+      language: rental.language,
       email: rental.email,
       rental_id: rental.id,
       customer_number: rental.customer_number,

@@ -28,8 +28,9 @@ export async function GET(request: NextRequest) {
       id: number
       first_name: string
       email: string
+      language: 'nl' | 'en' | null
     }>`
-      SELECT id, first_name, email
+      SELECT id, first_name, email, language
       FROM diy_rentals
       WHERE rental_week::date + INTERVAL '7 days' = CURRENT_DATE + INTERVAL '1 day'
         AND status NOT IN ('geannuleerd', 'wacht_op_betaling')
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
           first_name: r.first_name,
           email: r.email,
           token: actualToken,
+          language: r.language ?? 'nl',
         })
         sent++
       } catch (err) {

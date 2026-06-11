@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
     if (stage === 'morning') {
       // Stuur check-in mail naar actieve rentals zonder eerdere mail
       const r = await sql<{
-        id: number; first_name: string; email: string; check_in_token: string | null
+        id: number; first_name: string; email: string; check_in_token: string | null; language: 'nl' | 'en' | null
       }>`
-        SELECT id, first_name, email, check_in_token
+        SELECT id, first_name, email, check_in_token, language
         FROM diy_rentals
         WHERE rental_week::date = date_trunc('week', NOW())::date
           AND status = 'verzonden'
@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
             first_name: rental.first_name,
             email: rental.email,
             token,
+            language: rental.language ?? 'nl',
           })
           await sql`
             UPDATE diy_rentals SET

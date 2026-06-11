@@ -65,13 +65,15 @@ export async function POST(request: NextRequest) {
       resolvedRentalId = lookup.rows[0]?.id ?? null
     }
 
-    // Haal customer_number op zodat de mail kan verwijzen naar Scan {nr}-1 / -2
+    // Haal customer_number + taal op zodat de mail kan verwijzen naar Scan {nr}-1 / -2
     let customerNumber: string | null = null
+    let rentalLanguage: 'nl' | 'en' = 'nl'
     if (resolvedRentalId) {
-      const cn = await sql<{ customer_number: string | null }>`
-        SELECT customer_number FROM diy_rentals WHERE id = ${resolvedRentalId}
+      const cn = await sql<{ customer_number: string | null; language: 'nl' | 'en' | null }>`
+        SELECT customer_number, language FROM diy_rentals WHERE id = ${resolvedRentalId}
       `
       customerNumber = cn.rows[0]?.customer_number ?? null
+      rentalLanguage = cn.rows[0]?.language ?? 'nl'
     }
 
     // Gekoppeld aan een rental? Maak/find scan_consent en bouw form-link
@@ -112,6 +114,7 @@ export async function POST(request: NextRequest) {
       images: imageAttachments,
       consent_form_url: consentFormUrl,
       customer_number: customerNumber,
+      language: rentalLanguage,
     })
 
     // Status-update naar 'scans_uitgezocht'

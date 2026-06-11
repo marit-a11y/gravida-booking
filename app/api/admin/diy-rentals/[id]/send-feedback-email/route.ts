@@ -11,7 +11,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     if (isNaN(id)) return NextResponse.json({ error: 'Ongeldig ID' }, { status: 400 })
 
     const r = await sql`
-      SELECT id, first_name, email, feedback_token FROM diy_rentals WHERE id = ${id} LIMIT 1
+      SELECT id, first_name, email, feedback_token, language FROM diy_rentals WHERE id = ${id} LIMIT 1
     `
     if (r.rows.length === 0) return NextResponse.json({ error: 'Niet gevonden' }, { status: 404 })
 
@@ -24,6 +24,7 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
 
     await sendDiyFeedbackEmail({
       first_name: rental.first_name,
+      language: rental.language,
       email: rental.email,
       token,
     })
