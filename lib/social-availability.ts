@@ -1,18 +1,22 @@
 import { sql } from '@vercel/postgres'
-import { DISPLAY_SLOTS_BY_REGION } from '@/lib/region-slots'
+import { DISPLAY_SLOTS_BY_REGION, getDisplaySlotsForRegion } from '@/lib/region-slots'
 
 /**
- * Bouwt een overzicht van VRIJE scanmomenten per regio voor de komende week,
- * met exact dezelfde "vrij"-definitie als de voorkant van de website:
+ * Bouwt een overzicht van scanmomenten per regio voor de komende week,
+ * EXACT zoals een bezoeker ze op de website ziet (niet de ruwe backend-tijden).
  *
- *   - availability is_active = true EN is_closed = false
- *   - minstens 1 actieve staf dekt de regio en is niet afwezig op die dag
- *   - het slot staat in availability.slots (bookable)
- *   - het slot staat NIET in blocked_slots
- *   - aantal niet-geannuleerde boekingen < max_per_slot
+ * Per dag tonen we het volledige "universum" van tijden zoals de site:
+ *   universe = availability.slots ∪ blocked_slots ∪ display-set (per regio)
  *
- * Wordt gebruikt door de zondag-cron om een notitie bij de social-post
- * "Komende week vrije tijden" te zetten.
+ * en per tijd of die vrij of vol is, met dezelfde logica als
+ * /api/availability/[id]:
+ *   - vrij  = staat in availability.slots, niet geblokkeerd, en niet vol
+ *   - vol   = geblokkeerd, buiten de bookable-set (display-filler), of volgeboekt
+ *
+ * Een dag/regio verschijnt alleen als die minstens 1 vrije tijd heeft.
+ * Voorwaarden voor de dag zelf (zoals de site): is_active = true,
+ * is_closed = false, en minstens 1 actieve staf dekt de regio en is niet
+ * afwezig op die dag.
  */
 
 const NL_TZ = 'Europe/Amsterdam'
@@ -49,7 +53,8 @@ function nlLabel(ymdStr: string, opts: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat('nl-NL', { timeZone: NL_TZ, ...opts }).format(d)
 }
 
-export interface RegionDayFree { date: string; weekday: string; dateLabel: string; slots: string[] }
+export interface SlotStatus { time: string; free: boolean }
+export interface RegionDayFree { date: string; weekday: string; dateLabel: string; slots: SlotStatus[] }
 export interface RegionFree { region: string; days: RegionDayFree[] }
 
 export async function getFreeSlotsForWeek(start: string, end: string): Promise<RegionFree[]> {
@@ -90,17 +95,30 @@ export async function getFreeSlotsForWeek(start: string, end: string): Promise<R
 
   const byRegion = new Map<string, RegionDayFree[]>()
   for (const a of rows) {
+    const bookable = new Set(Array.isArray(a.slots) ? a.slots : [])
     const blocked = new Set(Array.isArray(a.blocked_slots) ? a.blocked_slots : [])
-    const free = (Array.isArray(a.slots) ? a.slots : [])
-      .filter(s => !blocked.has(s))
-      .filter(s => (counts.get(`${a.id}|${s}`) ?? 0) < a.max_per_slot)
-      .sort()
-    if (free.length === 0) continue
+    const display = getDisplaySlotsForRegion(a.region)
+
+    // Universum = bookable ∪ geblokkeerd ∪ display-fillers, gesorteerd op tijd.
+    const universe = [...new Set([...bookable, ...blocked, ...display])].sort()
+
+    const slots: SlotStatus[] = universe.map(time => {
+      const isOutsideBookable = !bookable.has(time)
+      const isExplicitBlocked = blocked.has(time)
+      const count = bookable.has(time) ? (counts.get(`${a.id}|${time}`) ?? 0) : 0
+      const isFull = count >= a.max_per_slot
+      const free = !isOutsideBookable && !isExplicitBlocked && !isFull
+      return { time, free }
+    })
+
+    // Alleen dagen met minstens 1 vrije tijd tonen.
+    if (!slots.some(s => s.free)) continue
+
     const day: RegionDayFree = {
       date: a.date,
       weekday: nlLabel(a.date, { weekday: 'short' }),
       dateLabel: nlLabel(a.date, { day: 'numeric', month: 'short' }),
-      slots: free,
+      slots,
     }
     if (!byRegion.has(a.region)) byRegion.set(a.region, [])
     byRegion.get(a.region)!.push(day)
@@ -133,7 +151,8 @@ export function formatFreeSlotsNote(weeks: RegionFree[], range: { start: string;
   for (const r of weeks) {
     lines.push(r.region)
     for (const d of r.days) {
-      lines.push(`  ${d.weekday} ${d.dateLabel}: ${d.slots.join(', ')}`)
+      const cells = d.slots.map(s => `${s.time} ${s.free ? 'vrij' : 'vol'}`).join(' | ')
+      lines.push(`  ${d.weekday} ${d.dateLabel}: ${cells}`)
     }
     lines.push('')
   }
