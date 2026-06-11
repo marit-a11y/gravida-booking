@@ -93,8 +93,14 @@ export async function getFreeSlotsForWeek(start: string, end: string): Promise<R
     for (const r of c.rows) counts.set(`${r.availability_id}|${r.time_slot}`, parseInt(r.count, 10))
   }
 
+  // Alleen de vaste aan-huis-regio's met een eigen site-tijdenset.
+  // Andere regio's (bv. studioscans) hebben geen curated display-set en
+  // horen niet in dit per-regio overzicht.
+  const knownRegions = new Set(Object.keys(DISPLAY_SLOTS_BY_REGION))
+
   const byRegion = new Map<string, RegionDayFree[]>()
   for (const a of rows) {
+    if (!knownRegions.has(a.region)) continue
     const bookable = new Set(Array.isArray(a.slots) ? a.slots : [])
     const blocked = new Set(Array.isArray(a.blocked_slots) ? a.blocked_slots : [])
     const display = getDisplaySlotsForRegion(a.region)

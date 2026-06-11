@@ -58,9 +58,12 @@ export async function GET(request: NextRequest) {
       ORDER BY scheduled_for ASC
     `
 
-    const matches = todays.rows.filter(p => {
-      const text = `${p.title ?? ''} ${p.caption ?? ''}`.toLowerCase()
-      if (text.includes('vrije tijd') || text.includes('vrije tijden')) return true
+    // Titel/caption-match ("vrije tijd") krijgt voorrang. Alleen als die er
+    // niet is, vallen we terug op een post om exact 15:00 NL. Zo plakken we
+    // de notitie niet per ongeluk op een andere 15:00-post.
+    const titleMatches = todays.rows.filter(p =>
+      `${p.title ?? ''} ${p.caption ?? ''}`.toLowerCase().includes('vrije tijd'))
+    const matches = titleMatches.length > 0 ? titleMatches : todays.rows.filter(p => {
       const { hour, minute } = getNlHourMinute(p.scheduled_for)
       return hour === 15 && minute === 0
     })
