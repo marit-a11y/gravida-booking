@@ -76,6 +76,15 @@ export async function getFreeSlotsForWeek(start: string, end: string): Promise<R
               AND ab.date_to >= a.date
           )
       )
+      -- 1 regio per dag: zodra er die dag een echte boeking in een ANDERE
+      -- regio staat, gaat de dag voor deze regio dicht (zoals op de site).
+      AND NOT EXISTS (
+        SELECT 1 FROM bookings b
+        LEFT JOIN availability a2 ON b.availability_id = a2.id
+        WHERE b.status != 'geannuleerd'
+          AND COALESCE(b.date, a2.date) = a.date
+          AND COALESCE(b.region, a2.region) IS DISTINCT FROM a.region
+      )
     ORDER BY a.region ASC, a.date ASC
   `
   const rows = av.rows
