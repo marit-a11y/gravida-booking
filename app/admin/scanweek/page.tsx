@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { currentPregnancyWeek, estimatedDueDate, reminderDate, REMINDER_WEEK } from '@/lib/scanweek'
 
 interface Signup {
-  id: number
+  id: number | string
   email: string
   name: string | null
   current_week: number | null
@@ -15,6 +15,7 @@ interface Signup {
   confirm_sent_at: string | null
   reminder_sent_at: string | null
   created_at: string
+  legacy?: boolean
 }
 
 const STATUS_LABELS: Record<Signup['status'], { label: string; cls: string }> = {
@@ -36,7 +37,7 @@ export default function ScanweekPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | Signup['status']>('pending')
-  const [updating, setUpdating] = useState<number | null>(null)
+  const [updating, setUpdating] = useState<number | string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -49,13 +50,23 @@ export default function ScanweekPage() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const updateStatus = async (id: number, status: Signup['status']) => {
+  const updateStatus = async (id: number | string, status: Signup['status']) => {
     setUpdating(id)
     try {
-      const r = await fetch('/api/admin/scanweek', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status }),
-      })
+      const isLegacy = typeof id === 'string' && id.startsWith('legacy-')
+      let r: Response
+      if (isLegacy) {
+        // Oude aanmelding staat nog op gravida-new: update via de proxy.
+        r = await fetch('/api/admin/scanweek-submissions', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: String(id).replace(/^legacy-/, ''), status }),
+        })
+      } else {
+        r = await fetch('/api/admin/scanweek', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status }),
+        })
+      }
       if (r.ok) setItems(prev => prev.map(s => s.id === id ? { ...s, status } : s))
       else { const d = await r.json().catch(() => ({})); alert('Fout: ' + (d?.error ?? 'mislukt')) }
     } finally { setUpdating(null) }
@@ -149,7 +160,7 @@ export default function ScanweekPage() {
                         : <span className="text-amber-600">⚠ geen week opgegeven</span>}
                       {due && <span>Uitgerekend ± {fmt(due)}</span>}
                       {remind && <span>Reminder ± {fmt(remind)}</span>}
-                      <span>Aangemeld {fmt(s.created_at.slice(0,10))}</span>
+                      <span>Aangemeld {fmt(s.created_at ? s.created_at.slice(0,10) : null)}</span>
                     </div>
                   </div>
                   <div className="flex gap-1.5 flex-wrap shrink-0">
