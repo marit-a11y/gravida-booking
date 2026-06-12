@@ -24,6 +24,10 @@ interface DuePost {
  * IDEMPOTENT: we eerst atomair `reminder_sent = true` zetten en de geclaimde
  * rijen teruggeven. Daarna sturen we WhatsApp. Zo kan dezelfde post nooit
  * twee keer worden gereminded.
+ *
+ * ZELFHERSTELLEND: lukt het versturen NIET (bv. verlopen WhatsApp-token),
+ * dan geven we de claim weer vrij (`reminder_sent = false`) zodat de melding
+ * niet stilletjes verloren gaat en de volgende run het opnieuw probeert.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -76,10 +80,15 @@ export async function GET(request: NextRequest) {
         sent++
       } else {
         errors.push(`#${post.id}: ${result.error}`)
+        // Versturen mislukt: claim teruggeven zodat de melding niet verloren
+        // gaat en een volgende run het opnieuw probeert (bv. na token-refresh).
+        console.error(`WhatsApp post-reminder mislukt voor #${post.id}, claim vrijgegeven:`, result.error)
+        await sql`UPDATE social_posts SET reminder_sent = false WHERE id = ${post.id}`
+          .catch(e => console.error(`Kon claim niet vrijgeven voor #${post.id}:`, e))
       }
     }
 
-    return NextResponse.json({ ok: true, sent, total: items.length, errors })
+    return NextResponse.json({ ok: true, sent, failed: errors.length, total: items.length, errors })
   } catch (err) {
     console.error('cron/whatsapp-post-reminder error:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
