@@ -176,6 +176,33 @@ export default function AiBeoordelingPage() {
     } finally { setSending(false) }
   }
 
+  const deleteScan = async () => {
+    if (!detail) return
+    const naam = fullName(detail.scan)
+    // Double confirm: this nukes blobs + the scan row. The cascade deletes
+    // ai_scan_photos automatically. The deposit_coupon_code on
+    // WooCommerce stays valid even after deletion (we deliberately don't
+    // revoke it server-side here).
+    if (!confirm(`Verwijder scan van ${naam}? Alle foto's + preview-mesh worden definitief weggegooid. Niet ongedaan te maken.`)) return
+    if (detail.scan.deposit_paid_at) {
+      if (!confirm('Let op: deze klant heeft €35 aanbetaling gedaan. Weet je zeker dat je deze scan weggooit?')) return
+    }
+    setSending(true)
+    try {
+      const r = await fetch(`/api/admin/ai-scans/${detail.scan.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}))
+        throw new Error(d.error ?? `Verwijderen mislukt (status ${r.status})`)
+      }
+      setSelectedId(null); setDetail(null); fetchList()
+    } catch (e: any) {
+      setErr(e?.message ?? 'Verwijderen mislukt')
+    } finally { setSending(false) }
+  }
+
   const reject = async () => {
     if (!detail) return
     if (!confirm('Markeer als afgewezen? De klant krijgt geen mail; je moet zelf contact opnemen.')) return
@@ -265,6 +292,7 @@ export default function AiBeoordelingPage() {
               err={err}
               onApprove={sendApprovalEmail}
               onReject={reject}
+              onDelete={deleteScan}
               onClose={() => { setSelectedId(null); setDetail(null) }}
             />
           )}
@@ -345,7 +373,7 @@ function Section({
 
 function DetailPanel({
   detail, selectedPhotoIds, togglePhoto, extraWensen, setExtraWensen,
-  customerNumber, setCustomerNumber, sending, sent, err, onApprove, onReject, onClose,
+  customerNumber, setCustomerNumber, sending, sent, err, onApprove, onReject, onDelete, onClose,
 }: {
   detail: { scan: AiScan, photos: Photo[] },
   selectedPhotoIds: Set<number>,
@@ -357,6 +385,7 @@ function DetailPanel({
   err: string | null,
   onApprove: () => void,
   onReject: () => void,
+  onDelete: () => void,
   onClose: () => void,
 }) {
   const main = detail.photos.filter(p => p.angle !== 'detail')
@@ -446,6 +475,16 @@ function DetailPanel({
         </button>
         {sent && <span className="text-sm text-green-700">{sent}</span>}
         {err && <span className="text-sm text-red-600">{err}</span>}
+        {/* Delete button right-aligned so it sits away from the daily-use
+            actions and won't be tapped accidentally. Double-confirms in
+            handler, extra prompt when a €35 deposit is attached. */}
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={sending}
+          className="text-xs text-gray-500 hover:text-red-700 underline ml-auto">
+          Verwijder scan
+        </button>
       </div>
     </div>
   )
