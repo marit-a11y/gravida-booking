@@ -120,8 +120,8 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[92vh] sm:h-[80vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gravida-cream">
           <h2 className="font-semibold text-gravida-green">Kies uit mediabibliotheek</h2>
@@ -129,8 +129,8 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
         </div>
 
         <div className="flex flex-1 min-h-0">
-          {/* Sidebar */}
-          <aside className="w-48 shrink-0 border-r border-gravida-cream overflow-y-auto p-3">
+          {/* Sidebar (verborgen op mobiel; daar staat een mappen-dropdown bovenin) */}
+          <aside className="hidden sm:block w-48 shrink-0 border-r border-gravida-cream overflow-y-auto p-3">
             <button
               onClick={() => setActiveFolder('all')}
               className={`w-full text-left text-sm px-2 py-1.5 rounded mb-2 ${activeFolder === 'all' ? 'bg-gravida-cream' : 'hover:bg-gravida-off-white'}`}
@@ -169,6 +169,25 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
           {/* Main */}
           <main className="flex-1 flex flex-col min-w-0">
             <div className="p-3 border-b border-gravida-cream space-y-2">
+              {/* Mappen-keuze op mobiel (zijbalk is daar verborgen) */}
+              <select
+                value={String(activeFolder)}
+                onChange={e => setActiveFolder(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                className="input-field text-sm w-full sm:hidden"
+                aria-label="Kies map"
+              >
+                <option value="all">📁 Alles</option>
+                {grouped.map(([cat, fldrs]) => (
+                  <optgroup key={cat} label={cat}>
+                    {fldrs.filter(f => !f.parent_id).flatMap(f => [
+                      <option key={f.id} value={f.id}>{f.name} ({f.item_count})</option>,
+                      ...fldrs.filter(c => c.parent_id === f.id).map(c => (
+                        <option key={c.id} value={c.id}>&nbsp;&nbsp;— {c.name} ({c.item_count})</option>
+                      )),
+                    ])}
+                  </optgroup>
+                ))}
+              </select>
               <div className="flex items-center gap-2 flex-wrap">
                 <input
                   type="text"
@@ -211,7 +230,7 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
               ) : filtered.length === 0 ? (
                 <p className="text-sm text-gravida-light-sage italic">Geen bestanden gevonden.</p>
               ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
                   {filtered.map(it => {
                     const isVideo = it.type === 'video' || isVideoUrl(it.blob_url)
                     const isSel = selected.has(it.blob_url)
@@ -223,11 +242,11 @@ export default function MediaLibraryPicker({ open, onClose, onPick, accept = 'al
                       >
                         {isVideo ? (
                           /* eslint-disable-next-line jsx-a11y/media-has-caption */
-                          <video src={it.blob_url} className="w-full h-28 object-cover bg-black" muted playsInline
+                          <video src={it.blob_url} className="w-full h-40 sm:h-28 object-cover bg-black" muted playsInline
                             onLoadedMetadata={e => reportAspect(it.id, e.currentTarget.videoWidth, e.currentTarget.videoHeight)} />
                         ) : (
                           /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={it.blob_url} alt={it.label ?? ''} className="w-full h-28 object-cover"
+                          <img src={it.blob_url} alt={it.label ?? ''} className="w-full h-40 sm:h-28 object-cover"
                             onLoad={e => reportAspect(it.id, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)} />
                         )}
                         {isSel && (
