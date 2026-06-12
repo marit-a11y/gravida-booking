@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 
 export const dynamic = 'force-dynamic'
@@ -11,9 +11,8 @@ export const maxDuration = 60
  *
  * Skips entries that themselves have bookings — they stay open.
  */
-export async function POST() {
-  try {
-    const result = await sql`
+async function closeConflicts(): Promise<number> {
+  const result = await sql`
       UPDATE availability a
       SET is_closed = true
       WHERE a.is_active = true
@@ -31,10 +30,32 @@ export async function POST() {
           WHERE b2.availability_id = a.id
             AND b2.status != 'geannuleerd'
         )
-    `
-    return NextResponse.json({ ok: true, closed: result.rowCount ?? 0 })
+  `
+  return result.rowCount ?? 0
+}
+
+// POST: handmatig vanuit admin
+export async function POST() {
+  try {
+    const closed = await closeConflicts()
+    return NextResponse.json({ ok: true, closed })
   } catch (err) {
     console.error('close-conflicts error:', err)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}
+
+// GET: dagelijkse Vercel-cron (Authorization: Bearer CRON_SECRET)
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  try {
+    const closed = await closeConflicts()
+    return NextResponse.json({ ok: true, closed })
+  } catch (err) {
+    console.error('close-conflicts cron error:', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
