@@ -558,10 +558,20 @@ function SocialPlannerPage() {
       })
       const d = await r.json().catch(() => ({}))
       if (d.ok) {
-        alert('✅ Test-melding verstuurd! Check je WhatsApp.\n\nKomt de melding binnen, dan werkt het token en komen de post-meldingen vanzelf weer door.')
+        alert('✅ Test-melding verstuurd! Check je WhatsApp.\n\nKomt de melding binnen, dan komen de post-meldingen vanzelf weer door.')
       } else {
         const err = typeof d.error === 'string' ? d.error : JSON.stringify(d.error, null, 2)
-        alert('❌ Test mislukt — de melding kon NIET verstuurd worden.\n\nFout van WhatsApp/Meta:\n' + err + '\n\nMeestal betekent dit dat het WHATSAPP_ACCESS_TOKEN verlopen is. Vernieuw het token in Vercel en test opnieuw.')
+        let hint = ''
+        if (/133010|not registered/i.test(err)) {
+          hint = '\n\nDit afzendernummer is niet geregistreerd op de Cloud API. Gebruik het Meta-testnummer als afzender (WHATSAPP_PHONE_NUMBER_ID) of registreer een nummer.'
+        } else if (/\b190\b|expired|session/i.test(err)) {
+          hint = '\n\nHet WHATSAPP_ACCESS_TOKEN is waarschijnlijk verlopen. Vernieuw het in Vercel.'
+        } else if (/131030|not in allowed list|recipient/i.test(err)) {
+          hint = '\n\nDe ontvanger staat niet in de toegestane lijst van het testnummer. Voeg het ontvangernummer toe en verifieer het in Meta API Setup.'
+        } else if (/132\d{3}|template/i.test(err)) {
+          hint = '\n\nProbleem met het template. Controleer of het reminder-template is goedgekeurd in Meta.'
+        }
+        alert('❌ Test mislukt — de melding kon NIET verstuurd worden.\n\nFout van WhatsApp/Meta:\n' + err + hint)
       }
     } catch (e) {
       alert('Kon de test niet uitvoeren: ' + (e instanceof Error ? e.message : String(e)))
