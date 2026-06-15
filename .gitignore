@@ -44,3 +44,7 @@ elementor-data.json
 elementor-gfd.json
 app/api/diagnose/
 app/api/test-bk/
+
+# vercel env pulls (all environments, all contain secrets)
+.env.*
+!.env.example
