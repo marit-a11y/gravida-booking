@@ -118,6 +118,7 @@ function SocialPlannerPage() {
   const [uploadError, setUploadError] = useState('')
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false)
   const [waTesting, setWaTesting] = useState(false)
+  const [waDiag, setWaDiag] = useState(false)
   const [copyToPostId, setCopyToPostId] = useState<number | null>(null)
   const [copyToDate, setCopyToDate] = useState('')
   const [copyToDates, setCopyToDates] = useState<string[]>([])  // verzamelde data
@@ -569,6 +570,36 @@ function SocialPlannerPage() {
     }
   }
 
+  const diagWhatsApp = async () => {
+    setWaDiag(true)
+    try {
+      const r = await fetch('/api/admin/whatsapp-diag')
+      const d = await r.json().catch(() => ({}))
+      const lines: string[] = []
+      lines.push('Ingesteld phone number ID: ' + (d?.configured?.phone_number_id ?? '?'))
+      const chk = d?.configuredNumberCheck
+      if (chk?.ok) {
+        lines.push('✅ Dit nummer-ID werkt met het token.')
+        lines.push('Nummer: ' + (chk.display_phone_number ?? '?') + ' (' + (chk.verified_name ?? '?') + ')')
+        lines.push('Verificatie: ' + (chk.code_verification_status ?? '?') + ', kwaliteit: ' + (chk.quality_rating ?? '?'))
+      } else if (chk) {
+        lines.push('❌ Dit nummer-ID werkt NIET met het token:')
+        lines.push(typeof chk.error === 'string' ? chk.error : JSON.stringify(chk.error))
+      }
+      const waba = d?.wabaNumbers?.data
+      if (Array.isArray(waba) && waba.length) {
+        lines.push('')
+        lines.push('Nummers onder de WABA (gebruik een van deze ID\'s):')
+        for (const n of waba) lines.push('• ' + n.display_phone_number + '  ->  ID ' + n.id + '  (' + (n.code_verification_status ?? '?') + ')')
+      }
+      alert(lines.join('\n'))
+    } catch (e) {
+      alert('Kon config niet ophalen: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setWaDiag(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
@@ -597,6 +628,10 @@ function SocialPlannerPage() {
           <button onClick={testWhatsApp} disabled={waTesting} className="btn-secondary disabled:opacity-50"
             title="Stuur een test-melding via WhatsApp om te checken of het token nog werkt">
             {waTesting ? 'Testen...' : '📲 Test melding'}
+          </button>
+          <button onClick={diagWhatsApp} disabled={waDiag} className="btn-secondary disabled:opacity-50"
+            title="Vraag aan Meta welk telefoonnummer bij het huidige token hoort">
+            {waDiag ? 'Checken...' : '🔍 Check config'}
           </button>
           <button onClick={() => openNewModal()} className="btn-primary">+ Nieuwe post</button>
         </div>
