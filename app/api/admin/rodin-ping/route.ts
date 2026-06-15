@@ -33,10 +33,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'RODIN_API_KEY niet gezet' }, { status: 400 })
   }
 
-  // Optional ?sub_key=... mode: pings the /status endpoint instead of
-  // creating a new generation. Lets us validate the polling shape with
-  // the subscription_key from an earlier create call.
-  const subKey = request.nextUrl.searchParams.get('sub_key')
+  // Optional ?scan_id=N mode: looks up the scan's subscription key and
+  // pings status. Avoids stuffing a 444-char JWT into the URL.
+  const scanIdParam = request.nextUrl.searchParams.get('scan_id')
+  let subKey = request.nextUrl.searchParams.get('sub_key')
+  if (!subKey && scanIdParam) {
+    const { sql } = await import('@vercel/postgres')
+    const id = Number(scanIdParam)
+    if (Number.isFinite(id)) {
+      const row = await sql<{ k: string | null }>`SELECT rodin_subscription_key AS k FROM ai_scans WHERE id = ${id} LIMIT 1`
+      subKey = row.rows[0]?.k ?? null
+    }
+  }
   if (subKey) {
     let res: Response
     try {
