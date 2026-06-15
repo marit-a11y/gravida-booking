@@ -117,6 +117,7 @@ function SocialPlannerPage() {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [libraryPickerOpen, setLibraryPickerOpen] = useState(false)
+  const [waTesting, setWaTesting] = useState(false)
   const [copyToPostId, setCopyToPostId] = useState<number | null>(null)
   const [copyToDate, setCopyToDate] = useState('')
   const [copyToDates, setCopyToDates] = useState<string[]>([])  // verzamelde data
@@ -546,6 +547,28 @@ function SocialPlannerPage() {
 
   const todayKey = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`
 
+  const testWhatsApp = async () => {
+    setWaTesting(true)
+    try {
+      const r = await fetch('/api/admin/whatsapp-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template: 'reminder' }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (d.ok) {
+        alert('✅ Test-melding verstuurd! Check je WhatsApp.\n\nKomt de melding binnen, dan werkt het token en komen de post-meldingen vanzelf weer door.')
+      } else {
+        const err = typeof d.error === 'string' ? d.error : JSON.stringify(d.error, null, 2)
+        alert('❌ Test mislukt — de melding kon NIET verstuurd worden.\n\nFout van WhatsApp/Meta:\n' + err + '\n\nMeestal betekent dit dat het WHATSAPP_ACCESS_TOKEN verlopen is. Vernieuw het token in Vercel en test opnieuw.')
+      }
+    } catch (e) {
+      alert('Kon de test niet uitvoeren: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setWaTesting(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
@@ -570,6 +593,10 @@ function SocialPlannerPage() {
             className="px-3 py-1.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
             title="Verwijder posts uit deze maand">
             🗑️ Wis maand
+          </button>
+          <button onClick={testWhatsApp} disabled={waTesting} className="btn-secondary disabled:opacity-50"
+            title="Stuur een test-melding via WhatsApp om te checken of het token nog werkt">
+            {waTesting ? 'Testen...' : '📲 Test melding'}
           </button>
           <button onClick={() => openNewModal()} className="btn-primary">+ Nieuwe post</button>
         </div>
