@@ -115,11 +115,16 @@ export async function createGeneration(opts: {
       return null
     }
     const data = await res.json()
-    if (!data?.subscription_key) {
+    // Rodin nests the subscription_key under `jobs`. Top-level uuid is
+    // the parent task id; the individual sub-jobs (one per output format
+    // / addon) live under jobs.uuids. We only need subscription_key for
+    // polling and the parent uuid for our records.
+    const subscriptionKey = data?.jobs?.subscription_key ?? data?.subscription_key
+    if (!subscriptionKey) {
       console.error('rodin.createGeneration: no subscription_key in response', data)
       return null
     }
-    return { subscription_key: data.subscription_key, task_uuid: data.uuid }
+    return { subscription_key: subscriptionKey, task_uuid: data.uuid }
   } catch (err) {
     console.error('rodin.createGeneration threw:', err)
     return null

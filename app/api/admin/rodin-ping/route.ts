@@ -22,7 +22,7 @@ async function checkAuth(): Promise<boolean> {
   return verifyToken(token, secret)
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   if (!(await checkAuth())) {
     return NextResponse.json({ error: 'Niet geautoriseerd' }, { status: 401 })
   }
@@ -31,6 +31,33 @@ export async function GET(_request: NextRequest) {
   const apiBase = (process.env.RODIN_API_BASE ?? 'https://hyperhuman.deemos.com/api/v2').replace(/\/$/, '')
   if (!apiKey) {
     return NextResponse.json({ error: 'RODIN_API_KEY niet gezet' }, { status: 400 })
+  }
+
+  // Optional ?sub_key=... mode: pings the /status endpoint instead of
+  // creating a new generation. Lets us validate the polling shape with
+  // the subscription_key from an earlier create call.
+  const subKey = request.nextUrl.searchParams.get('sub_key')
+  if (subKey) {
+    let res: Response
+    try {
+      res = await fetch(`${apiBase}/status`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription_key: subKey }),
+      })
+    } catch (err) {
+      return NextResponse.json({ error: 'network', detail: String(err) }, { status: 502 })
+    }
+    const text = await res.text().catch(() => '')
+    let parsed: any = null
+    try { parsed = JSON.parse(text) } catch {}
+    return NextResponse.json({
+      mode: 'status',
+      api_base: apiBase,
+      http_status: res.status,
+      http_ok: res.ok,
+      response_body: parsed ?? text.slice(0, 4000),
+    })
   }
 
   // Direct Rodin call so we see the raw response shape, no wrapping abstraction.
@@ -67,6 +94,6 @@ export async function GET(_request: NextRequest) {
     http_status: res.status,
     http_ok: res.ok,
     response_body: parsed ?? text.slice(0, 2000),
-    response_has_subscription_key: !!parsed?.subscription_key,
+    response_has_subscription_key: !!(parsed?.jobs?.subscription_key ?? parsed?.subscription_key),
   })
 }
