@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
   // Optional ?scan_id=N mode: looks up the scan's subscription key and
   // pings status. Avoids stuffing a 444-char JWT into the URL.
   const scanIdParam = request.nextUrl.searchParams.get('scan_id')
+  const create      = request.nextUrl.searchParams.get('create') === '1'
   let subKey = request.nextUrl.searchParams.get('sub_key')
   if (!subKey && scanIdParam) {
     const { sql } = await import('@vercel/postgres')
@@ -44,6 +45,13 @@ export async function GET(request: NextRequest) {
       const row = await sql<{ k: string | null }>`SELECT rodin_subscription_key AS k FROM ai_scans WHERE id = ${id} LIMIT 1`
       subKey = row.rows[0]?.k ?? null
     }
+  }
+  // Safety: require explicit ?create=1 to fire a new generation. Default
+  // landings on the URL should not silently burn Rodin credits.
+  if (!subKey && !create) {
+    return NextResponse.json({
+      info: 'Append ?scan_id=N to check status for an existing scan, ?sub_key=<jwt> for a specific key, or ?create=1 to fire a new test generation (~$0.30).',
+    })
   }
   if (subKey) {
     let res: Response
