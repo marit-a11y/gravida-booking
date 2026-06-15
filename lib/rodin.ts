@@ -51,8 +51,12 @@ function authHeaders(): Record<string, string> {
 }
 
 /**
- * Kick off a Sketch-tier generation from N image URLs. We pass Vercel Blob
- * URLs directly (Rodin downloads them, no need to re-upload from our side).
+ * Kick off a Sketch-tier generation from N image URLs.
+ *
+ * Rodin expects multipart/form-data with the image bytes attached as files
+ * under the `images` field. We download each URL into a Blob first, then
+ * forward through FormData. Vercel Blob URLs are public so the fetch needs
+ * no auth.
  *
  * Returns the subscription_key the cron job will poll on, or null on
  * transport failure (caller retries).
@@ -64,23 +68,46 @@ export async function createGeneration(opts: {
   addons?:       string[]              // e.g. ['HighPack']
 }): Promise<CreateGenerationResult | null> {
   try {
-    // Rodin accepts image_urls as an array of public URLs. Vercel Blob URLs
-    // are public so this works without us proxying the bytes.
-    const body = {
-      images: opts.imageUrls,
-      tier:    opts.tier,
-      mesh_mode: 'Raw',
-      material:  'PBR',
-      // Request multiple output formats from the one generation. Rodin
-      // returns a result_url that, on download, contains all of them.
-      output_format: 'glb',
-      addons:        opts.addons ?? [],
-      prompt:        opts.prompt ?? '',
+    const form = new FormData()
+    // Pull each image into a Blob and append as a multipart file. Rodin
+    // requires the actual bytes, not a JSON array of URLs.
+    let appended = 0
+    for (const url of opts.imageUrls) {
+      try {
+        const imgRes = await fetch(url)
+        if (!imgRes.ok) {
+          console.error('rodin.createGeneration: image fetch failed', imgRes.status, url)
+          continue
+        }
+        const blob = await imgRes.blob()
+        const filename = (url.split('/').pop() || `image-${appended}.jpg`).split('?')[0]
+        form.append('images', blob, filename)
+        appended++
+      } catch (err) {
+        console.error('rodin.createGeneration: image fetch threw', err, url)
+      }
     }
+    if (appended === 0) {
+      console.error('rodin.createGeneration: no images could be fetched, aborting')
+      return null
+    }
+
+    // Remaining fields go as form values. Rodin's docs call them
+    // multipart form fields, not JSON nested objects.
+    form.append('tier',          opts.tier)
+    form.append('mesh_mode',     'Raw')
+    form.append('material',      'PBR')
+    form.append('output_format', 'glb')
+    if (opts.prompt)             form.append('prompt', opts.prompt)
+    for (const addon of opts.addons ?? []) form.append('addons', addon)
+
+    // IMPORTANT: do NOT set Content-Type ourselves; fetch picks the right
+    // multipart boundary automatically. Manually setting application/json
+    // here is what broke the first smoke test.
     const res = await fetch(`${BASE}/rodin`, {
       method: 'POST',
-      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: authHeaders(),
+      body: form,
     })
     if (!res.ok) {
       const text = await res.text().catch(() => '')

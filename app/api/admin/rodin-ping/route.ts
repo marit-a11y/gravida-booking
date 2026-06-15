@@ -34,21 +34,25 @@ export async function GET(_request: NextRequest) {
   }
 
   // Direct Rodin call so we see the raw response shape, no wrapping abstraction.
+  // Rodin expects multipart/form-data with image bytes attached, not JSON URLs.
   let res: Response
   try {
+    const imgRes = await fetch(SAMPLE_IMAGE_URL)
+    if (!imgRes.ok) {
+      return NextResponse.json({ error: 'sample image fetch failed', status: imgRes.status }, { status: 502 })
+    }
+    const blob = await imgRes.blob()
+    const form = new FormData()
+    form.append('images',         blob, 'sample.jpg')
+    form.append('tier',           'Sketch')
+    form.append('mesh_mode',      'Raw')
+    form.append('material',       'PBR')
+    form.append('output_format',  'glb')
+
     res = await fetch(`${apiBase}/rodin`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        images: [SAMPLE_IMAGE_URL],
-        tier: 'Sketch',
-        mesh_mode: 'Raw',
-        material: 'PBR',
-        output_format: 'glb',
-      }),
+      headers: { 'Authorization': `Bearer ${apiKey}` },     // do not set Content-Type, fetch handles multipart boundary
+      body: form,
     })
   } catch (err) {
     return NextResponse.json({ error: 'network', detail: String(err) }, { status: 502 })
