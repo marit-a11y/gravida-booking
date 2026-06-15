@@ -111,15 +111,20 @@ export async function POST(
                  scan_mode          = COALESCE(${body.scan_mode ?? null}, scan_mode)
            WHERE id = ${scan.rows[0].id}
         `
-        // Schedule the masking + provider call onto the background event loop
-        // so the HTTP response returns to the app fast.
+        // Run the masking + provider call SYNCHRONOUSLY inside the request
+        // lifecycle. We previously used a fire-and-forget IIFE, but Vercel
+        // serverless aggressively reaps the function container once the
+        // HTTP response is sent, so a ~15s rembg + Rodin createGeneration
+        // chain was getting killed mid-flight, leaving the scan stuck in
+        // 'queued' with no subscription_key. Awaiting here costs ~10-20s
+        // on the customer's ProcessingScreen but is reliable.
         //
         // Two stages:
         //   a. rembg the front photo so Hunyuan3D / Rodin only see the
         //      subject, not the room behind them.
         //   b. fire the 3D generation with the masked URL (or raw URL if
         //      masking failed, so the pipeline degrades gracefully).
-        ;(async () => {
+        await (async () => {
           const frontUrl = imageUrls[0]
           let urlsForProvider = imageUrls
           try {
@@ -150,6 +155,10 @@ export async function POST(
           }
         })().catch(err => console.error('preview kickoff failed:', err))
       }
+      // Unblock scan #11 + any future scan that got stuck in 'queued' before
+      // this fix: in case the rembg + startPreviewJob block above threw and
+      // bypassed the inner status writes, the catch below leaves status as
+      // 'queued' so the cron-poll can pick it up on the next tick.
     } catch (err) {
       console.error('preview kickoff setup failed:', err)
     }

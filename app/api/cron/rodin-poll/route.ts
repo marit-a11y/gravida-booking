@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@vercel/postgres'
 import { put } from '@vercel/blob'
-import { checkPreviewJob, fetchPreviewMesh, activeProvider } from '@/lib/preview-provider'
+import { checkPreviewJob, fetchPreviewMesh, activeProvider, startPreviewJob, maskBackground } from '@/lib/preview-provider'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -64,12 +64,47 @@ export async function GET(request: NextRequest) {
   const summary: Array<{ id: number, action: string, detail?: string }> = []
 
   for (const scan of inflight.rows) {
-    // Sanity: if the kickoff path never wrote a subscription_key (Rodin
-    // outage at submit time), retry on the next cron tick by leaving it
-    // in 'queued'. The complete() handler is the only thing that creates
-    // generations, so we skip here.
+    // Rescue case: scan is 'queued' but has no subscription_key. This
+    // happens when complete() couldn't finish the kickoff (Vercel killed
+    // the function before async work completed, Rodin had a hiccup, etc.).
+    // Try the kickoff inline here so the scan can still progress.
     if (!scan.rodin_subscription_key) {
-      summary.push({ id: scan.id, action: 'no-subscription-key, skipping' })
+      try {
+        const photoRows = await sql<{ blob_url: string }>`
+          SELECT blob_url FROM ai_scan_photos
+          WHERE scan_id = ${scan.id} AND angle != 'detail'
+          ORDER BY angle, order_idx LIMIT 5
+        `
+        const imageUrls = photoRows.rows.map(r => r.blob_url)
+        if (imageUrls.length === 0) {
+          summary.push({ id: scan.id, action: 'rescue-skipped-no-photos' })
+          continue
+        }
+        // Same rembg + 3D pipeline as complete(), inline.
+        let urlsForProvider = imageUrls
+        try {
+          const masked = await maskBackground(imageUrls[0])
+          if (masked) {
+            await sql`UPDATE ai_scans SET masked_image_url = ${masked} WHERE id = ${scan.id}`
+            urlsForProvider = [masked, ...imageUrls.slice(1)]
+          }
+        } catch {}
+        const job = await startPreviewJob({ imageUrls: urlsForProvider })
+        if (job?.jobKey) {
+          await sql`
+            UPDATE ai_scans
+               SET rodin_subscription_key = ${job.jobKey},
+                   preview_status         = 'generating'
+             WHERE id = ${scan.id}
+          `
+          summary.push({ id: scan.id, action: 'rescued-into-generating' })
+        } else {
+          summary.push({ id: scan.id, action: 'rescue-startPreviewJob-null' })
+        }
+      } catch (err) {
+        console.error('cron rescue kickoff threw:', err)
+        summary.push({ id: scan.id, action: 'rescue-threw', detail: String(err).slice(0, 100) })
+      }
       continue
     }
 
